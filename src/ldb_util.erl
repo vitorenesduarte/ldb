@@ -21,16 +21,45 @@
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -export([
+         mode/0,
          backend/0,
-         store/0
+         store/0,
+         get_type/1
         ]).
+
+%% @doc Returns the enabled mode.
+%%      The result can be:
+%%          - `state_based'
+%%          - `delta_based'
+%%          - `pure_op_based'
+-spec mode() -> atom().
+mode() ->
+    state_based.
 
 %% @doc Returns the enabled backend.
 -spec backend() -> atom().
 backend() ->
-    ldb_state_based_backend.
+    case mode() of
+        state_based ->
+            ldb_state_based_backend
+    end.
 
 %% @doc Returns the enabled store.
 -spec store() -> atom().
 store() ->
     ldb_ets_store.
+
+%% @doc Returns the actual type in types repository
+%%      (https://github.com/lasp-lang/types)
+-spec get_type(atom()) -> atom().
+get_type(Type) ->
+    Map = [{gcounter, {state_gcounter, pure_gcounter}}],
+    {State, Op} = orddict:fetch(Type, Map),
+    case mode() of
+        state_based ->
+            State;
+        delta_based ->
+            State;
+        pure_op_based ->
+            Op
+    end.

@@ -23,6 +23,7 @@
 -include("ldb.hrl").
 
 -export([
+         start_link/0,
          create/2,
          query/1,
          update/2
@@ -35,22 +36,30 @@
     ok | {error, key_already_existing_with_different_type}.
 
 %% @doc Reads the value associated with a given `key()'.
--callback query(key()) -> value().
+-callback query(key()) ->
+    {ok, value()} | {error, not_found}.
 
 %% @doc Update the value associated with a given `key()',
 %%      applying a given `operation()'.
--callback update(key(), operation()) -> ok | error().
+-callback update(key(), operation()) ->
+    ok | {error, not_found} | error().
+
+-spec start_link() -> {ok, pid()} | ignore | {error, term()}.
+start_link() ->
+    do(start_link, []).
 
 -spec create(key(), type()) ->
     ok | {error, key_already_existing_with_different_type}.
 create(Key, Type) ->
     do(create, [Key, Type]).
 
--spec query(key()) -> value().
+-spec query(key()) ->
+    {ok, value()} | {error, not_found}.
 query(Key) ->
     do(query, [Key]).
 
--spec update(key(), operation()) -> ok | error().
+-spec update(key(), operation()) ->
+    ok | {error, not_found} | error().
 update(Key, Operation) ->
     do(update, [Key, Operation]).
 

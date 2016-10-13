@@ -34,5 +34,6 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
+    {ok, _Pid} = ldb_backend:start_link(),
     RestartStrategy = {one_for_one, 10, 10},
     {ok, {RestartStrategy, []}}.

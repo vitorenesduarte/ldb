@@ -23,17 +23,22 @@
 -include("ldb.hrl").
 
 -export([
+         start_link/0,
          get/1,
          put/2
         ]).
 
 %% @doc Returns the value associated with a given `key()'.
--callback get(key()) -> value().
+-callback get(key()) -> {ok, value()} | {error, not_found}.
 
 %% @doc Updates a given `key()' with a given `value()'.
 -callback put(key(), value()) -> ok.
 
--spec get(key()) -> value().
+-spec start_link() -> {ok, pid()} | ignore | {error, term()}.
+start_link() ->
+    do(start_link, []).
+
+-spec get(key()) -> {ok, value()} | {error, not_found}.
 get(Key) ->
     do(get, [Key]).
 

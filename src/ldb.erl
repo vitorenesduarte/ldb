@@ -37,7 +37,7 @@ create(Key, Type) ->
     ldb_backend:create(Key, Type).
 
 %% @doc Reads the value associated with a given `Key'.
--spec query(key()) -> value().
+-spec query(key()) -> {ok, value()} | {error, not_found}.
 query(Key) ->
     ldb_backend:query(Key).
 
