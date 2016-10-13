@@ -33,4 +33,4 @@ backend() ->
 %% @doc Returns the enabled store.
 -spec store() -> atom().
 store() ->
-    ldb_in_memory_store.
+    ldb_ets_store.

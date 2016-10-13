@@ -17,7 +17,7 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_in_memory_store).
+-module(ldb_ets_store).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
