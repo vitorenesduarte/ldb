@@ -1,0 +1,15 @@
+{application, ldb,
+ [
+  {description, "Conflict-free Replicated Data Types Database"},
+  {vsn, "0.0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  crypto,
+                  lager,
+                  types
+                 ]},
+  {mod, {ldb_app, []}},
+  {modules, []}
+ ]}.

@@ -1,0 +1,5 @@
+-type key() :: string().
+-type type() :: term().
+-type value() :: term().
+-type operation() :: term().
+-type error() :: {error, atom()}.
