@@ -34,7 +34,7 @@
 -callback join(node_spec()) -> ok | error().
 
 %% @doc Send a message to a node.
-%%      The process with the ref passed as argument should 
+%%      The process with the ref passed as argument should
 %%      handle the replies.
 -callback forward_message(node(), pid(), message()) -> ok.
 
