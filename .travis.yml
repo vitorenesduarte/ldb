@@ -11,4 +11,5 @@ script:
   - make lint
 notifications:
   slack: haslab:jhAnACJzswFtYwKXpbZzjbFq
+  email: false
 sudo: false
