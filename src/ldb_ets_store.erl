@@ -28,7 +28,8 @@
 %% ldb_store callbacks
 -export([start_link/0,
          get/1,
-         put/2]).
+         put/2,
+         update/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -52,24 +53,35 @@ get(Key) ->
 put(Key, Value) ->
     gen_server:call(?MODULE, {put, Key, Value}, infinity).
 
+-spec update(key(), function()) -> {ok, value()} | {error, not_found}.
+update(Key, Function) ->
+    gen_server:call(?MODULE, {update, Key, Function}, infinity).
+
 %% gen_server callbacks
 init([]) ->
     ETS = ets:new(node(), [ordered_set, private]),
+
+    lager:info("ldb_ets_store initialized!"),
     {ok, #state{ets_id=ETS}}.
 
 handle_call({get, Id}, _From, #state{ets_id=ETS}=State) ->
-    Result = case ets:lookup(ETS, Id) of
-        [{Id, Value}] ->
-            {ok, Value};
-        [] ->
-            {error, not_found}
-    end,
-
+    Result = do_get(Id, ETS),
     {reply, Result, State};
 
-handle_call({put, Key, Value}, _From, #state{ets_id=ETS}=State) ->
-    true = ets:insert(ETS, {Key, Value}),
+handle_call({put, Id, Value}, _From, #state{ets_id=ETS}=State) ->
+    do_put(Id, Value, ETS),
     {reply, ok, State};
+
+handle_call({update, Id, Function}, _From, #state{ets_id=ETS}=State) ->
+    Result = case do_get(Id, ETS) of
+        {ok, Value} ->
+            NewValue = Function(Value),
+            do_put(Id, NewValue, ETS),
+            {ok, NewValue};
+        Error ->
+            Error
+    end,
+    {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
@@ -88,3 +100,16 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private Attemts to retrieve a certain value from the ets.
+do_get(Id, ETS) ->
+    case ets:lookup(ETS, Id) of
+        [{Id, Value}] ->
+            {ok, Value};
+        [] ->
+            {error, not_found}
+    end.
+
+do_put(Id, Value, ETS) ->
+    true = ets:insert(ETS, {Id, Value}),
+    ok.

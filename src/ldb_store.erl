@@ -22,17 +22,20 @@
 
 -include("ldb.hrl").
 
--export([
-         start_link/0,
+-export([start_link/0,
          get/1,
-         put/2
-        ]).
+         put/2,
+         update/2]).
 
 %% @doc Returns the value associated with a given `key()'.
 -callback get(key()) -> {ok, value()} | {error, not_found}.
 
 %% @doc Updates a given `key()' with a given `value()'.
 -callback put(key(), value()) -> ok.
+
+%% @doc Applies a given `function()' to a given `key()',
+%%      returning the new value.
+-callback update(key(), function()) -> {ok, value()} | {error, not_found}.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -45,6 +48,10 @@ get(Key) ->
 -spec put(key(), value()) -> ok.
 put(Key, Value) ->
     do(put, [Key, Value]).
+
+-spec update(key(), function()) -> {ok, value()} | {error, not_found}.
+update(Key, Function) ->
+    do(update, [Key, Function]).
 
 %% @private Execute call to the proper store.
 do(Function, Args) ->
