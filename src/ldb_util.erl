@@ -24,6 +24,7 @@
          mode/0,
          backend/0,
          store/0,
+         peer_service/0,
          get_type/1
         ]).
 
@@ -48,6 +49,10 @@ backend() ->
 -spec store() -> atom().
 store() ->
     ldb_ets_store.
+
+%% @doc Returns the enabled peer service.
+peer_service() ->
+    partisan_default_peer_service_manager.
 
 %% @doc Returns the actual type in types repository
 %%      (https://github.com/lasp-lang/types)
