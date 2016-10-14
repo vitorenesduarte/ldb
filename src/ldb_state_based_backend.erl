@@ -62,6 +62,8 @@ update(Key, Operation) ->
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = node(),
+
+    lager:info("ldb_state_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, Type}, _From, State) ->

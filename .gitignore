@@ -1,3 +1,4 @@
 TEST-*
 _build/
 log/
+src/*.swp

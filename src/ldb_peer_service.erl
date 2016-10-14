@@ -22,12 +22,10 @@
 
 -include("ldb.hrl").
 
--export([
-         start_link/0,
+-export([start_link/0,
          members/0,
          join/1,
-         forward_message/2
-        ]).
+         forward_message/3]).
 
 %% @doc Return a list of neighbors
 -callback members() -> {ok, [node()]}.

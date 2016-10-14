@@ -22,11 +22,9 @@
 
 -include("ldb.hrl").
 
--export([
-         create/2,
+-export([create/2,
          query/1,
-         update/2
-        ]).
+         update/2]).
 
 %% @doc Create a `Key' in the store with a given `Type'.
 %%      If the key already exists and it is associated with a

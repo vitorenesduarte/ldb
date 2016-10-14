@@ -20,13 +20,11 @@
 -module(ldb_util).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
--export([
-         mode/0,
+-export([mode/0,
          backend/0,
          store/0,
          peer_service/0,
-         get_type/1
-        ]).
+         get_type/1]).
 
 %% @doc Returns the enabled mode.
 %%      The result can be:

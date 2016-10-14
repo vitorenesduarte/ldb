@@ -34,6 +34,9 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    {ok, _Pid} = ldb_backend:start_link(),
+    {ok, _} = ldb_backend:start_link(),
+    {ok, _} = ldb_gossip_girl:start_link(),
+
+    lager:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 10, 10},
     {ok, {RestartStrategy, []}}.
