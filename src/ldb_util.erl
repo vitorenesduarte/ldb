@@ -57,12 +57,8 @@ peer_service() ->
 -spec get_type(atom()) -> atom().
 get_type(Type) ->
     Map = [{gcounter, {state_gcounter, pure_gcounter}}],
-    {State, Op} = orddict:fetch(Type, Map),
+    {State, _Op} = orddict:fetch(Type, Map),
     case mode() of
         state_based ->
-            State;
-        delta_based ->
-            State;
-        pure_op_based ->
-            Op
+            State
     end.
