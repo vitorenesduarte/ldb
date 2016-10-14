@@ -7,5 +7,5 @@
 -type operation() :: term().
 
 %% peer service
--type node_spec() :: {node(), inet:ip_address(), non_neg_integer()}.
+-type specs() :: {node(), inet:ip_address(), non_neg_integer()}.
 -type message() :: term().

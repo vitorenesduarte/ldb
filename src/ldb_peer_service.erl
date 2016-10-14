@@ -25,18 +25,22 @@
 -export([start_link/0,
          members/0,
          join/1,
-         forward_message/3]).
+         forward_message/3,
+         node_spec/0]).
 
 %% @doc Return a list of neighbors
 -callback members() -> {ok, [node()]}.
 
 %% @doc Attempt to join node.
--callback join(node_spec()) -> ok | error().
+-callback join(specs()) -> ok | error().
 
 %% @doc Send a message to a node.
 %%      The process with the ref passed as argument should
 %%      handle the replies.
 -callback forward_message(node(), pid(), message()) -> ok.
+
+%% @doc Retrieves the node spec: {name, ip, port}
+-callback node_spec() -> specs().
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -46,13 +50,21 @@ start_link() ->
 members() ->
     do(members, []).
 
--spec join(node_spec()) -> ok | error().
+-spec join(specs()) -> ok | error().
 join(NodeSpec) ->
     do(join, [NodeSpec]).
 
 -spec forward_message(node(), pid(), message()) -> ok.
 forward_message(Node, Ref, Message) ->
     do(forward_message, [Node, Ref, Message]).
+
+-spec node_spec() -> specs().
+node_spec() ->
+    %% @todo this is specific for partisan
+    Name = node(),
+    Ip = partisan_config:get(peer_ip),
+    Port = partisan_config:get(peer_port),
+    {Name, Ip, Port}.
 
 %% @private Execute call to the proper peer service.
 do(Function, Args) ->
