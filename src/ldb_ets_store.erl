@@ -53,7 +53,8 @@ get(Key) ->
 put(Key, Value) ->
     gen_server:call(?MODULE, {put, Key, Value}, infinity).
 
--spec update(key(), function()) -> {ok, value()} | {error, not_found}.
+-spec update(key(), function()) ->
+    {ok, value()} | {error, not_found} | error().
 update(Key, Function) ->
     gen_server:call(?MODULE, {update, Key, Function}, infinity).
 
@@ -75,9 +76,13 @@ handle_call({put, Id, Value}, _From, #state{ets_id=ETS}=State) ->
 handle_call({update, Id, Function}, _From, #state{ets_id=ETS}=State) ->
     Result = case do_get(Id, ETS) of
         {ok, Value} ->
-            NewValue = Function(Value),
-            do_put(Id, NewValue, ETS),
-            {ok, NewValue};
+            case Function(Value) of
+                {ok, NewValue} ->
+                    do_put(Id, NewValue, ETS),
+                    {ok, NewValue};
+                Error ->
+                    Error
+            end;
         Error ->
             Error
     end,

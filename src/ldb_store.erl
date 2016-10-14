@@ -35,7 +35,8 @@
 
 %% @doc Applies a given `function()' to a given `key()',
 %%      returning the new value.
--callback update(key(), function()) -> {ok, value()} | {error, not_found}.
+-callback update(key(), function()) ->
+    {ok, value()} | {error, not_found} | error().
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->

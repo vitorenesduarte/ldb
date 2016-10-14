@@ -99,19 +99,21 @@ handle_call({query, Key}, _From, State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
-    Result = case ldb_store:get(Key) of
-        {ok, {ActualType, Value}} ->
-            case ActualType:mutate(Operation, Actor, Value) of
-                {ok, NewValue} ->
-                    ldb_store:put(Key, {ActualType, NewValue}),
-                    ok;
-                Error ->
-                    Error
-            end;
+    Function = fun({ActualType, Value}) ->
+        case ActualType:mutate(Operation, Actor, Value) of
+            {ok, NewValue} ->
+                {ok, {ActualType, NewValue}};
+            Error ->
+                Error
+        end
+    end,
+
+    Result = case ldb_store:update(Key, Function) of
+        {ok, _} ->
+            ok;
         Error ->
             Error
     end,
-
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
