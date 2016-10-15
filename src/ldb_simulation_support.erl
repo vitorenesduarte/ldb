@@ -97,14 +97,15 @@ construct_overlay(Options, NameToNode) ->
 
     NameToNodeSpec = lists:map(
         fun({Name, Node}) ->
-            {Name, rpc:call(Node, ldb_peer_service, node_spec, [])}
+            {ok, Info} = rpc:call(Node, ldb_peer_service, get_node_info, []),
+            {Name, Info}
         end,
         NameToNode
     ),
 
     ct:pal("Graph ~n~p~n", [Graph]),
     ct:pal("Nodes ~n~p~n", [NameToNode]),
-    ct:pal("Node SPECS ~n~p~n", [NameToNodeSpec]),
+    ct:pal("Nodes Info ~n~p~n", [NameToNodeSpec]),
 
     lists:foreach(
         fun({Name, Peers}) ->

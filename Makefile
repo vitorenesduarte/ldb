@@ -41,7 +41,7 @@ eunit:
 	${REBAR} as test eunit
 
 ct:
-	${REBAR} as test ct
+	${REBAR} as test ct --readable=false
 
 shell:
 	${REBAR} shell --apps ldb
