@@ -117,15 +117,15 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private
 init_node_info() ->
     Name = node(),
-    IP = case os:getenv("PEER_IP", undefined) of
-        undefined ->
+    IP = case os:getenv("PEER_IP", "undefined") of
+        "undefined" ->
             {127, 0, 0, 1};
         PeerIP ->
             {ok, IPAddress} = inet_parse:address(PeerIP),
             IPAddress
     end,
-    Port = case os:getenv("PEER_PORT", undefined) of
-        undefined ->
+    Port = case os:getenv("PEER_PORT", "undefined") of
+        "undefined" ->
             random_port();
         PeerPort ->
             list_to_integer(PeerPort)
