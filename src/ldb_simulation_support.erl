@@ -26,9 +26,9 @@
 -export([run/1]).
 
 run(Options) ->
-    Nodes = start(Options),
+    {Names, Nodes} = start(Options),
     wait_for_completion(Nodes),
-    stop(Nodes).
+    stop(Names).
 
 %% @private Start nodes.
 start(Options) ->
@@ -60,9 +60,10 @@ start(Options) ->
         %% Set lager log dir
         PrivDir = code:priv_dir(?APP),
         NodeDir = filename:join([PrivDir, "lager", Node]),
-        ok = rpc:call(Node, application, set_env, [lager,
-                                                   log_root,
-                                                   NodeDir])
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [lager, log_root, NodeDir])
     end,
     lists:map(LoaderFun, Nodes),
 
@@ -71,18 +72,22 @@ start(Options) ->
 
         %% Set simulation
         Simulation = proplists:get_value(simulation, Options),
-        ok = rpc:call(Node, application, set_env, [?APP,
-                                                   simulation,
-                                                   Simulation])
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, simulation, Simulation])
     end,
     lists:map(ConfigureFun, Nodes),
 
     StartFun = fun(Node) ->
-        {ok, _} = rpc:call(Node, application, ensure_all_started, [?APP])
+        {ok, _} = rpc:call(Node,
+                           application,
+                           ensure_all_started,
+                           [?APP])
     end,
     lists:map(StartFun, Nodes),
 
-    Nodes.
+    {Names, Nodes}.
 
 %% @private Poll nodes to see if simulation is ended.
 wait_for_completion(Nodes) ->
@@ -91,11 +96,13 @@ wait_for_completion(Nodes) ->
     Result = ldb_util:wait_until(
         fun() ->
             lists:foldl(
-                fun(Node, Completed) ->
-                    Completed andalso
-                    rpc:call(Node, application, get_end, [?APP,
-                                                          simulation_end,
-                                                          false])
+                fun(Node, Acc) ->
+                    SimulationEnd = rpc:call(Node,
+                                             application,
+                                             get_env,
+                                             [?APP, simulation_end, false]),
+                    ct:pal("Node ~p with simulation end as ~p", [Node, SimulationEnd]),
+                    Acc andalso SimulationEnd
                 end,
                 true,
                 Nodes
@@ -113,16 +120,16 @@ wait_for_completion(Nodes) ->
     end.
 
 %% @private Stop nodes.
-stop(Nodes) ->
-    StopFun = fun(Node) ->
-        case ct_slave:stop(Node) of
+stop(Names) ->
+    StopFun = fun(Name) ->
+        case ct_slave:stop(Name) of
             {ok, _} ->
                 ok;
             Error ->
                 ct:fail(Error)
         end
     end,
-    lists:map(StopFun, Nodes).
+    lists:map(StopFun, Names).
 
 %% @private Start erlang distribution.
 start_erlang_distribution() ->
