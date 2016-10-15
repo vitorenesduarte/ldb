@@ -52,3 +52,4 @@ init([]) ->
     lager:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 10, 10},
     {ok, {RestartStrategy, []}}.
+

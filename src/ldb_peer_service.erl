@@ -41,7 +41,7 @@
 -callback forward_message(node(), pid(), message()) -> ok.
 
 %% @doc Retrieves the node spec: {name, ip, port}
--callback node_spec() -> specs().
+-callback node_spec() -> {ok, specs()}.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -59,13 +59,9 @@ join(NodeSpec) ->
 forward_message(Node, Ref, Message) ->
     do(forward_message, [Node, Ref, Message]).
 
--spec node_spec() -> specs().
+-spec node_spec() -> {ok, specs()}.
 node_spec() ->
-    %% @todo this is specific for partisan
-    Name = node(),
-    Ip = partisan_config:get(peer_ip, ?PEER_IP),
-    Port = partisan_config:get(peer_port, ?PEER_PORT),
-    {Name, Ip, Port}.
+    do(node_spec, []).
 
 %% @private Execute call to the proper peer service.
 do(Function, Args) ->

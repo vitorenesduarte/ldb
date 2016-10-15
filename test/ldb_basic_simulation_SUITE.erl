@@ -69,9 +69,10 @@ all() ->
 
 
 state_based_test(_Config) ->
-    Nodes = [rita, bob],
+    Nodes = [n1, n2, n3],
+    %%Graph = [{n1, [n2]}, {n2, [n3]}, {n3, [n1]}],
+    Graph = [{n1, [n2, n3]}, {n2, []}, {n3, []}],
     Options = [{nodes, Nodes},
+               {graph, Graph},
                {simulation, basic}],
     ldb_simulation_support:run(Options).
-
-

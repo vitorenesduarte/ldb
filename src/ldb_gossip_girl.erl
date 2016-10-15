@@ -23,6 +23,8 @@
 
 -include("ldb.hrl").
 
+-behaviour(gen_server).
+
 %% ldb_gossip_girl callbacks
 -export([start_link/0]).
 
@@ -58,6 +60,9 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(sync, State) ->
+
+    lager:info("Node ~p | Members ~p", [node(), ldb_peer_service:members()]),
+
     {ok, TRef} = schedule_sync(),
     {noreply, State#state{tref=TRef}};
 
@@ -74,4 +79,3 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private
 schedule_sync() ->
     timer:send_after(?SYNC_INTERVAL, sync).
-

@@ -27,6 +27,7 @@
 
 run(Options) ->
     NameToNode = start(Options),
+    construct_overlay(Options, NameToNode),
     wait_for_completion(NameToNode),
     stop(NameToNode).
 
@@ -89,6 +90,42 @@ start(Options) ->
     lists:foreach(StartFun, Nodes),
 
     NameToNode.
+
+%% @private Connect each node to its peers.
+construct_overlay(Options, NameToNode) ->
+    Graph = proplists:get_value(graph, Options),
+
+    NameToNodeSpec = lists:map(
+        fun({Name, Node}) ->
+            {Name, rpc:call(Node, ldb_peer_service, node_spec, [])}
+        end,
+        NameToNode
+    ),
+
+    ct:pal("Graph ~n~p~n", [Graph]),
+    ct:pal("Nodes ~n~p~n", [NameToNode]),
+    ct:pal("Node SPECS ~n~p~n", [NameToNodeSpec]),
+
+    lists:foreach(
+        fun({Name, Peers}) ->
+            lists:foreach(
+                fun(PeerName) ->
+                    Node = orddict:fetch(Name, NameToNode),
+                    PeerSpec = orddict:fetch(PeerName, NameToNodeSpec),
+
+                    ct:pal("Node ~p~n~n", [Node]),
+                    ct:pal("PeerSpec ~p~n~n", [PeerSpec]),
+
+                    ok = rpc:call(Node,
+                                  ldb_peer_service,
+                                  join,
+                                  [PeerSpec])
+                end,
+                Peers
+            )
+        end,
+        Graph
+    ).
 
 %% @private Poll nodes to see if simulation is ended.
 wait_for_completion(NameToNode) ->

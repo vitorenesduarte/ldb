@@ -50,5 +50,4 @@ store() ->
 
 %% @doc Returns the enabled peer service.
 peer_service() ->
-    partisan_default_peer_service_manager.
-
+    ldb_static_peer_service.
