@@ -34,9 +34,10 @@
          terminate/2,
          code_change/3]).
 
--record(state, {tref :: timer:tref()}).
+-record(state, {}).
 
 -define(EVENT_INTERVAL, 3000).
+-define(MAX_VALUE, 10).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -44,10 +45,11 @@ start_link() ->
 
 %% gen_server callbacks
 init([]) ->
-    {ok, TRef} = schedule_event(),
+    ldb:create("counter", gcounter),
+    schedule_event(),
 
     lager:info("ldb_basic_simulation initialized!"),
-    {ok, #state{tref=TRef}}.
+    {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
@@ -58,9 +60,20 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(event, State) ->
-    lager:info("YAY event"),
-    {ok, TRef} = schedule_event(),
-    {noreply, State#state{tref=TRef}};
+    ldb:update("counter", increment),
+    Value = ldb:query("counter"),
+
+    lager:info("Node ~p: I did an increment and the value now is ~p", [node(), Value]),
+
+    case Value < ?MAX_VALUE of
+        true ->
+            schedule_event();
+        false ->
+            lager:info("All increments have been observed"),
+            application:set_env(?APP, simulation_end, true)
+    end,
+
+    {noreply, State};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
