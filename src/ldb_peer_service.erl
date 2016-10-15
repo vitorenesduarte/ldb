@@ -62,8 +62,8 @@ forward_message(Node, Ref, Message) ->
 node_spec() ->
     %% @todo this is specific for partisan
     Name = node(),
-    Ip = partisan_config:get(peer_ip),
-    Port = partisan_config:get(peer_port),
+    Ip = partisan_config:get(peer_ip, ?PEER_IP),
+    Port = partisan_config:get(peer_port, ?PEER_PORT),
     {Name, Ip, Port}.
 
 %% @private Execute call to the proper peer service.

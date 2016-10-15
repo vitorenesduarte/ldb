@@ -50,11 +50,11 @@ start_link() ->
 create(Key, Type) ->
     gen_server:call(?MODULE, {create, Key, Type}, infinity).
 
--spec query(key()) -> {ok, value()} | {error, not_found}.
+-spec query(key()) -> {ok, value()} | not_found().
 query(Key) ->
     gen_server:call(?MODULE, {query, Key}, infinity).
 
--spec update(key(), operation()) -> ok | {error, not_found} | error().
+-spec update(key(), operation()) -> ok | not_found() | error().
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 

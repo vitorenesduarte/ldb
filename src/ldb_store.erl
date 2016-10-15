@@ -28,7 +28,7 @@
          update/2]).
 
 %% @doc Returns the value associated with a given `key()'.
--callback get(key()) -> {ok, value()} | {error, not_found}.
+-callback get(key()) -> {ok, value()} | not_found().
 
 %% @doc Updates a given `key()' with a given `value()'.
 -callback put(key(), value()) -> ok.
@@ -36,13 +36,13 @@
 %% @doc Applies a given `function()' to a given `key()',
 %%      returning the new value.
 -callback update(key(), function()) ->
-    {ok, value()} | {error, not_found} | error().
+    {ok, value()} | not_found() | error().
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     do(start_link, []).
 
--spec get(key()) -> {ok, value()} | {error, not_found}.
+-spec get(key()) -> {ok, value()} | not_found().
 get(Key) ->
     do(get, [Key]).
 
@@ -50,7 +50,7 @@ get(Key) ->
 put(Key, Value) ->
     do(put, [Key, Value]).
 
--spec update(key(), function()) -> {ok, value()} | {error, not_found}.
+-spec update(key(), function()) -> {ok, value()} | not_found().
 update(Key, Function) ->
     do(update, [Key, Function]).
 

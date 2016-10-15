@@ -35,12 +35,12 @@
 
 %% @doc Reads the value associated with a given `key()'.
 -callback query(key()) ->
-    {ok, value()} | {error, not_found}.
+    {ok, value()} | not_found().
 
 %% @doc Update the value associated with a given `key()',
 %%      applying a given `operation()'.
 -callback update(key(), operation()) ->
-    ok | {error, not_found} | error().
+    ok | not_found() | error().
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -52,12 +52,12 @@ create(Key, Type) ->
     do(create, [Key, Type]).
 
 -spec query(key()) ->
-    {ok, value()} | {error, not_found}.
+    {ok, value()} | not_found().
 query(Key) ->
     do(query, [Key]).
 
 -spec update(key(), operation()) ->
-    ok | {error, not_found} | error().
+    ok | not_found() | error().
 update(Key, Operation) ->
     do(update, [Key, Operation]).
 

@@ -45,7 +45,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec get(key()) -> {ok, value()} | {error, not_found}.
+-spec get(key()) -> {ok, value()} | not_found().
 get(Key) ->
     gen_server:call(?MODULE, {get, Key}, infinity).
 
@@ -54,7 +54,7 @@ put(Key, Value) ->
     gen_server:call(?MODULE, {put, Key, Value}, infinity).
 
 -spec update(key(), function()) ->
-    {ok, value()} | {error, not_found} | error().
+    {ok, value()} | not_found() | error().
 update(Key, Function) ->
     gen_server:call(?MODULE, {update, Key, Function}, infinity).
 
