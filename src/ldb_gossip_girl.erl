@@ -47,6 +47,7 @@ start_link() ->
 %% gen_server callbacks
 init([]) ->
     schedule_sync(),
+
     lager:info("ldb_gossip_girl initialized!"),
     {ok, #state{}}.
 

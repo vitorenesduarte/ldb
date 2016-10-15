@@ -41,7 +41,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {connections :: ordsets:ordset(node_info())}).
+-record(state, {node_info :: node_info(),
+                connections :: ordsets:ordset(node_info())}).
 
 -define(LOG_INTERVAL, 5000).
 
@@ -67,9 +68,11 @@ get_node_info() ->
 
 %% gen_server callbacks
 init([]) ->
+    Info = init_node_info(),
     schedule_log(),
+
     lager:info("ldb_static_peer_service initialized!"),
-    {ok, #state{connections=ordsets:new()}}.
+    {ok, #state{node_info=Info, connections=ordsets:new()}}.
 
 handle_call(members, _From, #state{connections=Connections}=State) ->
     Result = {ok, ordsets:to_list(Connections)},
@@ -84,8 +87,8 @@ handle_call({forward_message, _Info, _Ref, _Message}, _From, State) ->
     Result = ok,
     {reply, Result, State};
 
-handle_call(get_node_info, _From, State) ->
-    Result = {ok, {name, {127, 0, 0, 1}, 8765}},
+handle_call(get_node_info, _From, #state{node_info=Info}=State) ->
+    Result = {ok, Info},
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
@@ -110,6 +113,31 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+init_node_info() ->
+    Name = node(),
+    IP = case os:getenv("PEER_IP", undefined) of
+        undefined ->
+            {127, 0, 0, 1};
+        PeerIP ->
+            {ok, IPAddress} = inet_parse:address(PeerIP),
+            IPAddress
+    end,
+    Port = case os:getenv("PEER_PORT", undefined) of
+        undefined ->
+            random_port();
+        PeerPort ->
+            list_to_integer(PeerPort)
+    end,
+
+    {Name, IP, Port}.
+
+random_port() ->
+    rand_compat:seed(erlang:phash2([node()]),
+                     erlang:monotonic_time(),
+                     erlang:unique_integer()),
+    rand_compat:uniform(1000) + 10000.
 
 %% @private
 schedule_log() ->
