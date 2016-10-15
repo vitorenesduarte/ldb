@@ -61,7 +61,7 @@ handle_cast(Msg, State) ->
 
 handle_info(event, State) ->
     ldb:update("counter", increment),
-    Value = ldb:query("counter"),
+    {ok, Value} = ldb:query("counter"),
 
     lager:info("Node ~p: I did an increment and the value now is ~p", [node(), Value]),
 

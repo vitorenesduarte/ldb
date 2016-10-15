@@ -92,7 +92,7 @@ handle_call({create, Key, Type}, _From, State) ->
 handle_call({query, Key}, _From, State) ->
     Result = case ldb_store:get(Key) of
         {ok, {ActualType, Value}} ->
-            ActualType:query(Value);
+            {ok, ActualType:query(Value)};
         Error ->
             Error
     end,
