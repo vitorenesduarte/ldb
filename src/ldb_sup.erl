@@ -37,14 +37,16 @@ init([]) ->
     {ok, _} = ldb_gossip_girl:start_link(),
 
     %% Configure simulation
-    SimulationDefault = list_to_atom(os:getenv("SIMULATION", "basic")),
+    SimulationDefault = list_to_atom(os:getenv("SIMULATION", "undefined")),
     Simulation = application:get_env(?APP,
                                      simulation,
                                      SimulationDefault),
 
     case Simulation of
         basic ->
-            ldb_basic_simulation:start_link()
+            ldb_basic_simulation:start_link();
+        undefined ->
+            ok
     end,
 
     lager:info("ldb_sup initialized!"),
