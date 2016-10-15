@@ -27,41 +27,41 @@
          members/0,
          join/1,
          forward_message/3,
-         node_spec/0]).
+         get_node_info/0]).
 
 %% @doc Return a list of neighbors
--callback members() -> {ok, [node()]}.
+-callback members() -> {ok, [node_info()]}.
 
 %% @doc Attempt to join node.
--callback join(specs()) -> ok | error().
+-callback join(node_info()) -> ok | error().
 
 %% @doc Send a message to a node.
 %%      The process with the ref passed as argument should
 %%      handle the replies.
--callback forward_message(node(), pid(), message()) -> ok.
+-callback forward_message(node_info(), pid(), message()) -> ok.
 
-%% @doc Retrieves the node spec: {name, ip, port}
--callback node_spec() -> {ok, specs()}.
+%% @doc Retrieves the node info: {name, ip, port}
+-callback get_node_info() -> {ok, node_info()}.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     do(start_link, []).
 
--spec members() -> {ok, [node()]}.
+-spec members() -> {ok, [node_info()]}.
 members() ->
     do(members, []).
 
--spec join(specs()) -> ok | error().
+-spec join(node_info()) -> ok | error().
 join(NodeSpec) ->
     do(join, [NodeSpec]).
 
--spec forward_message(node(), pid(), message()) -> ok.
+-spec forward_message(node_info(), pid(), message()) -> ok.
 forward_message(Node, Ref, Message) ->
     do(forward_message, [Node, Ref, Message]).
 
--spec node_spec() -> {ok, specs()}.
-node_spec() ->
-    do(node_spec, []).
+-spec get_node_info() -> {ok, node_info()}.
+get_node_info() ->
+    do(get_node_info, []).
 
 %% @private Execute call to the proper peer service.
 do(Function, Args) ->

@@ -36,7 +36,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {tref :: timer:tref()}).
+-record(state, {}).
 
 -define(SYNC_INTERVAL, 5000).
 
@@ -46,10 +46,9 @@ start_link() ->
 
 %% gen_server callbacks
 init([]) ->
-    {ok, TRef} = schedule_sync(),
-
+    schedule_sync(),
     lager:info("ldb_gossip_girl initialized!"),
-    {ok, #state{tref=TRef}}.
+    {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
@@ -60,11 +59,9 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(sync, State) ->
-
     lager:info("Node ~p | Members ~p", [node(), ldb_peer_service:members()]),
-
-    {ok, TRef} = schedule_sync(),
-    {noreply, State#state{tref=TRef}};
+    schedule_sync(),
+    {noreply, State};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),

@@ -33,6 +33,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
+    {ok, _} = ldb_peer_service:start_link(),
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_gossip_girl:start_link(),
 

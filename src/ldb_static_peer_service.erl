@@ -31,7 +31,7 @@
          members/0,
          join/1,
          forward_message/3,
-         node_spec/0]).
+         get_node_info/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -41,40 +41,52 @@
          terminate/2,
          code_change/3]).
 
--record(state, {tref :: timer:tref()}).
+-record(state, {connections :: ordsets:ordset(node_info())}).
 
--define(SYNC_INTERVAL, 5000).
+-define(LOG_INTERVAL, 5000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec members() -> {ok, [node()]}.
+-spec members() -> {ok, [node_info()]}.
 members() ->
-    %% @todo
-    {ok, []}.
+    gen_server:call(?MODULE, members, infinity).
 
--spec join(specs()) -> ok | error().
-join(_) ->
-    %% @todo
-    ok.
+-spec join(node_info()) -> ok | error().
+join(NodeSpec) ->
+    gen_server:call(?MODULE, {join, NodeSpec}, infinity).
 
--spec forward_message(node(), pid(), message()) -> ok.
-forward_message(_, _, _) ->
-    %% @todo
-    ok.
+-spec forward_message(node_info(), pid(), message()) -> ok.
+forward_message(Info, Ref, Message) ->
+    gen_server:call(?MODULE, {forward_message, Info, Ref, Message}, infinity).
 
--spec node_spec() -> {ok, specs()}.
-node_spec() ->
-    %% @todo
-    {name, {127, 0, 0, 1}, 8765}.
+-spec get_node_info() -> {ok, node_info()}.
+get_node_info() ->
+    gen_server:call(?MODULE, get_node_info, infinity).
 
 %% gen_server callbacks
 init([]) ->
-    {ok, TRef} = schedule_sync(),
-
+    schedule_log(),
     lager:info("ldb_static_peer_service initialized!"),
-    {ok, #state{tref=TRef}}.
+    {ok, #state{connections=ordsets:new()}}.
+
+handle_call(members, _From, #state{connections=Connections}=State) ->
+    Result = {ok, ordsets:to_list(Connections)},
+    {reply, Result, State};
+
+handle_call({join, {_Name, {_, _, _, _}=_IpAddres, _Port}=_Spec}, _From,
+            #state{connections=_Connections}=State) ->
+    Result = ok,
+    {reply, Result, State};
+
+handle_call({forward_message, _Info, _Ref, _Message}, _From, State) ->
+    Result = ok,
+    {reply, Result, State};
+
+handle_call(get_node_info, _From, State) ->
+    Result = {ok, {name, {127, 0, 0, 1}, 8765}},
+    {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
@@ -84,12 +96,10 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(sync, State) ->
-
-    lager:info("Node ~p | Members ~p", [node(), ldb_peer_service:members()]),
-
-    {ok, TRef} = schedule_sync(),
-    {noreply, State#state{tref=TRef}};
+handle_info(log, #state{connections=Connections}=State) ->
+    lager:info("Current connections ~p | Node ~p", [Connections, node()]),
+    schedule_log(),
+    {noreply, State};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
@@ -102,5 +112,5 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-schedule_sync() ->
-    timer:send_after(?SYNC_INTERVAL, sync).
+schedule_log() ->
+    timer:send_after(?LOG_INTERVAL, log).
