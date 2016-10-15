@@ -36,7 +36,7 @@
 
 -record(state, {tref :: timer:tref()}).
 
--define(SYNC_INTERVAL, 3000).
+-define(SYNC_INTERVAL, 5000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->

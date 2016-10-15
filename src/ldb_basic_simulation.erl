@@ -36,8 +36,8 @@
 
 -record(state, {}).
 
--define(EVENT_INTERVAL, 3000).
--define(MAX_VALUE, 10).
+-define(EVENT_INTERVAL, 2500).
+-define(MAX_VALUE, 50).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->

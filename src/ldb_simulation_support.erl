@@ -26,16 +26,16 @@
 -export([run/1]).
 
 run(Options) ->
-    {Names, Nodes} = start(Options),
-    wait_for_completion(Nodes),
-    stop(Names).
+    NameToNode = start(Options),
+    wait_for_completion(NameToNode),
+    stop(NameToNode).
 
 %% @private Start nodes.
 start(Options) ->
     ok = start_erlang_distribution(),
     Names = proplists:get_value(nodes, Options),
 
-    InitializerFun = fun(Name) ->
+    InitializerFun = fun(Name, Acc) ->
         ct:pal("Starting node: ~p", [Name]),
 
         %% Start node
@@ -44,12 +44,13 @@ start(Options) ->
 
         case ct_slave:start(Name, Config) of
             {ok, Node} ->
-                Node;
+                orddict:store(Name, Node, Acc);
             Error ->
                 ct:fail(Error)
         end
     end,
-    Nodes = lists:map(InitializerFun, Names),
+    NameToNode = lists:foldl(InitializerFun, orddict:new(), Names),
+    Nodes = [Node || {_Name, Node} <- orddict:to_list(NameToNode)],
 
     LoaderFun = fun(Node) ->
         ct:pal("Loading ldb on node: ~p", [Node]),
@@ -65,7 +66,7 @@ start(Options) ->
                       set_env,
                       [lager, log_root, NodeDir])
     end,
-    lists:map(LoaderFun, Nodes),
+    lists:foreach(LoaderFun, Nodes),
 
     ConfigureFun = fun(Node) ->
         ct:pal("Configuring node: ~p", [Node]),
@@ -77,7 +78,7 @@ start(Options) ->
                       set_env,
                       [?APP, simulation, Simulation])
     end,
-    lists:map(ConfigureFun, Nodes),
+    lists:foreach(ConfigureFun, Nodes),
 
     StartFun = fun(Node) ->
         {ok, _} = rpc:call(Node,
@@ -85,18 +86,18 @@ start(Options) ->
                            ensure_all_started,
                            [?APP])
     end,
-    lists:map(StartFun, Nodes),
+    lists:foreach(StartFun, Nodes),
 
-    {Names, Nodes}.
+    NameToNode.
 
 %% @private Poll nodes to see if simulation is ended.
-wait_for_completion(Nodes) ->
+wait_for_completion(NameToNode) ->
     ct:pal("Waiting for simulation to end"),
 
     Result = ldb_util:wait_until(
         fun() ->
             lists:foldl(
-                fun(Node, Acc) ->
+                fun({_Name, Node}, Acc) ->
                     SimulationEnd = rpc:call(Node,
                                              application,
                                              get_env,
@@ -105,7 +106,7 @@ wait_for_completion(Nodes) ->
                     Acc andalso SimulationEnd
                 end,
                 true,
-                Nodes
+                NameToNode
              )
         end,
         100,      %% 100 retries
@@ -120,8 +121,8 @@ wait_for_completion(Nodes) ->
     end.
 
 %% @private Stop nodes.
-stop(Names) ->
-    StopFun = fun(Name) ->
+stop(NameToNode) ->
+    StopFun = fun({Name, _Node}) ->
         case ct_slave:stop(Name) of
             {ok, _} ->
                 ok;
@@ -129,7 +130,7 @@ stop(Names) ->
                 ct:fail(Error)
         end
     end,
-    lists:map(StopFun, Names).
+    lists:foreach(StopFun, NameToNode).
 
 %% @private Start erlang distribution.
 start_erlang_distribution() ->

@@ -69,7 +69,7 @@ all() ->
 
 
 state_based_test(_Config) ->
-    Nodes = [rita],
+    Nodes = [rita, bob],
     Options = [{nodes, Nodes},
                {simulation, basic}],
     ldb_simulation_support:run(Options).
