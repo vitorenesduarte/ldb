@@ -46,6 +46,9 @@ ct:
 shell:
 	${REBAR} shell --apps ldb
 
+logs:
+	  tail -F priv/lager/*/log/*.log
+
 DIALYZER_APPS = kernel stdlib erts sasl eunit syntax_tools compiler crypto
 
 include tools.mk

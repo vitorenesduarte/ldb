@@ -18,23 +18,37 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_app).
+-module(ldb_config).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
--behaviour(application).
+-export([mode/0,
+         backend/0,
+         store/0,
+         peer_service/0]).
 
--export([start/2,
-         stop/1]).
+%% @doc Returns the enabled mode.
+%%      The result can be:
+%%          - `state_based'
+%%          - `delta_based'
+%%          - `pure_op_based'
+-spec mode() -> atom().
+mode() ->
+    state_based.
 
-%% @doc Initialize the application.
-start(_StartType, _StartArgs) ->
-    case ldb_sup:start_link() of
-        {ok, Pid} ->
-            {ok, Pid};
-        Other ->
-            {error, Other}
+%% @doc Returns the enabled backend.
+-spec backend() -> atom().
+backend() ->
+    case mode() of
+        state_based ->
+            ldb_state_based_backend
     end.
 
-%% @doc Stop the application.
-stop(_State) ->
-    ok.
+%% @doc Returns the enabled store.
+-spec store() -> atom().
+store() ->
+    ldb_ets_store.
+
+%% @doc Returns the enabled peer service.
+peer_service() ->
+    partisan_default_peer_service_manager.
+

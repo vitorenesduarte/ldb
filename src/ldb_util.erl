@@ -1,5 +1,6 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
+%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -20,37 +21,8 @@
 -module(ldb_util).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
--export([mode/0,
-         backend/0,
-         store/0,
-         peer_service/0,
-         get_type/1]).
-
-%% @doc Returns the enabled mode.
-%%      The result can be:
-%%          - `state_based'
-%%          - `delta_based'
-%%          - `pure_op_based'
--spec mode() -> atom().
-mode() ->
-    state_based.
-
-%% @doc Returns the enabled backend.
--spec backend() -> atom().
-backend() ->
-    case mode() of
-        state_based ->
-            ldb_state_based_backend
-    end.
-
-%% @doc Returns the enabled store.
--spec store() -> atom().
-store() ->
-    ldb_ets_store.
-
-%% @doc Returns the enabled peer service.
-peer_service() ->
-    partisan_default_peer_service_manager.
+-export([get_type/1,
+         wait_until/3]).
 
 %% @doc Returns the actual type in types repository
 %%      (https://github.com/lasp-lang/types)
@@ -58,7 +30,19 @@ peer_service() ->
 get_type(Type) ->
     Map = [{gcounter, {state_gcounter, pure_gcounter}}],
     {State, _Op} = orddict:fetch(Type, Map),
-    case mode() of
+    case ldb_config:mode() of
         state_based ->
             State
+    end.
+
+%% @doc Wait until `Fun' returns true or `Retry' reaches 0.
+%%      The sleep time between retries is `Delay'.
+wait_until(_Fun, 0, _Delay) -> fail;
+wait_until(Fun, Retry, Delay) when Retry > 0 ->
+    case Fun() of
+        true ->
+            ok;
+        _ ->
+            timer:sleep(Delay),
+            wait_until(Fun, Retry - 1, Delay)
     end.

@@ -1,5 +1,6 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
+%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -22,13 +23,11 @@
 
 -behaviour(supervisor).
 
+-include("ldb.hrl").
+
 -export([start_link/0]).
 
 -export([init/1]).
-
--define(CHILD(I, Type, Timeout),
-        {I, {I, start_link, []}, permanent, Timeout, Type, [I]}).
--define(CHILD(I, Type), ?CHILD(I, Type, 5000)).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
@@ -36,6 +35,17 @@ start_link() ->
 init([]) ->
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_gossip_girl:start_link(),
+
+    %% Configure simulation
+    SimulationDefault = list_to_atom(os:getenv("SIMULATION", "basic")),
+    Simulation = application:get_env(?APP,
+                                     simulation,
+                                     SimulationDefault),
+
+    case Simulation of
+        basic ->
+            ldb_basic_simulation:start_link()
+    end,
 
     lager:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 10, 10},

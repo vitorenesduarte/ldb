@@ -1,3 +1,4 @@
+-define(APP, ldb).
 -type not_found() :: {error, not_found}.
 -type error() :: {error, atom()}.
 
