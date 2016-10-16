@@ -69,9 +69,13 @@ all() ->
 
 
 state_based_test(_Config) ->
-    Nodes = [n1, n2, n3],
-    %%Graph = [{n1, [n2]}, {n2, [n3]}, {n3, [n1]}],
-    Graph = [{n1, [n2, n3]}, {n2, []}, {n3, []}],
+    Nodes = [n1, n2, n3, n4, n5],
+    %% This graph forms a line
+    Graph = [{n1, [n2]},
+             {n2, [n1, n3]},
+             {n3, [n2, n4]},
+             {n4, [n3, n5]},
+             {n5, [n4]}],
     Options = [{nodes, Nodes},
                {graph, Graph},
                {simulation, basic}],

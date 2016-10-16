@@ -38,7 +38,7 @@
 
 -record(state, {}).
 
--define(EVENT_INTERVAL, 2500).
+-define(SIMULATION_END_INTERVAL, 5000).
 -define(MAX_VALUE, 10).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
@@ -47,8 +47,9 @@ start_link() ->
 
 %% gen_server callbacks
 init([]) ->
-    ldb:create("counter", gcounter),
-    schedule_event(),
+    ldb:create("SET", gset),
+    ldb:update("SET", {add, node()}),
+    schedule_simulation_end(),
 
     lager:info("ldb_basic_simulation initialized!"),
     {ok, #state{}}.
@@ -61,18 +62,16 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(event, State) ->
-    ldb:update("counter", increment),
-    {ok, Value} = ldb:query("counter"),
+handle_info(simulation_end State) ->
+    ClientNumber = application:get_env(?APP, client_number),
+    {ok, Value} = ldb:query("SET"),
 
-    lager:info("Node ~p: I did an increment and the value now is ~p", [node(), Value]),
-
-    case Value < ?MAX_VALUE of
+    case sets:size(Value) == ClientNumber of
         true ->
-            schedule_event();
-        false ->
-            lager:info("All increments have been observed"),
+            lager:info("All events have been observed"),
             application:set_env(?APP, simulation_end, true)
+        false ->
+            schedule_simulation_end()
     end,
 
     {noreply, State};
@@ -88,6 +87,6 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-schedule_event() ->
-    timer:send_after(?EVENT_INTERVAL, event).
+schedule_simulation_end() ->
+    timer:send_after(?SIMUALTION_END_INTERVAL, simulation_end).
 

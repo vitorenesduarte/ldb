@@ -77,7 +77,14 @@ start(Options) ->
         ok = rpc:call(Node,
                       application,
                       set_env,
-                      [?APP, simulation, Simulation])
+                      [?APP, simulation, Simulation]),
+
+        %% Set client number
+        ClientNumber = length(Names),
+        ok = rpc:call(Node,
+                      application, set_env,
+                      [?APP, client_number, ClientNumber])
+
     end,
     lists:foreach(ConfigureFun, Nodes),
 
