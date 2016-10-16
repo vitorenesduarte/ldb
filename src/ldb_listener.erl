@@ -18,14 +18,14 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_gossip_girl).
+-module(ldb_listener).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
 -behaviour(gen_server).
 
-%% ldb_gossip_girl callbacks
+%% ldb_listener callbacks
 -export([start_link/0]).
 
 %% gen_server callbacks
@@ -38,17 +38,13 @@
 
 -record(state, {}).
 
--define(SYNC_INTERVAL, 5000).
-
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% gen_server callbacks
 init([]) ->
-    schedule_sync(),
-
-    lager:info("ldb_gossip_girl initialized!"),
+    lager:info("ldb_listener initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
@@ -59,11 +55,6 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(sync, State) ->
-    lager:info("Node ~p | Members ~p", [node(), ldb_peer_service:members()]),
-    schedule_sync(),
-    {noreply, State};
-
 handle_info(Msg, State) ->
     lager:warning("Unhandled message: ~p", [Msg]),
     {noreply, State}.
@@ -73,7 +64,3 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%% @private
-schedule_sync() ->
-    timer:send_after(?SYNC_INTERVAL, sync).

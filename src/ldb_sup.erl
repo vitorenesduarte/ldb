@@ -35,7 +35,8 @@ start_link() ->
 init([]) ->
     {ok, _} = ldb_peer_service:start_link(),
     {ok, _} = ldb_backend:start_link(),
-    {ok, _} = ldb_gossip_girl:start_link(),
+    {ok, _} = ldb_whisperer:start_link(),
+    {ok, _} = ldb_listener:start_link(),
 
     %% Configure simulation
     SimulationDefault = list_to_atom(os:getenv("SIMULATION", "undefined")),
