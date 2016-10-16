@@ -30,7 +30,8 @@
 -export([start_link/0,
          get/1,
          put/2,
-         update/2]).
+         update/2,
+         fold/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -58,6 +59,10 @@ put(Key, Value) ->
     {ok, value()} | not_found() | error().
 update(Key, Function) ->
     gen_server:call(?MODULE, {update, Key, Function}, infinity).
+
+-spec fold(function(), term()) -> term().
+fold(Function, Acc) ->
+    gen_server:call(?MODULE, {fold, Function, Acc}, infinity).
 
 %% gen_server callbacks
 init([]) ->
@@ -87,6 +92,10 @@ handle_call({update, Id, Function}, _From, #state{ets_id=ETS}=State) ->
         Error ->
             Error
     end,
+    {reply, Result, State};
+
+handle_call({fold, Function, Acc}, _From, #state{ets_id=ETS}=State) ->
+    Result = ets:foldl(Function, Acc, ETS),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
