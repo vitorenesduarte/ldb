@@ -26,7 +26,8 @@
 -behaviour(gen_server).
 
 %% ldb_listener callbacks
--export([start_link/0]).
+-export([start_link/0,
+         handle_message/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -42,21 +43,30 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+-spec handle_message(term()) -> ok.
+handle_message(Message) ->
+    gen_server:cast(?MODULE, {handle_message, Message}).
+
 %% gen_server callbacks
 init([]) ->
     lager:info("ldb_listener initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
+handle_cast({handle_message, Message}, State) ->
+
+    lager:info("YAYAYAYAYAY~n~nMESSAGE RECEIVED~n~p~n", [Message]),
+    {noreply, State};
+
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

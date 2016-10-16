@@ -38,7 +38,8 @@
 %% @doc Send a message to a node.
 %%      The process with the ref passed as argument should
 %%      handle the replies.
--callback forward_message(node_info(), pid(), message()) -> ok.
+-callback forward_message(node_info(), handler(), message()) ->
+    ok | error().
 
 %% @doc Retrieves the node info: {name, ip, port}
 -callback get_node_info() -> {ok, node_info()}.
@@ -55,9 +56,10 @@ members() ->
 join(NodeSpec) ->
     do(join, [NodeSpec]).
 
--spec forward_message(node_info(), pid(), message()) -> ok.
-forward_message(Node, Ref, Message) ->
-    do(forward_message, [Node, Ref, Message]).
+-spec forward_message(node_info(), handler(), message()) ->
+    ok | error().
+forward_message(Node, Handler, Message) ->
+    do(forward_message, [Node, Handler, Message]).
 
 -spec get_node_info() -> {ok, node_info()}.
 get_node_info() ->

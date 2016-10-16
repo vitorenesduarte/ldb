@@ -18,15 +18,15 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_basic_simulation).
+-module(ldb_static_peer_service_server).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
 -behaviour(gen_server).
 
-%% ldb_basic_simulation callbacks
--export([start_link/0]).
+%% ldb_static_peer_service_server callbacks
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -36,46 +36,40 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {listener :: gen_tcp:socket()}).
 
--define(EVENT_INTERVAL, 2500).
--define(MAX_VALUE, 10).
+-define(LOG_INTERVAL, 5000).
 
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+-spec start_link(node_info()) -> {ok, pid()} | ignore | {error, term()}.
+start_link(NodeInfo) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [NodeInfo], []).
 
 %% gen_server callbacks
-init([]) ->
-    ldb:create("counter", gcounter),
-    schedule_event(),
+init([{_Name, _IpAddress, Port}]) ->
+    {ok, Listener} = gen_tcp:listen(Port, ?TCP_OPTIONS),
 
-    lager:info("ldb_basic_simulation initialized!"),
-    {ok, #state{}}.
+    accept_one(),
+
+    lager:info("ldb_static_peer_service_server initialized!"),
+    {ok, #state{listener=Listener}}.
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
+handle_cast(accept, #state{listener=Listener}=State) ->
+    {ok, Socket} = gen_tcp:accept(Listener),
+
+    {ok, Pid} = ldb_static_peer_service_client:start_link(Socket),
+    gen_tcp:controlling_process(Socket, Pid),
+
+    accept_one(),
+
+    {noreply, State};
+
 handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
-
-handle_info(event, State) ->
-    ldb:update("counter", increment),
-    {ok, Value} = ldb:query("counter"),
-
-    lager:info("Node ~p: I did an increment and the value now is ~p", [node(), Value]),
-
-    case Value < ?MAX_VALUE of
-        true ->
-            schedule_event();
-        false ->
-            lager:info("All increments have been observed"),
-            application:set_env(?APP, simulation_end, true)
-    end,
-
-    {noreply, State};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -88,6 +82,5 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-schedule_event() ->
-    timer:send_after(?EVENT_INTERVAL, event).
-
+accept_one() ->
+    gen_server:cast(?MODULE, accept).

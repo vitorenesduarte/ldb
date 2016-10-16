@@ -52,20 +52,28 @@ init([]) ->
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(sync, State) ->
-    lager:info("Node ~p | Members ~p", [node(), ldb_peer_service:members()]),
+    {ok, Peers} = ldb_peer_service:members(),
+
+    lists:foreach(
+        fun(Peer) ->
+            ldb_peer_service:forward_message(Peer, {ldb_listener, handle_message}, "HELLOHELLO")
+        end,
+        Peers
+    ),
+    lager:info("Node ~p | Members ~p", [node(), Peers]),
     schedule_sync(),
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
