@@ -65,7 +65,7 @@ update(Key, Operation) ->
 prepare_message(Key, Value) ->
     {Key, Value}.
 
--callback message_handler(term()) -> function().
+-spec message_handler(term()) -> function().
 message_handler(_Message) ->
     %% @todo The key may not be present yet.
     MessageHandler = fun({Key, Value}) ->

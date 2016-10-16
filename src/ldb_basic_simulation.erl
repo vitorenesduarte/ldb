@@ -62,14 +62,14 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(simulation_end State) ->
+handle_info(simulation_end, State) ->
     ClientNumber = application:get_env(?APP, client_number),
     {ok, Value} = ldb:query("SET"),
 
     case sets:size(Value) == ClientNumber of
         true ->
             lager:info("All events have been observed"),
-            application:set_env(?APP, simulation_end, true)
+            application:set_env(?APP, simulation_end, true);
         false ->
             schedule_simulation_end()
     end,
@@ -88,5 +88,5 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% @private
 schedule_simulation_end() ->
-    timer:send_after(?SIMUALTION_END_INTERVAL, simulation_end).
+    timer:send_after(?SIMULATION_END_INTERVAL, simulation_end).
 

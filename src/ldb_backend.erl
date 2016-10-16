@@ -75,7 +75,7 @@ update(Key, Operation) ->
 prepare_message(Key, Value) ->
     do(prepare_message, [Key, Value]).
 
--callback message_handler(term()) -> function().
+-spec message_handler(term()) -> function().
 message_handler(Message) ->
     do(message_handler, Message).
 

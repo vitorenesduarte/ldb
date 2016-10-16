@@ -73,8 +73,10 @@ handle_info(sync, State) ->
                 )
             end,
             Peers
-        ),
+        )
     end,
+
+    ldb_store:fold(FoldFunction, undefined),
 
     lager:info("Node ~p | Members ~p", [node(), Peers]),
     schedule_sync(),
