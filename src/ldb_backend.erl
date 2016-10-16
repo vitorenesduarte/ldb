@@ -26,7 +26,9 @@
 -export([start_link/0,
          create/2,
          query/1,
-         update/2]).
+         update/2,
+         prepare_message/2,
+         message_handler/1]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
 %%      If the key already exists and it is associated with a
@@ -42,6 +44,13 @@
 %%      applying a given `operation()'.
 -callback update(key(), operation()) ->
     ok | not_found() | error().
+
+%% @doc Prepares a message to be send to peers given `key()'
+%%      and the correspondent `value()' that's in the store.
+-callback prepare_message(key(), term()) -> term().
+
+%% @doc Returns a function that handles the message received.
+-callback message_handler(term()) -> function().
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -61,6 +70,14 @@ query(Key) ->
     ok | not_found() | error().
 update(Key, Operation) ->
     do(update, [Key, Operation]).
+
+-spec prepare_message(key(), term()) -> term().
+prepare_message(Key, Value) ->
+    do(prepare_message, [Key, Value]).
+
+-callback message_handler(term()) -> function().
+message_handler(Message) ->
+    do(message_handler, Message).
 
 %% @private Execute call to the proper backend.
 do(Function, Args) ->

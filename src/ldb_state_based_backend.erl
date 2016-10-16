@@ -30,7 +30,9 @@
 -export([start_link/0,
          create/2,
          query/1,
-         update/2]).
+         update/2,
+         prepare_message/2,
+         message_handler/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -58,6 +60,23 @@ query(Key) ->
 -spec update(key(), operation()) -> ok | not_found() | error().
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
+
+-spec prepare_message(key(), term()) -> term().
+prepare_message(Key, Value) ->
+    {Key, Value}.
+
+-callback message_handler(term()) -> function().
+message_handler(_Message) ->
+    %% @todo The key may not be present yet.
+    MessageHandler = fun({Key, Value}) ->
+        ldb_store:update(
+            Key,
+            fun({ActualType, _}=V) ->
+                {ok, ActualType:merge(Value, V)}
+            end
+        )
+    end,
+    MessageHandler.
 
 %% gen_server callbacks
 init([]) ->
