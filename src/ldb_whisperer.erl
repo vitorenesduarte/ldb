@@ -62,7 +62,7 @@ handle_cast(Msg, State) ->
 handle_info(sync, State) ->
     {ok, Peers} = ldb_peer_service:members(),
 
-    FoldFunction = fun(Key, Value) ->
+    FoldFunction = fun({Key, Value}, _Acc) ->
         Message = ldb_backend:prepare_message(Key, Value),
         lists:foreach(
             fun(Peer) ->
@@ -77,8 +77,6 @@ handle_info(sync, State) ->
     end,
 
     ldb_store:fold(FoldFunction, undefined),
-
-    lager:info("Node ~p | Members ~p", [node(), Peers]),
     schedule_sync(),
     {noreply, State};
 

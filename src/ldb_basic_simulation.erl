@@ -63,8 +63,10 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(simulation_end, State) ->
-    ClientNumber = application:get_env(?APP, client_number),
+    {ok, ClientNumber} = application:get_env(?APP, client_number),
     {ok, Value} = ldb:query("SET"),
+
+    lager:info("Current set size ~p | Client Number ~p | Node ~p", [sets:size(Value), ClientNumber, node()]),
 
     case sets:size(Value) == ClientNumber of
         true ->

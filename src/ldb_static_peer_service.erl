@@ -44,7 +44,7 @@
 -record(state, {node_info :: node_info(),
                 connected :: orddict:orddict()}).
 
--define(LOG_INTERVAL, 5000).
+-define(LOG_INTERVAL, 10000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->

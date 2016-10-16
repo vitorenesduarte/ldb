@@ -77,7 +77,7 @@ prepare_message(Key, Value) ->
 
 -spec message_handler(term()) -> function().
 message_handler(Message) ->
-    do(message_handler, Message).
+    do(message_handler, [Message]).
 
 %% @private Execute call to the proper backend.
 do(Function, Args) ->

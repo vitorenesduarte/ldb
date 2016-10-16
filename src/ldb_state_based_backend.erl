@@ -68,11 +68,12 @@ prepare_message(Key, Value) ->
 -spec message_handler(term()) -> function().
 message_handler(_Message) ->
     %% @todo The key may not be present yet.
-    MessageHandler = fun({Key, Value}) ->
+    MessageHandler = fun({Key, {_, Value}}) ->
         ldb_store:update(
             Key,
-            fun({ActualType, _}=V) ->
-                {ok, ActualType:merge(Value, V)}
+            fun({ActualType, V}) ->
+                Merged = ActualType:merge(Value, V),
+                {ok, {ActualType, Merged}}
             end
         )
     end,
