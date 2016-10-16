@@ -48,7 +48,7 @@ start_link(NodeInfo) ->
 init([{_Name, _IpAddress, Port}]) ->
     {ok, Listener} = gen_tcp:listen(Port, ?TCP_OPTIONS),
 
-    accept_one(),
+    prepare_accept(),
 
     lager:info("ldb_static_peer_service_server initialized!"),
     {ok, #state{listener=Listener}}.
@@ -63,7 +63,7 @@ handle_cast(accept, #state{listener=Listener}=State) ->
     {ok, Pid} = ldb_static_peer_service_client:start_link(Socket),
     gen_tcp:controlling_process(Socket, Pid),
 
-    accept_one(),
+    prepare_accept(),
 
     {noreply, State};
 
@@ -82,5 +82,5 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-accept_one() ->
+prepare_accept() ->
     gen_server:cast(?MODULE, accept).
