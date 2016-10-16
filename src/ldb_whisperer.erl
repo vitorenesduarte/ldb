@@ -62,12 +62,20 @@ handle_cast(Msg, State) ->
 handle_info(sync, State) ->
     {ok, Peers} = ldb_peer_service:members(),
 
-    lists:foreach(
-        fun(Peer) ->
-            ldb_peer_service:forward_message(Peer, {ldb_listener, handle_message}, "HELLOHELLO")
-        end,
-        Peers
-    ),
+    FoldFunction = fun(Key, Value) ->
+        Message = ldb_backend:prepare_message(Key, Value),
+        lists:foreach(
+            fun(Peer) ->
+                ldb_peer_service:forward_message(
+                    Peer,
+                    {ldb_listener, handle_message},
+                    Message
+                )
+            end,
+            Peers
+        ),
+    end,
+
     lager:info("Node ~p | Members ~p", [node(), Peers]),
     schedule_sync(),
     {noreply, State};

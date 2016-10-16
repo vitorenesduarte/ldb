@@ -38,8 +38,6 @@
 
 -record(state, {socket :: gen_tcp:socket()}).
 
--define(LOG_INTERVAL, 5000).
-
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(NodeInfoOrSocket) ->
     gen_server:start_link(?MODULE, [NodeInfoOrSocket], []).
@@ -48,8 +46,6 @@ start_link(NodeInfoOrSocket) ->
 init([{_Name, IpAddress, Port}=Info]) ->
     case gen_tcp:connect(IpAddress, Port, ?TCP_OPTIONS) of
         {ok, Socket} ->
-            schedule_log(),
-
             lager:info("ldb_static_peer_service_client initialized! Node ~p to node ~p", [node(), Info]),
             {ok, #state{socket=Socket}};
         Error ->
@@ -57,8 +53,6 @@ init([{_Name, IpAddress, Port}=Info]) ->
     end;
 
 init([Socket]) ->
-    schedule_log(),
-
     lager:info("ldb_static_peer_service_client initialized! Node ~p listening to socket ~p", [node(), Socket]),
     {ok, #state{socket=Socket}}.
 
@@ -72,7 +66,6 @@ handle_cast(Msg, State) ->
 
 handle_info({forward_message, _Handler, _Message}=M,
             #state{socket=Socket}=State) ->
-
     case gen_tcp:send(Socket, encode(M)) of
         ok ->
             ok;
@@ -86,11 +79,6 @@ handle_info({tcp, _Socket, Data}, State) ->
     handle_message(decode(Data)),
     {noreply, State};
 
-handle_info(log, State) ->
-    lager:info("ldb_static_peer_service_client I'm alive"),
-    schedule_log(),
-    {noreply, State};
-
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
@@ -100,10 +88,6 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%% @private
-schedule_log() ->
-    timer:send_after(?LOG_INTERVAL, log).
 
 %% @private
 encode(Message) ->
@@ -116,4 +100,3 @@ decode(Message) ->
 %% @private
 handle_message({forward_message, {Module, Function}, Message}) ->
     erlang:apply(Module, Function, [Message]).
-

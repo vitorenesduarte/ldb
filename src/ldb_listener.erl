@@ -57,8 +57,8 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({handle_message, Message}, State) ->
-
-    lager:info("YAYAYAYAYAY~n~nMESSAGE RECEIVED~n~p~n", [Message]),
+    MessageHandler = ldb_backend:message_handler(Message),
+    MessageHandler(Message),
     {noreply, State};
 
 handle_cast(Msg, State) ->
