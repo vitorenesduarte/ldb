@@ -68,12 +68,12 @@ prepare_message(Key, Value) ->
 -spec message_handler(term()) -> function().
 message_handler(_Message) ->
     %% @todo The key may not be present yet.
-    MessageHandler = fun({Key, {_, Value}}) ->
+    MessageHandler = fun({Key, RemoteCRDT}) ->
         ldb_store:update(
             Key,
-            fun({ActualType, V}) ->
-                Merged = ActualType:merge(Value, V),
-                {ok, {ActualType, Merged}}
+            fun({Type, _}=LocalCRDT) ->
+                Merged = Type:merge(LocalCRDT, RemoteCRDT),
+                {ok, Merged}
             end
         )
     end,
@@ -87,13 +87,13 @@ init([]) ->
     lager:info("ldb_state_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
-handle_call({create, Key, Type}, _From, State) ->
-    ActualType = ldb_util:get_type(Type),
+handle_call({create, Key, LDBType}, _From, State) ->
+    Type = ldb_util:get_type(LDBType),
 
     Result = case ldb_store:get(Key) of
-        {ok, {KeyType, _Value}} ->
+        {ok, {KeyType, _CRDT}} ->
             case KeyType of
-                ActualType ->
+                Type ->
                     %% already created with the same type
                     ok;
                 _ ->
@@ -102,8 +102,8 @@ handle_call({create, Key, Type}, _From, State) ->
             end;
         {error, not_found} ->
             %% @todo support complex types
-            New = ActualType:new(),
-            ldb_store:put(Key, {ActualType, New}),
+            New = Type:new(),
+            ldb_store:put(Key, New),
             ok
     end,
 
@@ -111,8 +111,8 @@ handle_call({create, Key, Type}, _From, State) ->
 
 handle_call({query, Key}, _From, State) ->
     Result = case ldb_store:get(Key) of
-        {ok, {ActualType, Value}} ->
-            {ok, ActualType:query(Value)};
+        {ok, {Type, _}=CRDT} ->
+            {ok, Type:query(CRDT)};
         Error ->
             Error
     end,
@@ -120,13 +120,8 @@ handle_call({query, Key}, _From, State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
-    Function = fun({ActualType, Value}) ->
-        case ActualType:mutate(Operation, Actor, Value) of
-            {ok, NewValue} ->
-                {ok, {ActualType, NewValue}};
-            Error ->
-                Error
-        end
+    Function = fun({Type, _}=CRDT) ->
+        Type:mutate(Operation, Actor, CRDT)
     end,
 
     Result = case ldb_store:update(Key, Function) of
