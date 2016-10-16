@@ -62,8 +62,8 @@ update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
 -spec prepare_message(key(), term()) -> term().
-prepare_message(Key, Value) ->
-    {Key, Value}.
+prepare_message(Key, CRDT) ->
+    {Key, CRDT}.
 
 -spec message_handler(term()) -> function().
 message_handler(_Message) ->
