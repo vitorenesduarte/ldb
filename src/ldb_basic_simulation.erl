@@ -38,7 +38,7 @@
 
 -record(state, {local_events :: non_neg_integer()}).
 
--define(EVENT_NUMBER, 10).
+-define(EVENT_NUMBER, 50).
 -define(EVENT_INTERVAL, 5000).
 -define(SIMULATION_END_INTERVAL, 10000).
 
