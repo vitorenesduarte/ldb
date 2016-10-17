@@ -79,7 +79,8 @@ state_based_test(_Config) ->
     Options = [{nodes, Nodes},
                {graph, Graph},
                {ldb_mode, state_based},
-               {ldb_simulation, basic}],
+               {ldb_simulation, basic},
+               {ldb_evaluation_identifier, basic_state_based}],
     ldb_simulation_support:run(Options).
 
 delta_based_test(_Config) ->
@@ -93,5 +94,6 @@ delta_based_test(_Config) ->
     Options = [{nodes, Nodes},
                {graph, Graph},
                {ldb_mode, delta_based},
-               {ldb_simulation, basic}],
+               {ldb_simulation, basic},
+               {ldb_evaluation_identifier, basic_delta_based}],
     ldb_simulation_support:run(Options).

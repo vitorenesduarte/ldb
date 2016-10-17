@@ -79,6 +79,9 @@ handle_info({tcp, _Socket, Data}, State) ->
     handle_message(decode(Data)),
     {noreply, State};
 
+handle_info({tcp_close, _Socket}, State) ->
+    {stop, normal, State};
+
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.

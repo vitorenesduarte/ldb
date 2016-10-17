@@ -81,11 +81,12 @@ handle_info(simulation_end, State) ->
     {ok, Value} = ldb:query("SET"),
     Events = sets:size(Value),
 
-    lager:info("Events observed ~p | Node ~p", [Events, ClientNumber, node()]),
+    lager:info("Events observed ~p | Node ~p", [Events, node()]),
 
     case Events == ClientNumber * ?EVENT_NUMBER of
         true ->
             lager:info("All events have been observed"),
+            ldb_instrumentation:convergence(),
             application:set_env(?APP, simulation_end, true);
         false ->
             schedule_simulation_end()

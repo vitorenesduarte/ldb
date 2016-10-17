@@ -59,6 +59,7 @@ init([]) ->
     %% we can start the `ldb_peer_service' and the `ldb_backend'
     {ok, _} = ldb_peer_service:start_link(),
     {ok, _} = ldb_backend:start_link(),
+    {ok, _} = ldb_instrumentation:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
 

@@ -106,6 +106,7 @@ schedule_sync() ->
 
 %% @private
 do_send(NodeName, Message) ->
+    log_transmission(Message),
     Result = ldb_peer_service:forward_message(
         NodeName,
         {ldb_listener, handle_message},
@@ -118,3 +119,13 @@ do_send(NodeName, Message) ->
         Error ->
             lager:info("Error trying to send message ~p to node ~p. Reason ~p", [Message, NodeName, Error])
     end.
+
+%% @private
+log_transmission({_Key, state_send, CRDT}) ->
+    log_transmission(state_send, CRDT);
+log_transmission({_Key, delta_send, From, Sequence, Delta}) ->
+    log_transmission(delta_send, {From, Sequence, Delta});
+log_transmission({_Key, delta_ack, From, Sequence}) ->
+    log_transmission(delta_ack, {From, Sequence}).
+log_transmission(Type, Payload) ->
+    ldb_instrumentation:transmission(Type, Payload).

@@ -23,6 +23,7 @@
 
 -include("ldb.hrl").
 
+%% ldb_static_peer_service_server callbacks
 -export([get_type/1,
          wait_until/3]).
 

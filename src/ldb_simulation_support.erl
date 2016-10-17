@@ -26,7 +26,9 @@
 -export([run/1]).
 
 run(Options) ->
-    NameToNode = start(Options),
+    NameToNode = start(
+        [{ldb_evaluation_timestamp, timestamp()} | Options]
+    ),
     construct_overlay(Options, NameToNode),
     wait_for_completion(NameToNode),
     stop(NameToNode).
@@ -90,7 +92,21 @@ start(Options) ->
         ClientNumber = length(Names),
         ok = rpc:call(Node,
                       application, set_env,
-                      [?APP, client_number, ClientNumber])
+                      [?APP, client_number, ClientNumber]),
+
+        %% Set evaluation identifier
+        EvaluationIdentifier = proplists:get_value(ldb_evaluation_identifier, Options),
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, ldb_evaluation_identifier, EvaluationIdentifier]),
+
+        %% Set evaluation timestamp
+        EvaluationTimestamp = proplists:get_value(ldb_evaluation_timestamp, Options),
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, ldb_evaluation_timestamp, EvaluationTimestamp])
 
     end,
     lists:foreach(ConfigureFun, Nodes),
@@ -198,3 +214,8 @@ start_erlang_distribution() ->
 %% @private
 codepath() ->
     lists:filter(fun filelib:is_dir/1, code:get_path()).
+
+%% @private
+timestamp() ->
+    {Mega, Sec, _Micro} = erlang:timestamp(),
+    Mega * 1000000 + Sec.
