@@ -39,7 +39,9 @@ init([]) ->
         true ->
             application:set_env(?APP,
                                 ldb_peer_service,
-                                PeerService)
+                                PeerService);
+        false ->
+            ok
     end,
 
     %% Configure mode
@@ -48,7 +50,9 @@ init([]) ->
         true ->
             application:set_env(?APP,
                                 ldb_mode,
-                                Mode)
+                                Mode);
+        false ->
+            ok
     end,
 
     %% Now, with peer service and mode properly configured,
