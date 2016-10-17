@@ -60,40 +60,95 @@ end_per_testcase(Case, Config) ->
 
 all() ->
     [
-     state_based_test,
-     delta_based_test
+     papoc_test
     ].
 
 %% ===================================================================
 %% tests
 %% ===================================================================
 
-state_based_test(_Config) ->
-    Nodes = [n1, n2, n3, n4, n5],
-    %% This graph forms a line
-    Graph = [{n1, [n2]},
-             {n2, [n1, n3]},
-             {n3, [n2, n4]},
-             {n4, [n3, n5]},
-             {n5, [n4]}],
-    Options = [{nodes, Nodes},
-               {graph, Graph},
-               {ldb_mode, state_based},
-               {ldb_simulation, basic},
-               {ldb_evaluation_identifier, basic_state_based}],
-    ldb_simulation_support:run(Options).
+papoc_test(_Config) ->
+    Nodes = node_names(),
+    lists:foreach(
+        fun({Topology, Graph}) ->
+            lists:foreach(
+                fun(Mode) ->
+                    Identifier = list_to_atom(
+                        atom_to_list(Mode)
+                        ++ "_"
+                        ++ atom_to_list(Topology)
+                    ),
+                    Options = [{nodes, Nodes},
+                               {graph, Graph},
+                               {ldb_mode, Mode},
+                               {ldb_simulation, basic},
+                               {ldb_evaluation_identifier, Identifier}],
+                    ldb_simulation_support:run(Options)
+                end,
+                modes()
+            )
+        end,
+        topologies()
+    ).
 
-delta_based_test(_Config) ->
-    Nodes = [n1, n2, n3, n4, n5],
-    %% This graph forms a line
-    Graph = [{n1, [n2]},
-             {n2, [n1, n3]},
-             {n3, [n2, n4]},
-             {n4, [n3, n5]},
-             {n5, [n4]}],
-    Options = [{nodes, Nodes},
-               {graph, Graph},
-               {ldb_mode, delta_based},
-               {ldb_simulation, basic},
-               {ldb_evaluation_identifier, basic_delta_based}],
-    ldb_simulation_support:run(Options).
+%% @private
+modes() ->
+    [state_based, delta_based].
+
+%% @private
+node_names() ->
+    [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12].
+
+%% @private
+topologies() ->
+    [{erdos_renyi, erdos_renyi()},
+     {hyparview, hyparview()},
+     {ring, ring()}].
+
+%% @private
+erdos_renyi() ->
+    [{n0, [n4, n6, n10]},
+     {n1, [n2, n5, n8, n9, n12]},
+     {n2, [n1, n3, n7, n9, n11, n12]},
+     {n3, [n2, n8, n6]},
+     {n4, [n0, n9]},
+     {n5, [n1, n10, n11, n12]},
+     {n6, [n0, n3, n11]},
+     {n7, [n2, n9]},
+     {n8, [n1, n3, n9]},
+     {n9, [n1, n2, n4, n7, n8, n10, n11]},
+     {n10, [n0, n5, n9]},
+     {n11, [n2, n5, n6, n9]},
+     {n12, [n1, n2, n5]}].
+
+%% @private
+hyparview() ->
+    [{n0, [n1, n2, n11]},
+     {n1, [n0, n2, n3]},
+     {n2, [n0, n1, n7]},
+     {n3, [n1, n5, n8]},
+     {n4, [n6, n7, n8]},
+     {n5, [n3, n9, n12]},
+     {n6, [n4, n7, n12]},
+     {n7, [n2, n4, n6]},
+     {n8, [n3, n4, n10]},
+     {n9, [n5, n11]},
+     {n10, [n8, n11, n12]},
+     {n11, [n0, n9, n10]},
+     {n12, [n5, n6, n10]}].
+
+%% @private
+ring() ->
+    [{n0, [n12, n1]},
+     {n1, [n0, n2]},
+     {n2, [n1, n3]},
+     {n3, [n2, n4]},
+     {n4, [n3, n5]},
+     {n5, [n4, n6]},
+     {n6, [n5, n7]},
+     {n7, [n6, n8]},
+     {n8, [n7, n9]},
+     {n9, [n8, n10]},
+     {n10, [n9, n11]},
+     {n11, [n10, n12]},
+     {n12, [n11, n0]}].
