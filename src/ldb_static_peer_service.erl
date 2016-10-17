@@ -158,7 +158,7 @@ random_port() ->
     rand_compat:seed(erlang:phash2([node()]),
                      erlang:monotonic_time(),
                      erlang:unique_integer()),
-    rand_compat:uniform(1000) + 10000.
+    rand_compat:uniform(10000) + 3000.
 
 %% @private
 schedule_log() ->

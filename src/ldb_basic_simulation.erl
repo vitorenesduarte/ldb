@@ -38,8 +38,8 @@
 
 -record(state, {local_events :: non_neg_integer()}).
 
--define(EVENT_NUMBER, 50).
--define(EVENT_INTERVAL, 5000).
+-define(EVENT_NUMBER, 5).
+-define(EVENT_INTERVAL, 30000).
 -define(SIMULATION_END_INTERVAL, 10000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
