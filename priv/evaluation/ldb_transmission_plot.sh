@@ -65,31 +65,14 @@ generate_plots(Simulation, EvalIds) ->
         EvalIds
     ),
 
-    {{Titles, InputFiles}, {TitlesPS, InputFilesPS}} = orddict:fold(
-        fun(Title, InputFile, {{Titles0, InputFiles0}, {TitlesPS0, InputFilesPS0}}) ->
-            case re:run(InputFile, ".*based_ps.*") of
-                {match, _} ->
-                    {
-                        {Titles0, InputFiles0},
-                        {
-                            lists:append(TitlesPS0, [Title]),
-                            lists:append(InputFilesPS0, [InputFile])
-                        }
-                    };
-                nomatch ->
-                    {
-                        {
-                            lists:append(Titles0, [Title]),
-                            lists:append(InputFiles0, [InputFile])
-                        },
-                        {TitlesPS0, InputFilesPS0}
-                    }
-            end
+    {Titles, InputFiles} = lists:foldl(
+        fun({Title, InputFile}, {Titles0, InputFiles0}) ->
+            {[Title | Titles0], [InputFile | InputFiles0]}
         end,
-        {{[], []}, {[], []}},
+        {[], []},
         TitlesToInputFiles
     ),
-    
+
     PlotDir = root_plot_dir() ++ "/" ++ Simulation ++ "/",
 
     OutputFile = output_file(PlotDir, "multi_mode"),
@@ -97,14 +80,8 @@ generate_plots(Simulation, EvalIds) ->
     Result = run_gnuplot(InputFiles, Titles, OutputFile, -100),
     io:format("Generating multi-mode plot ~p. Output: ~p~n~n", [OutputFile, Result]),
 
-    OutputFilePS = output_file(PlotDir, "multi_mode_ps"),
-    %% Convergence time not supported yet on multi-mode plot
-    ResultPS = run_gnuplot(InputFilesPS, TitlesPS, OutputFilePS, -100),
-    io:format("Generating multi-mode-ps plot ~p. Output: ~p~n~n", [OutputFilePS, ResultPS]),
-
     %% Remove input files
     %%delete_files(InputFiles),
-    %%delete_files(InputFilesPS).
     ok.
 
 %% @private
@@ -679,8 +656,7 @@ generate_executions_average_plot({Types, Times, ToAverage}, Simulation, EvalId) 
         fun(N, TitlesToInputFiles) ->
             Type = lists:nth(N, Types),
             InputFile = lists:nth(N, InputFiles),
-            %%Title = get_title(list_to_atom(EvalId)) ++ " - " ++ get_title(Type),
-            Title = get_title(Type),
+            Title = get_title(list_to_atom(EvalId)) ++ " - " ++ get_title(Type),
             orddict:store(Title, InputFile, TitlesToInputFiles)
         end,
         orddict:new(),
@@ -739,8 +715,12 @@ get_titles(Types) ->
 %% @private
 get_title(state_send) -> "State Based";
 get_title(delta_send) -> "Delta Based";
-get_title(basic_state_based) -> "State Based";
-get_title(basic_delta_based) -> "Delta Based".
+get_title(state_based_erdos_renyi) -> "Erdos Renyi";
+get_title(delta_based_erdos_renyi) -> "Erdos Renyi";
+get_title(state_based_hyparview) -> "HyParView";
+get_title(delta_based_hyparview) -> "HyParView";
+get_title(state_based_ring) -> "Ring";
+get_title(delta_based_ring) -> "Ring".
 
 %% @private
 run_gnuplot(InputFiles, Titles, OutputFile, ConvergenceTime) ->
