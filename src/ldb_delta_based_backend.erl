@@ -18,7 +18,7 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_state_based_backend).
+-module(ldb_delta_based_backend).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
@@ -62,43 +62,98 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, CRDT, _NodeName) ->
-        Message = {Key, CRDT},
-        {ok, Message}
+    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName) ->
+        MinSeq = min_seq(DeltaBuffer),
+        LastAck = last_ack(NodeName, AckMap),
+
+        case LastAck < Sequence of
+            true ->
+                Delta = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
+                    true ->
+                        CRDT;
+                    false ->
+                        orddict:fold(
+                            fun(N, {From, D}, Acc) ->
+                                case LastAck =< N andalso NodeName /= From  of
+                                    true ->
+                                        Type:merge(Acc, D);
+                                    false ->
+                                        Acc
+                                end
+                            end,
+                            %% @todo support complex types
+                            Type:new(),
+                            DeltaBuffer
+                        )
+                end,
+                Message = {Key, delta_send, node(), Sequence, Delta},
+                {ok, Message};
+            false ->
+                nothing
+        end
     end.
 
 -spec message_handler(term()) -> function().
-message_handler(_Message) ->
-    fun({Key, {Type, _}=RemoteCRDT}) ->
+message_handler({_, delta_send, _, _, _}) ->
+    fun({Key, delta_send, {Type, _}=RemoteCRDT, From, N}) ->
         %% Create a bottom entry (if not present)
         %% @todo support complex types
         _ = ldb_store:create(Key, Type:new()),
         ldb_store:update(
             Key,
-            fun(LocalCRDT) ->
+            fun(LocalCRDT, Sequence, DeltaBuffer0, AckMap) ->
+                %% @todo check if it will inflate (or use join-decompositions)
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
-                {ok, Merged}
+                DeltaBuffer1 = orddict:store(Sequence, {From, RemoteCRDT}, DeltaBuffer0),
+                StoreValue = {Merged, Sequence + 1, DeltaBuffer1, AckMap},
+                send_ack(From, {Key, delta_ack, node(), N}),
+                {ok, StoreValue}
             end
         )
     end.
+
+%% @private
+min_seq(DeltaBuffer) ->
+    lists:nth(1, orddict:fetch_keys(DeltaBuffer)).
+
+%% @private
+last_ack(NodeName, AckMap) ->
+    case orddict:find(NodeName, AckMap) of
+        {ok, Ack} ->
+            Ack;
+        _ ->
+            0
+    end.
+
+%% @private
+send_ack(_NodeName, _AckMessage) ->
+    %% @todo whisperer should do this (some cast call)
+    ok.
 
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = node(),
 
-    lager:info("ldb_state_based_backend initialized!"),
+    lager:info("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Type = ldb_util:get_type(LDBType),
+
     %% @todo support complex types
-    Result = ldb_store:create(Key, Type:new()),
+    CRDT = Type:new(),
+    Sequence = 0,
+    DeltaBuffer = orddict:new(),
+    AckMap = orddcit:new(),
+
+    StoreValue = {CRDT, Sequence, DeltaBuffer, AckMap},
+    Result = ldb_store:create(Key, StoreValue),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
     Result = case ldb_store:get(Key) of
-        {ok, {Type, _}=CRDT} ->
+        {ok, {{Type, _}=CRDT, _, _, _}} ->
             {ok, Type:query(CRDT)};
         Error ->
             Error
@@ -107,8 +162,16 @@ handle_call({query, Key}, _From, State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
-    Function = fun({Type, _}=CRDT) ->
-        Type:mutate(Operation, Actor, CRDT)
+    Function = fun({{Type, _}=CRDT0, Sequence, DeltaBuffer0, AckMap}) ->
+        case Type:delta_mutate(Operation, Actor, CRDT0) of
+            {ok, Delta} ->
+                CRDT1 = Type:merge(CRDT0, Delta),
+                DeltaBuffer1 = orddict:store(Sequence, {Actor, Delta}, DeltaBuffer0),
+                StoreValue = {CRDT1, Sequence + 1, DeltaBuffer1, AckMap},
+                {ok, StoreValue};
+            Error ->
+                Error
+        end
     end,
 
     Result = case ldb_store:update(Key, Function) of
