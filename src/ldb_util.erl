@@ -35,6 +35,8 @@ get_type(Type) ->
     {State, _Op} = orddict:fetch(Type, Map),
     case ldb_config:mode() of
         state_based ->
+            State;
+        delta_based ->
             State
     end.
 
