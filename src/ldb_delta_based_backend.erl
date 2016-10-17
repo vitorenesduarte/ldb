@@ -74,7 +74,8 @@ message_maker() ->
                     false ->
                         orddict:fold(
                             fun(N, {From, D}, Acc) ->
-                                case LastAck =< N andalso NodeName /= From  of
+                                case LastAck =< N andalso N < Sequence andalso
+                                     NodeName =/= From  of
                                     true ->
                                         Type:merge(Acc, D);
                                     false ->
@@ -86,6 +87,8 @@ message_maker() ->
                             DeltaBuffer
                         )
                 end,
+                lager:info("LALALA delta size ~p | crdt size ~p", [byte_size(term_to_binary(Delta)), byte_size(term_to_binary(CRDT))]),
+
                 Message = {Key, delta_send, node(), Sequence, Delta},
                 {ok, Message};
             false ->
@@ -98,14 +101,23 @@ message_handler({_, delta_send, _, _, _}) ->
     fun({Key, delta_send, From, N, {Type, _}=RemoteCRDT}) ->
         %% Create a bottom entry (if not present)
         %% @todo support complex types
-        _ = ldb_store:create(Key, Type:new()),
+        _ = ldb_store:create(Key, {Type:new(), 0, orddict:new(), orddict:new()}),
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}) ->
-                %% @todo check if it will inflate (or use join-decompositions)
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
-                DeltaBuffer1 = orddict:store(Sequence, {From, RemoteCRDT}, DeltaBuffer0),
-                StoreValue = {Merged, Sequence + 1, DeltaBuffer1, AckMap},
+
+                %% If the result is an inflation, comparing to what we
+                %% add, add the delta to the buffer
+                %% @todo use join-decompositions here
+                StoreValue = case Type:is_strict_inflation(LocalCRDT, Merged) of
+                    true ->
+                        DeltaBuffer1 = orddict:store(Sequence, {From, RemoteCRDT}, DeltaBuffer0),
+                        {Merged, Sequence + 1, DeltaBuffer1, AckMap};
+                    false ->
+                        {LocalCRDT, Sequence, DeltaBuffer0, AckMap}
+                end,
+
                 send_ack(From, {Key, delta_ack, node(), N}),
                 {ok, StoreValue}
             end
@@ -127,7 +139,12 @@ message_handler({_, delta_ack, _, _}) ->
 
 %% @private
 min_seq(DeltaBuffer) ->
-    lists:nth(1, orddict:fetch_keys(DeltaBuffer)).
+    case orddict:fetch_keys(DeltaBuffer) of
+        [] ->
+            0;
+        Keys ->
+            lists:nth(1, Keys)
+    end.
 
 %% @private
 last_ack(NodeName, AckMap) ->
