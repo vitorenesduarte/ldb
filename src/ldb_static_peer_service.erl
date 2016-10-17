@@ -50,7 +50,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec members() -> {ok, [node_info()]}.
+-spec members() -> {ok, [node_name()]}.
 members() ->
     gen_server:call(?MODULE, members, infinity).
 
@@ -58,10 +58,10 @@ members() ->
 join(NodeInfo) ->
     gen_server:call(?MODULE, {join, NodeInfo}, infinity).
 
--spec forward_message(node_info(), handler(), message()) ->
+-spec forward_message(node_name(), handler(), message()) ->
     ok | error().
-forward_message(NodeInfo, Handler, Message) ->
-    gen_server:call(?MODULE, {forward_message, NodeInfo, Handler, Message}, infinity).
+forward_message(Name, Handler, Message) ->
+    gen_server:call(?MODULE, {forward_message, Name, Handler, Message}, infinity).
 
 -spec get_node_info() -> {ok, node_info()}.
 get_node_info() ->
@@ -80,15 +80,15 @@ handle_call(members, _From, #state{connected=Connected}=State) ->
     Result = {ok, orddict:fetch_keys(Connected)},
     {reply, Result, State};
 
-handle_call({join, {_Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
+handle_call({join, {Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
             #state{connected=Connected0}=State) ->
-    {Result, Connected1} = case orddict:find(NodeInfo, Connected0) of
+    {Result, Connected1} = case orddict:find(Name, Connected0) of
         {ok, _} ->
             {ok, Connected0};
         error ->
             case ldb_static_peer_service_client:start_link(NodeInfo) of
                 {ok, Pid} ->
-                    {ok, orddict:store(NodeInfo, Pid, Connected0)};
+                    {ok, orddict:store(Name, Pid, Connected0)};
                 Error ->
                     lager:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),
                     {Error, Connected0}
@@ -96,8 +96,8 @@ handle_call({join, {_Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
     end,
     {reply, Result, State#state{connected=Connected1}};
 
-handle_call({forward_message, NodeInfo, Handler, Message}, _From, #state{connected=Connected}=State) ->
-    Result = case orddict:find(NodeInfo, Connected) of
+handle_call({forward_message, Name, Handler, Message}, _From, #state{connected=Connected}=State) ->
+    Result = case orddict:find(Name, Connected) of
         {ok, Pid} ->
             Pid ! {forward_message, Handler, Message},
             ok;

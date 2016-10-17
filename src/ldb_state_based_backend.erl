@@ -60,9 +60,9 @@ query(Key) ->
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
--spec prepare_message(key(), term(), node_info()) ->
+-spec prepare_message(key(), term(), node_name()) ->
     {ok, term()} | nothing.
-prepare_message(Key, CRDT, _Peer) ->
+prepare_message(Key, CRDT, _Name) ->
     Message = {Key, CRDT},
     {ok, Message}.
 

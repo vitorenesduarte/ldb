@@ -43,8 +43,8 @@
     ok | not_found() | error().
 
 %% @doc Given `key()' and the correspondent `value()' in the store,
-%%      and a Peer, decide what should be sent.
--callback prepare_message(key(), term(), node_info()) ->
+%%      and a node name, decide what should be sent.
+-callback prepare_message(key(), term(), node_name()) ->
     {ok, term()} | nothing.
 
 %% @doc Returns a function that handles the message received.
@@ -68,10 +68,10 @@ query(Key) ->
 update(Key, Operation) ->
     do(update, [Key, Operation]).
 
--spec prepare_message(key(), term(), node_info()) ->
+-spec prepare_message(key(), term(), node_name()) ->
     {ok, term()} | nothing.
-prepare_message(Key, Value, NodeInfo) ->
-    do(prepare_message, [Key, Value, NodeInfo]).
+prepare_message(Key, Value, Name) ->
+    do(prepare_message, [Key, Value, Name]).
 
 -spec message_handler(term()) -> function().
 message_handler(Message) ->

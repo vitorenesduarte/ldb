@@ -10,7 +10,10 @@
 -type operation() :: term().
 
 %% peer service
--type node_info() :: {node(), inet:ip_address(), non_neg_integer()}.
+-type node_name() :: node().
+-type node_ip() :: inet:ip_address().
+-type node_port() :: non_neg_integer().
+-type node_info() :: {node_name(), node_ip(), node_port()}.
 -type handler() :: {term(), term()}. %% {module, function}
 -type message() :: term().
 -define(TCP_OPTIONS, [binary, {active, true}, {packet, 4}, {keepalive, true}]).
