@@ -35,7 +35,7 @@ start_link() ->
 init([]) ->
     %% Configure peer service
     PeerService = list_to_atom(os:getenv("LDB_PEER_SERVICE", "undefined")),
-    case PeerService != undefined of
+    case PeerService /= undefined of
         true ->
             application:set_env(?APP,
                                 ldb_peer_service,
@@ -44,7 +44,7 @@ init([]) ->
 
     %% Configure mode
     Mode = list_to_atom(os:getenv("LDB_MODE", "undefined")),
-    case Mode != undefined of
+    case Mode /= undefined of
         true ->
             application:set_env(?APP,
                                 ldb_mode,
