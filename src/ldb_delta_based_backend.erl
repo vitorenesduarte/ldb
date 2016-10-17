@@ -110,6 +110,19 @@ message_handler({_, delta_send, _, _, _}) ->
                 {ok, StoreValue}
             end
         )
+    end;
+message_handler({_, delta_ack, _, _}) ->
+    fun({Key, delta_ack, From, N}) ->
+        ldb_store:update(
+            Key,
+            fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
+                LastAck = last_ack(From, AckMap0),
+                MaxAck = max(LastAck, N),
+                AckMap1 = orddict:store(From, MaxAck, AckMap0),
+                StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
+                {ok, StoreValue}
+            end
+        )
     end.
 
 %% @private
@@ -126,9 +139,8 @@ last_ack(NodeName, AckMap) ->
     end.
 
 %% @private
-send_ack(_NodeName, _AckMessage) ->
-    %% @todo whisperer should do this (some cast call)
-    ok.
+send_ack(NodeName, AckMessage) ->
+    ldb_whisperer:send(NodeName, AckMessage).
 
 %% gen_server callbacks
 init([]) ->
