@@ -27,7 +27,7 @@
          create/2,
          query/1,
          update/2,
-         prepare_message/2,
+         prepare_message/3,
          message_handler/1]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
@@ -42,9 +42,10 @@
 -callback update(key(), operation()) ->
     ok | not_found() | error().
 
-%% @doc Prepares a message to be send to peers given `key()'
-%%      and the correspondent `value()' that's in the store.
--callback prepare_message(key(), term()) -> term().
+%% @doc Given `key()' and the correspondent `value()' in the store,
+%%      and a Peer, decide what should be sent.
+-callback prepare_message(key(), term(), node_info()) ->
+    {ok, term()} | nothing.
 
 %% @doc Returns a function that handles the message received.
 -callback message_handler(term()) -> function().
@@ -67,9 +68,10 @@ query(Key) ->
 update(Key, Operation) ->
     do(update, [Key, Operation]).
 
--spec prepare_message(key(), term()) -> term().
-prepare_message(Key, Value) ->
-    do(prepare_message, [Key, Value]).
+-spec prepare_message(key(), term(), node_info()) ->
+    {ok, term()} | nothing.
+prepare_message(Key, Value, NodeInfo) ->
+    do(prepare_message, [Key, Value, NodeInfo]).
 
 -spec message_handler(term()) -> function().
 message_handler(Message) ->

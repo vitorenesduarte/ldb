@@ -31,7 +31,7 @@
          create/2,
          query/1,
          update/2,
-         prepare_message/2,
+         prepare_message/3,
          message_handler/1]).
 
 %% gen_server callbacks
@@ -60,9 +60,11 @@ query(Key) ->
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
--spec prepare_message(key(), term()) -> term().
-prepare_message(Key, CRDT) ->
-    {Key, CRDT}.
+-spec prepare_message(key(), term(), node_info()) ->
+    {ok, term()} | nothing.
+prepare_message(Key, CRDT, _Peer) ->
+    Message = {Key, CRDT},
+    {ok, Message}.
 
 -spec message_handler(term()) -> function().
 message_handler(_Message) ->
