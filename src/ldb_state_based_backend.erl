@@ -66,11 +66,13 @@ prepare_message(Key, CRDT) ->
 
 -spec message_handler(term()) -> function().
 message_handler(_Message) ->
-    %% @todo The key may not be present yet.
-    MessageHandler = fun({Key, RemoteCRDT}) ->
+    MessageHandler = fun({Key, {Type, _}=RemoteCRDT}) ->
+        %% Create a bottom entry (if not present)
+        %% @todo support complex types
+        _ = ldb_store:create(Key, Type:new()),
         ldb_store:update(
             Key,
-            fun({Type, _}=LocalCRDT) ->
+            fun(LocalCRDT) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
                 {ok, Merged}
             end
@@ -89,9 +91,7 @@ init([]) ->
 handle_call({create, Key, LDBType}, _From, State) ->
     Type = ldb_util:get_type(LDBType),
     %% @todo support complex types
-    Value = Type:new(),
-
-    Result = ldb_store:create(Key, Value),
+    Result = ldb_store:create(Key, Type:new()),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
