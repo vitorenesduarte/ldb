@@ -95,13 +95,13 @@ message_maker() ->
 
 -spec message_handler(term()) -> function().
 message_handler({_, delta_send, _, _, _}) ->
-    fun({Key, delta_send, {Type, _}=RemoteCRDT, From, N}) ->
+    fun({Key, delta_send, From, N, {Type, _}=RemoteCRDT}) ->
         %% Create a bottom entry (if not present)
         %% @todo support complex types
         _ = ldb_store:create(Key, Type:new()),
         ldb_store:update(
             Key,
-            fun(LocalCRDT, Sequence, DeltaBuffer0, AckMap) ->
+            fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}) ->
                 %% @todo check if it will inflate (or use join-decompositions)
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
                 DeltaBuffer1 = orddict:store(Sequence, {From, RemoteCRDT}, DeltaBuffer0),
@@ -145,7 +145,7 @@ handle_call({create, Key, LDBType}, _From, State) ->
     CRDT = Type:new(),
     Sequence = 0,
     DeltaBuffer = orddict:new(),
-    AckMap = orddcit:new(),
+    AckMap = orddict:new(),
 
     StoreValue = {CRDT, Sequence, DeltaBuffer, AckMap},
     Result = ldb_store:create(Key, StoreValue),
