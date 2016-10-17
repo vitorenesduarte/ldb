@@ -25,19 +25,26 @@
 
 -export([start_link/0,
          get/1,
-         put/2,
-         update/2]).
+         create/2,
+         update/2,
+         fold/2]).
 
 %% @doc Returns the value associated with a given `key()'.
 -callback get(key()) -> {ok, value()} | not_found().
 
-%% @doc Updates a given `key()' with a given `value()'.
--callback put(key(), value()) -> ok.
+%% @doc Creates a `key()' in store with `value()', if the key
+%%      is not already present in the store.
+-callback create(key(), value()) -> ok | already_exists().
 
 %% @doc Applies a given `function()' to a given `key()',
 %%      returning the new value.
 -callback update(key(), function()) ->
     {ok, value()} | not_found() | error().
+
+%% @doc Folds the store.
+%%      The first argument is the function to be passed to the fold.
+%%      The second argument is the initial value for the accumulator.
+-callback fold(function(), term()) -> term().
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -47,13 +54,17 @@ start_link() ->
 get(Key) ->
     do(get, [Key]).
 
--spec put(key(), value()) -> ok.
-put(Key, Value) ->
-    do(put, [Key, Value]).
+-spec create(key(), value()) -> ok | already_exists().
+create(Key, Value) ->
+    do(create, [Key, Value]).
 
 -spec update(key(), function()) -> {ok, value()} | not_found().
 update(Key, Function) ->
     do(update, [Key, Function]).
+
+-spec fold(function(), term()) -> term().
+fold(Function, Acc) ->
+    do(fold, [Function, Acc]).
 
 %% @private Execute call to the proper store.
 do(Function, Args) ->

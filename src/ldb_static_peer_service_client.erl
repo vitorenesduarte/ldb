@@ -18,16 +18,15 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_listener).
+-module(ldb_static_peer_service_client).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
 -behaviour(gen_server).
 
-%% ldb_listener callbacks
--export([start_link/0,
-         handle_message/1]).
+%% ldb_static_peer_service_client callbacks
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -37,33 +36,48 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {socket :: gen_tcp:socket()}).
 
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
--spec handle_message(term()) -> ok.
-handle_message(Message) ->
-    gen_server:cast(?MODULE, {handle_message, Message}).
+-spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
+start_link(NodeInfoOrSocket) ->
+    gen_server:start_link(?MODULE, [NodeInfoOrSocket], []).
 
 %% gen_server callbacks
-init([]) ->
-    lager:info("ldb_listener initialized!"),
-    {ok, #state{}}.
+init([{_Name, IpAddress, Port}=Info]) ->
+    case gen_tcp:connect(IpAddress, Port, ?TCP_OPTIONS) of
+        {ok, Socket} ->
+            lager:info("ldb_static_peer_service_client initialized! Node ~p to node ~p", [node(), Info]),
+            {ok, #state{socket=Socket}};
+        Error ->
+            {stop, Error}
+    end;
+
+init([Socket]) ->
+    lager:info("ldb_static_peer_service_client initialized! Node ~p listening to socket ~p", [node(), Socket]),
+    {ok, #state{socket=Socket}}.
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({handle_message, Message}, State) ->
-    MessageHandler = ldb_backend:message_handler(Message),
-    MessageHandler(Message),
-    {noreply, State};
-
 handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
+
+handle_info({forward_message, _Handler, _Message}=M,
+            #state{socket=Socket}=State) ->
+    case gen_tcp:send(Socket, encode(M)) of
+        ok ->
+            ok;
+        Error ->
+            lager:info("Failed to send message: ~p", [Error])
+    end,
+
+    {noreply, State};
+
+handle_info({tcp, _Socket, Data}, State) ->
+    handle_message(decode(Data)),
+    {noreply, State};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -74,3 +88,15 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+encode(Message) ->
+    term_to_binary(Message).
+
+%% @private
+decode(Message) ->
+    binary_to_term(Message).
+
+%% @private
+handle_message({forward_message, {Module, Function}, Message}) ->
+    erlang:apply(Module, Function, [Message]).

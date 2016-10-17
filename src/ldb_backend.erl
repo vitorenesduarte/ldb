@@ -26,13 +26,12 @@
 -export([start_link/0,
          create/2,
          query/1,
-         update/2]).
+         update/2,
+         prepare_message/3,
+         message_handler/1]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
-%%      If the key already exists and it is associated with a
-%%      different type, an error will be returned.
--callback create(key(), type()) ->
-    ok | {error, key_already_existing_with_different_type}.
+-callback create(key(), type()) -> ok | already_exists().
 
 %% @doc Reads the value associated with a given `key()'.
 -callback query(key()) ->
@@ -43,12 +42,19 @@
 -callback update(key(), operation()) ->
     ok | not_found() | error().
 
+%% @doc Given `key()' and the correspondent `value()' in the store,
+%%      and a Peer, decide what should be sent.
+-callback prepare_message(key(), term(), node_info()) ->
+    {ok, term()} | nothing.
+
+%% @doc Returns a function that handles the message received.
+-callback message_handler(term()) -> function().
+
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     do(start_link, []).
 
--spec create(key(), type()) ->
-    ok | {error, key_already_existing_with_different_type}.
+-spec create(key(), type()) -> ok | already_exists().
 create(Key, Type) ->
     do(create, [Key, Type]).
 
@@ -61,6 +67,15 @@ query(Key) ->
     ok | not_found() | error().
 update(Key, Operation) ->
     do(update, [Key, Operation]).
+
+-spec prepare_message(key(), term(), node_info()) ->
+    {ok, term()} | nothing.
+prepare_message(Key, Value, NodeInfo) ->
+    do(prepare_message, [Key, Value, NodeInfo]).
+
+-spec message_handler(term()) -> function().
+message_handler(Message) ->
+    do(message_handler, [Message]).
 
 %% @private Execute call to the proper backend.
 do(Function, Args) ->

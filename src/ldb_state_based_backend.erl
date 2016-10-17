@@ -30,7 +30,9 @@
 -export([start_link/0,
          create/2,
          query/1,
-         update/2]).
+         update/2,
+         prepare_message/3,
+         message_handler/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -46,8 +48,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec create(key(), type()) ->
-    ok | {error, key_already_existing_with_different_type}.
+-spec create(key(), type()) -> ok | already_exists().
 create(Key, Type) ->
     gen_server:call(?MODULE, {create, Key, Type}, infinity).
 
@@ -59,6 +60,28 @@ query(Key) ->
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
+-spec prepare_message(key(), term(), node_info()) ->
+    {ok, term()} | nothing.
+prepare_message(Key, CRDT, _Peer) ->
+    Message = {Key, CRDT},
+    {ok, Message}.
+
+-spec message_handler(term()) -> function().
+message_handler(_Message) ->
+    MessageHandler = fun({Key, {Type, _}=RemoteCRDT}) ->
+        %% Create a bottom entry (if not present)
+        %% @todo support complex types
+        _ = ldb_store:create(Key, Type:new()),
+        ldb_store:update(
+            Key,
+            fun(LocalCRDT) ->
+                Merged = Type:merge(LocalCRDT, RemoteCRDT),
+                {ok, Merged}
+            end
+        )
+    end,
+    MessageHandler.
+
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
@@ -67,32 +90,16 @@ init([]) ->
     lager:info("ldb_state_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
-handle_call({create, Key, Type}, _From, State) ->
-    ActualType = ldb_util:get_type(Type),
-
-    Result = case ldb_store:get(Key) of
-        {ok, {KeyType, _Value}} ->
-            case KeyType of
-                ActualType ->
-                    %% already created with the same type
-                    ok;
-                _ ->
-                    %% already created with a different type
-                    {error, key_already_existing_with_different_type}
-            end;
-        {error, not_found} ->
-            %% @todo support complex types
-            New = ActualType:new(),
-            ldb_store:put(Key, {ActualType, New}),
-            ok
-    end,
-
+handle_call({create, Key, LDBType}, _From, State) ->
+    Type = ldb_util:get_type(LDBType),
+    %% @todo support complex types
+    Result = ldb_store:create(Key, Type:new()),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
     Result = case ldb_store:get(Key) of
-        {ok, {ActualType, Value}} ->
-            {ok, ActualType:query(Value)};
+        {ok, {Type, _}=CRDT} ->
+            {ok, Type:query(CRDT)};
         Error ->
             Error
     end,
@@ -100,13 +107,8 @@ handle_call({query, Key}, _From, State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
-    Function = fun({ActualType, Value}) ->
-        case ActualType:mutate(Operation, Actor, Value) of
-            {ok, NewValue} ->
-                {ok, {ActualType, NewValue}};
-            Error ->
-                Error
-        end
+    Function = fun({Type, _}=CRDT) ->
+        Type:mutate(Operation, Actor, CRDT)
     end,
 
     Result = case ldb_store:update(Key, Function) of
@@ -118,15 +120,15 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

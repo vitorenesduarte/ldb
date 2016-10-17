@@ -38,7 +38,7 @@
 
 -record(state, {}).
 
--define(EVENT_INTERVAL, 2500).
+-define(SIMULATION_END_INTERVAL, 5000).
 -define(MAX_VALUE, 10).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
@@ -47,38 +47,39 @@ start_link() ->
 
 %% gen_server callbacks
 init([]) ->
-    ldb:create("counter", gcounter),
-    schedule_event(),
+    ldb:create("SET", gset),
+    ldb:update("SET", {add, node()}),
+    schedule_simulation_end(),
 
     lager:info("ldb_basic_simulation initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(event, State) ->
-    ldb:update("counter", increment),
-    {ok, Value} = ldb:query("counter"),
+handle_info(simulation_end, State) ->
+    {ok, ClientNumber} = application:get_env(?APP, client_number),
+    {ok, Value} = ldb:query("SET"),
 
-    lager:info("Node ~p: I did an increment and the value now is ~p", [node(), Value]),
+    lager:info("Current set size ~p | Client Number ~p | Node ~p", [sets:size(Value), ClientNumber, node()]),
 
-    case Value < ?MAX_VALUE of
+    case sets:size(Value) == ClientNumber of
         true ->
-            schedule_event();
+            lager:info("All events have been observed"),
+            application:set_env(?APP, simulation_end, true);
         false ->
-            lager:info("All increments have been observed"),
-            application:set_env(?APP, simulation_end, true)
+            schedule_simulation_end()
     end,
 
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -88,6 +89,6 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-schedule_event() ->
-    timer:send_after(?EVENT_INTERVAL, event).
+schedule_simulation_end() ->
+    timer:send_after(?SIMULATION_END_INTERVAL, simulation_end).
 

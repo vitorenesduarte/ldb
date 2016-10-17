@@ -72,12 +72,26 @@ start(Options) ->
     ConfigureFun = fun(Node) ->
         ct:pal("Configuring node: ~p", [Node]),
 
-        %% Set simulation
-        Simulation = proplists:get_value(simulation, Options),
+        %% Set mode
+        Mode = proplists:get_value(ldb_mode, Options),
         ok = rpc:call(Node,
                       application,
                       set_env,
-                      [?APP, simulation, Simulation])
+                      [?APP, ldb_mode, Mode]),
+
+        %% Set simulation
+        Simulation = proplists:get_value(ldb_simulation, Options),
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, ldb_simulation, Simulation]),
+
+        %% Set client number
+        ClientNumber = length(Names),
+        ok = rpc:call(Node,
+                      application, set_env,
+                      [?APP, client_number, ClientNumber])
+
     end,
     lists:foreach(ConfigureFun, Nodes),
 

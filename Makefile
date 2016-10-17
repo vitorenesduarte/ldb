@@ -41,10 +41,14 @@ eunit:
 	${REBAR} as test eunit
 
 ct:
-	${REBAR} as test ct --readable=false
+	${REBAR} as test ct
 
 shell:
 	${REBAR} shell --apps ldb
+
+basic:
+	pkill -9 beam.smp; \
+		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
 
 logs:
 	  tail -F priv/lager/*/log/*.log

@@ -21,6 +21,8 @@
 -module(ldb_config).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
+-include("ldb.hrl").
+
 -export([mode/0,
          backend/0,
          store/0,
@@ -33,21 +35,23 @@
 %%          - `pure_op_based'
 -spec mode() -> atom().
 mode() ->
-    state_based.
+    application:get_env(?APP, ldb_mode, ?DEFAULT_MODE).
 
 %% @doc Returns the enabled backend.
 -spec backend() -> atom().
 backend() ->
     case mode() of
         state_based ->
-            ldb_state_based_backend
+            ldb_state_based_backend;
+        delta_based ->
+            ldb_delta_based_backend
     end.
 
 %% @doc Returns the enabled store.
 -spec store() -> atom().
 store() ->
-    ldb_ets_store.
+    application:get_env(?APP, ldb_store, ?DEFAULT_STORE).
 
 %% @doc Returns the enabled peer service.
 peer_service() ->
-    ldb_static_peer_service.
+    application:get_env(?APP, ldb_peer_service, ?DEFAULT_PEER_SERVICE).

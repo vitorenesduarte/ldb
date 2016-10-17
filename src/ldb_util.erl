@@ -21,6 +21,8 @@
 -module(ldb_util).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
+-include("ldb.hrl").
+
 -export([get_type/1,
          wait_until/3]).
 
@@ -28,7 +30,8 @@
 %%      (https://github.com/lasp-lang/types)
 -spec get_type(atom()) -> atom().
 get_type(Type) ->
-    Map = [{gcounter, {state_gcounter, pure_gcounter}}],
+    Map = [{gcounter, {state_gcounter, pure_gcounter}},
+           {gset, {state_gset, pure_gset}}],
     {State, _Op} = orddict:fetch(Type, Map),
     case ldb_config:mode() of
         state_based ->
