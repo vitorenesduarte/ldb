@@ -79,7 +79,7 @@ handle_info({tcp, _Socket, Data}, State) ->
     handle_message(decode(Data)),
     {noreply, State};
 
-handle_info({tcp_close, _Socket}, State) ->
+handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
 
 handle_info(Msg, State) ->

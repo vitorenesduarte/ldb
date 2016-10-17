@@ -120,7 +120,8 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(log, #state{connected=Connected}=State) ->
-    lager:info("Current connected nodes ~p | Node ~p", [Connected, node()]),
+    NodeNames = orddict:fetch_keys(Connected),
+    lager:info("Current connected nodes ~p | Node ~p", [NodeNames, node()]),
     schedule_log(),
     {noreply, State};
 
