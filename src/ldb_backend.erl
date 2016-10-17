@@ -31,10 +31,7 @@
          message_handler/1]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
-%%      If the key already exists and it is associated with a
-%%      different type, an error will be returned.
--callback create(key(), type()) ->
-    ok | {error, key_already_existing_with_different_type}.
+-callback create(key(), type()) -> ok | already_exists().
 
 %% @doc Reads the value associated with a given `key()'.
 -callback query(key()) ->
@@ -56,8 +53,7 @@
 start_link() ->
     do(start_link, []).
 
--spec create(key(), type()) ->
-    ok | {error, key_already_existing_with_different_type}.
+-spec create(key(), type()) -> ok | already_exists().
 create(Key, Type) ->
     do(create, [Key, Type]).
 

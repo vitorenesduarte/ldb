@@ -48,8 +48,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec create(key(), type()) ->
-    ok | {error, key_already_existing_with_different_type}.
+-spec create(key(), type()) -> ok | already_exists().
 create(Key, Type) ->
     gen_server:call(?MODULE, {create, Key, Type}, infinity).
 
@@ -89,24 +88,10 @@ init([]) ->
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Type = ldb_util:get_type(LDBType),
+    %% @todo support complex types
+    Value = Type:new(),
 
-    Result = case ldb_store:get(Key) of
-        {ok, {KeyType, _CRDT}} ->
-            case KeyType of
-                Type ->
-                    %% already created with the same type
-                    ok;
-                _ ->
-                    %% already created with a different type
-                    {error, key_already_existing_with_different_type}
-            end;
-        {error, not_found} ->
-            %% @todo support complex types
-            New = Type:new(),
-            ldb_store:put(Key, New),
-            ok
-    end,
-
+    Result = ldb_store:create(Key, Value),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->

@@ -29,7 +29,7 @@
 %% ldb_store callbacks
 -export([start_link/0,
          get/1,
-         put/2,
+         create/2,
          update/2,
          fold/2]).
 
@@ -51,9 +51,9 @@ start_link() ->
 get(Key) ->
     gen_server:call(?MODULE, {get, Key}, infinity).
 
--spec put(key(), value()) -> ok.
-put(Key, Value) ->
-    gen_server:call(?MODULE, {put, Key, Value}, infinity).
+-spec create(key(), value()) -> ok | already_exists().
+create(Key, Value) ->
+    gen_server:call(?MODULE, {create, Key, Value}, infinity).
 
 -spec update(key(), function()) ->
     {ok, value()} | not_found() | error().
@@ -71,20 +71,27 @@ init([]) ->
     lager:info("ldb_ets_store initialized!"),
     {ok, #state{ets_id=ETS}}.
 
-handle_call({get, Id}, _From, #state{ets_id=ETS}=State) ->
-    Result = do_get(Id, ETS),
+handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->
+    Result = do_get(Key, ETS),
     {reply, Result, State};
 
-handle_call({put, Id, Value}, _From, #state{ets_id=ETS}=State) ->
-    do_put(Id, Value, ETS),
-    {reply, ok, State};
+handle_call({create, Key, Value}, _From, #state{ets_id=ETS}=State) ->
+    Result = case do_get(Key, ETS) of
+        {ok, _} ->
+            {error, already_exists};
+        _ ->
+            do_put(Key, Value, ETS),
+            ok
+    end,
 
-handle_call({update, Id, Function}, _From, #state{ets_id=ETS}=State) ->
-    Result = case do_get(Id, ETS) of
+    {reply, Result, State};
+
+handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
+    Result = case do_get(Key, ETS) of
         {ok, Value} ->
             case Function(Value) of
                 {ok, NewValue} ->
-                    do_put(Id, NewValue, ETS),
+                    do_put(Key, NewValue, ETS),
                     {ok, NewValue};
                 Error ->
                     Error
@@ -117,14 +124,14 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private Attemts to retrieve a certain value from the ets.
-do_get(Id, ETS) ->
-    case ets:lookup(ETS, Id) of
-        [{Id, Value}] ->
+do_get(Key, ETS) ->
+    case ets:lookup(ETS, Key) of
+        [{Key, Value}] ->
             {ok, Value};
         [] ->
             {error, not_found}
     end.
 
-do_put(Id, Value, ETS) ->
-    true = ets:insert(ETS, {Id, Value}),
+do_put(Key, Value, ETS) ->
+    true = ets:insert(ETS, {Key, Value}),
     ok.
