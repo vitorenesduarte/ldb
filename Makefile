@@ -48,7 +48,12 @@ shell:
 
 basic:
 	pkill -9 beam.smp; \
-		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
+		rm priv/evaluation/logs -rf; \
+		rm priv/evaluation/plots -rf; \
+		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE; \
+		cd priv/evaluation/; \
+		ldb_transmission_plot.sh; \
+		google-chrome plots/basic/local/multi_mode.pdf
 
 logs:
 	  tail -F priv/lager/*/log/*.log
