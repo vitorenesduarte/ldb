@@ -3,3 +3,5 @@ _build/
 log/
 *.swp
 src/*.swp
+priv/evaluation/logs/
+priv/evaluation/plots/
