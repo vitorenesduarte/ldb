@@ -21,6 +21,8 @@
 -module(ldb_config).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
+-include("ldb.hrl").
+
 -export([mode/0,
          backend/0,
          store/0,

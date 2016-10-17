@@ -21,9 +21,9 @@
 -module(ldb_sup).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
--behaviour(supervisor).
-
 -include("ldb.hrl").
+
+-behaviour(supervisor).
 
 -export([start_link/0]).
 
@@ -33,15 +33,35 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
+    %% Configure peer service
+    PeerService = list_to_atom(os:getenv("LDB_PEER_SERVICE", "undefined")),
+    case PeerService != undefined of
+        true ->
+            application:set_env(?APP,
+                                ldb_peer_service,
+                                PeerService)
+    end,
+
+    %% Configure mode
+    Mode = list_to_atom(os:getenv("LDB_MODE", "undefined")),
+    case Mode != undefined of
+        true ->
+            application:set_env(?APP,
+                                ldb_mode,
+                                Mode)
+    end,
+
+    %% Now, with peer service and mode properly configured,
+    %% we can start the `ldb_peer_service' and the `ldb_backend'
     {ok, _} = ldb_peer_service:start_link(),
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
 
     %% Configure simulation
-    SimulationDefault = list_to_atom(os:getenv("SIMULATION", "undefined")),
+    SimulationDefault = list_to_atom(os:getenv("LDB_SIMULATION", "undefined")),
     Simulation = application:get_env(?APP,
-                                     simulation,
+                                     ldb_simulation,
                                      SimulationDefault),
 
     case Simulation of

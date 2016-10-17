@@ -21,6 +21,8 @@
 -module(ldb_util).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
+-include("ldb.hrl").
+
 -export([get_type/1,
          wait_until/3]).
 

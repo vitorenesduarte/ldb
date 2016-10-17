@@ -60,13 +60,13 @@ end_per_testcase(Case, Config) ->
 
 all() ->
     [
-     state_based_test
+     state_based_test,
+     delta_based_test
     ].
 
 %% ===================================================================
 %% tests
 %% ===================================================================
-
 
 state_based_test(_Config) ->
     Nodes = [n1, n2, n3, n4, n5],
@@ -78,5 +78,20 @@ state_based_test(_Config) ->
              {n5, [n4]}],
     Options = [{nodes, Nodes},
                {graph, Graph},
-               {simulation, basic}],
+               {ldb_mode, state_based},
+               {ldb_simulation, basic}],
+    ldb_simulation_support:run(Options).
+
+delta_based_test(_Config) ->
+    Nodes = [n1, n2, n3, n4, n5],
+    %% This graph forms a line
+    Graph = [{n1, [n2]},
+             {n2, [n1, n3]},
+             {n3, [n2, n4]},
+             {n4, [n3, n5]},
+             {n5, [n4]}],
+    Options = [{nodes, Nodes},
+               {graph, Graph},
+               {ldb_mode, delta_based},
+               {ldb_simulation, basic}],
     ldb_simulation_support:run(Options).
