@@ -27,7 +27,7 @@
          create/2,
          query/1,
          update/2,
-         prepare_message/3,
+         message_maker/0,
          message_handler/1]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
@@ -42,10 +42,11 @@
 -callback update(key(), operation()) ->
     ok | not_found() | error().
 
-%% @doc Given `key()' and the correspondent `value()' in the store,
-%%      and a node name, decide what should be sent.
--callback prepare_message(key(), term(), node_name()) ->
-    {ok, term()} | nothing.
+%% @doc Retunrs a function that will, given what's in the store,
+%%      decide what should be sent.
+%%      The function signature should be:
+%%         fun(key(), value(), node_name()) -> {ok, term()} | nothing.
+-callback message_maker() -> function().
 
 %% @doc Returns a function that handles the message received.
 -callback message_handler(term()) -> function().
@@ -68,10 +69,9 @@ query(Key) ->
 update(Key, Operation) ->
     do(update, [Key, Operation]).
 
--spec prepare_message(key(), term(), node_name()) ->
-    {ok, term()} | nothing.
-prepare_message(Key, Value, Name) ->
-    do(prepare_message, [Key, Value, Name]).
+-spec message_maker() -> function().
+message_maker() ->
+    do(message_maker, []).
 
 -spec message_handler(term()) -> function().
 message_handler(Message) ->

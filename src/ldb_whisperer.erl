@@ -60,15 +60,16 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(sync, State) ->
-    {ok, Peers} = ldb_peer_service:members(),
+    {ok, NodeNames} = ldb_peer_service:members(),
 
     FoldFunction = fun({Key, Value}, _Acc) ->
         lists:foreach(
-            fun(Peer) ->
-                case ldb_backend:prepare_message(Key, Value, Peer) of
+            fun(NodeName) ->
+                MessageMakerFun = ldb_backend:message_maker(),
+                case MessageMakerFun(Key, Value, NodeName) of
                     {ok, Message} ->
                         ldb_peer_service:forward_message(
-                            Peer,
+                            NodeName,
                             {ldb_listener, handle_message},
                             Message
                         );
@@ -76,7 +77,7 @@ handle_info(sync, State) ->
                         ok
                 end
             end,
-            Peers
+            NodeNames
         )
     end,
 
