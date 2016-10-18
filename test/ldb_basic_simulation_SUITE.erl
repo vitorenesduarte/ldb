@@ -60,44 +60,47 @@ end_per_testcase(Case, Config) ->
 
 all() ->
     [
-     papoc_test
+     state_based_test,
+     delta_based_test,
+     join_decompositions_test
     ].
 
 %% ===================================================================
 %% tests
 %% ===================================================================
 
-papoc_test(_Config) ->
+state_based_test(_Config) ->
+    run(state_based).
+
+delta_based_test(_Config) ->
+    run(delta_based).
+
+join_decompositions_test(_Config) ->
+    run(join_decompositions).
+
+%% @private
+run(Evaluation) ->
     Nodes = node_names(),
     lists:foreach(
         fun({Topology, Graph}) ->
-            lists:foreach(
-                fun(Evaluation) ->
-                    {Mode, JoinDecompositions} =
-                        get_mode_and_join_decompositions(Evaluation),
+            {Mode, JoinDecompositions} =
+                get_mode_and_join_decompositions(Evaluation),
 
-                    Identifier = list_to_atom(
-                        atom_to_list(Evaluation)
-                        ++ "_"
-                        ++ atom_to_list(Topology)
-                    ),
-                    Options = [{nodes, Nodes},
-                               {graph, Graph},
-                               {ldb_mode, Mode},
-                               {ldb_join_decompositions, JoinDecompositions},
-                               {ldb_simulation, basic},
-                               {ldb_evaluation_identifier, Identifier}],
-                    ldb_simulation_support:run(Options)
-                end,
-                evaluations()
-            )
+            Identifier = list_to_atom(
+                atom_to_list(Evaluation)
+                ++ "_"
+                ++ atom_to_list(Topology)
+            ),
+            Options = [{nodes, Nodes},
+                       {graph, Graph},
+                       {ldb_mode, Mode},
+                       {ldb_join_decompositions, JoinDecompositions},
+                       {ldb_simulation, basic},
+                       {ldb_evaluation_identifier, Identifier}],
+            ldb_simulation_support:run(Options)
         end,
         topologies()
     ).
-
-%% @private
-evaluations() ->
-    [state_based, delta_based, join_decompositions].
 
 %% @private
 get_mode_and_join_decompositions(state_based) ->
