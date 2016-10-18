@@ -5,7 +5,7 @@ install:
   - make
   - ./rebar3 update
 script:
-  - pkill -9 beam.smp; make test
+  - TRAVIS=true make test
   - make xref
   - make dialyzer
   - make lint

@@ -60,66 +60,47 @@ end_per_testcase(Case, Config) ->
 
 all() ->
     [
-     state_based_erdos_renyi_test,
-     state_based_hyparview_test,
-     state_based_ring_test,
-     delta_based_erdos_renyi_test,
-     delta_based_hyparview_test,
-     delta_based_ring_test,
-     join_decompositions_erdos_renyi_test,
-     join_decompositions_hyparview_test,
-     join_decompositions_ring_test
+     state_based_test,
+     delta_based_test,
+     join_decompositions_test
     ].
 
 %% ===================================================================
 %% tests
 %% ===================================================================
 
-state_based_erdos_renyi_test(_Config) ->
-    run(state_based, erdos_renyi, erdos_renyi()).
+state_based_test(_Config) ->
+    run(state_based).
 
-state_based_hyparview_test(_Config) ->
-    run(state_based, hyparview, hyparview()).
+delta_based_test(_Config) ->
+    run(delta_based).
 
-state_based_ring_test(_Config) ->
-    run(state_based, ring, ring()).
-
-delta_based_erdos_renyi_test(_Config) ->
-    run(delta_based, erdos_renyi, erdos_renyi()).
-
-delta_based_hyparview_test(_Config) ->
-    run(delta_based, hyparview, hyparview()).
-
-delta_based_ring_test(_Config) ->
-    run(delta_based, ring, ring()).
-
-join_decompositions_erdos_renyi_test(_Config) ->
-    run(join_decompositions, erdos_renyi, erdos_renyi()).
-
-join_decompositions_hyparview_test(_Config) ->
-    run(join_decompositions, hyparview, hyparview()).
-
-join_decompositions_ring_test(_Config) ->
-    run(join_decompositions, ring, ring()).
+join_decompositions_test(_Config) ->
+    run(join_decompositions).
 
 %% @private
-run(Evaluation, Topology, Graph) ->
+run(Evaluation) ->
     Nodes = node_names(),
-    {Mode, JoinDecompositions} =
-        get_mode_and_join_decompositions(Evaluation),
+    lists:foreach(
+        fun({Topology, Graph}) ->
+            {Mode, JoinDecompositions} =
+                get_mode_and_join_decompositions(Evaluation),
 
-    Identifier = list_to_atom(
-        atom_to_list(Evaluation)
-        ++ "_"
-        ++ atom_to_list(Topology)
-    ),
-    Options = [{nodes, Nodes},
-               {graph, Graph},
-               {ldb_mode, Mode},
-               {ldb_join_decompositions, JoinDecompositions},
-               {ldb_simulation, basic},
-               {ldb_evaluation_identifier, Identifier}],
-    ldb_simulation_support:run(Options).
+            Identifier = list_to_atom(
+                atom_to_list(Evaluation)
+                ++ "_"
+                ++ atom_to_list(Topology)
+            ),
+            Options = [{nodes, Nodes},
+                       {graph, Graph},
+                       {ldb_mode, Mode},
+                       {ldb_join_decompositions, JoinDecompositions},
+                       {ldb_simulation, basic},
+                       {ldb_evaluation_identifier, Identifier}],
+            ldb_simulation_support:run(Options)
+        end,
+        topologies()
+    ).
 
 %% @private
 get_mode_and_join_decompositions(state_based) ->
@@ -131,13 +112,29 @@ get_mode_and_join_decompositions(join_decompositions) ->
 
 %% @private
 node_names() ->
-    [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12].
+    case os:getenv("TRAVIS", "false") of
+        "false" ->
+            [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12];
+        "true" ->
+            [n0, n1, n2]
+    end.
 
 %% @private
 topologies() ->
-    [{erdos_renyi, erdos_renyi()},
-     {hyparview, hyparview()},
-     {ring, ring()}].
+    case os:getenv("TRAVIS", "false") of
+        "false" ->
+            [{erdos_renyi, erdos_renyi()},
+             {hyparview, hyparview()},
+             {ring, ring()}];
+        "true" ->
+            [{line, line()}]
+    end.
+
+%% @private
+line() ->
+    [{n0, [n1]},
+     {n1, [n0, n2]},
+     {n2, [n1]}].
 
 %% @private
 erdos_renyi() ->
