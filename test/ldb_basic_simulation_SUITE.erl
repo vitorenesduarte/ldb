@@ -72,28 +72,40 @@ papoc_test(_Config) ->
     lists:foreach(
         fun({Topology, Graph}) ->
             lists:foreach(
-                fun(Mode) ->
+                fun(Evaluation) ->
+                    {Mode, JoinDecompositions} =
+                        get_mode_and_join_decompositions(Evaluation),
+
                     Identifier = list_to_atom(
-                        atom_to_list(Mode)
+                        atom_to_list(Evaluation)
                         ++ "_"
                         ++ atom_to_list(Topology)
                     ),
                     Options = [{nodes, Nodes},
                                {graph, Graph},
                                {ldb_mode, Mode},
+                               {ldb_join_decompositions, JoinDecompositions},
                                {ldb_simulation, basic},
                                {ldb_evaluation_identifier, Identifier}],
                     ldb_simulation_support:run(Options)
                 end,
-                modes()
+                evaluations()
             )
         end,
         topologies()
     ).
 
 %% @private
-modes() ->
-    [state_based, delta_based].
+evaluations() ->
+    [state_based, delta_based, join_decompositions].
+
+%% @private
+get_mode_and_join_decompositions(state_based) ->
+    {state_based, false};
+get_mode_and_join_decompositions(delta_based) ->
+    {delta_based, false};
+get_mode_and_join_decompositions(join_decompositions) ->
+    {delta_based, true}.
 
 %% @private
 node_names() ->

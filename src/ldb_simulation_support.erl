@@ -81,6 +81,13 @@ start(Options) ->
                       set_env,
                       [?APP, ldb_mode, Mode]),
 
+        %% Set join decompositions
+        JoinDecompositions = proplists:get_value(ldb_join_decompositions, Options),
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, ldb_join_decompositions, JoinDecompositions]),
+
         %% Set simulation
         Simulation = proplists:get_value(ldb_simulation, Options),
         ok = rpc:call(Node,
