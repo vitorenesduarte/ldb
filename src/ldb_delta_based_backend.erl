@@ -104,21 +104,38 @@ message_handler({_, delta_send, _, _, _}) ->
         _ = ldb_store:create(Key, {Type:new(), 0, orddict:new(), orddict:new()}),
         ldb_store:update(
             Key,
-            fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}) ->
+            fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
-                %% If the result is an inflation, comparing to what we
-                %% add, add the delta to the buffer
-                %% @todo use join-decompositions here
-                StoreValue = case Type:is_strict_inflation(LocalCRDT, Merged) of
+                {Sequence, DeltaBuffer} = case join_decompositions_delta_buffer() of
                     true ->
-                        DeltaBuffer1 = orddict:store(Sequence, {From, RemoteCRDT}, DeltaBuffer0),
-                        {Merged, Sequence + 1, DeltaBuffer1, AckMap};
+                        Delta = Type:delta(state_driven, RemoteCRDT, LocalCRDT),
+
+                        %% If what we received, inflates the local state
+                        case not Type:is_bottom(Delta) of
+                            true ->
+                                DeltaBuffer1 = orddict:store(Sequence0, {From, Delta}, DeltaBuffer0),
+                                Sequence1 = Sequence0 + 1,
+                                {Sequence1, DeltaBuffer1};
+                            false ->
+                                {Sequence0, DeltaBuffer0}
+                        end;
                     false ->
-                        {LocalCRDT, Sequence, DeltaBuffer0, AckMap}
+
+                        %% If what we received, inflates the local state
+                        case Type:is_strict_inflation(LocalCRDT, Merged) of
+                            true ->
+                                DeltaBuffer1 = orddict:store(Sequence0, {From, RemoteCRDT}, DeltaBuffer0),
+                                Sequence1 = Sequence0 + 1,
+                                {Sequence1, DeltaBuffer1};
+                            false ->
+                                {Sequence0, DeltaBuffer0}
+                        end
                 end,
 
                 send_ack(From, {Key, delta_ack, node(), N}),
+
+                StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end
         )
@@ -228,3 +245,9 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+join_decompositions_delta_buffer() ->
+    application:get_env(?APP,
+                        ldb_join_decompositions_delta_buffer,
+                        false).
