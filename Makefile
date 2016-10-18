@@ -50,7 +50,9 @@ basic:
 	pkill -9 beam.smp; \
 		rm priv/evaluation/logs -rf; \
 		rm priv/evaluation/plots -rf; \
-		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE; \
+		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
+
+graph:
 		cd priv/evaluation/; \
 		ldb_transmission_plot.sh; \
 		google-chrome plots/basic/local/multi_mode.pdf
