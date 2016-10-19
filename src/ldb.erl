@@ -28,10 +28,7 @@
          update/2]).
 
 %% @doc Create a `Key' in the store with a given `Type'.
-%%      If the key already exists and it is associated with a
-%%      different type, an error will be returned.
--spec create(key(), type()) ->
-    ok | {error, key_already_existing_with_different_type}.
+-spec create(key(), type()) -> ok | already_exists().
 create(Key, Type) ->
     ldb_backend:create(Key, Type).
 

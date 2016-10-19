@@ -50,7 +50,7 @@ init([{_Name, _IpAddress, Port}]) ->
 
     prepare_accept(),
 
-    ldb_log:info("ldb_static_peer_service_server initialized!"),
+    ldb_log:info("ldb_static_peer_service_server initialized!", extended),
     {ok, #state{listener=Listener}}.
 
 handle_call(Msg, _From, State) ->
