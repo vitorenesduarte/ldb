@@ -31,7 +31,7 @@
          create/2,
          query/1,
          update/2,
-         prepare_message/3,
+         message_maker/0,
          message_handler/1]).
 
 %% gen_server callbacks
@@ -60,15 +60,16 @@ query(Key) ->
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
--spec prepare_message(key(), term(), node_info()) ->
-    {ok, term()} | nothing.
-prepare_message(Key, CRDT, _Peer) ->
-    Message = {Key, CRDT},
-    {ok, Message}.
+-spec message_maker() -> function().
+message_maker() ->
+    fun(Key, CRDT, _NodeName) ->
+        Message = {Key, state_send, CRDT},
+        {ok, Message}
+    end.
 
 -spec message_handler(term()) -> function().
 message_handler(_Message) ->
-    MessageHandler = fun({Key, {Type, _}=RemoteCRDT}) ->
+    fun({Key, state_send, {Type, _}=RemoteCRDT}) ->
         %% Create a bottom entry (if not present)
         %% @todo support complex types
         _ = ldb_store:create(Key, Type:new()),
@@ -79,15 +80,14 @@ message_handler(_Message) ->
                 {ok, Merged}
             end
         )
-    end,
-    MessageHandler.
+    end.
 
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = node(),
 
-    lager:info("ldb_state_based_backend initialized!"),
+    ldb_log:info("ldb_state_based_backend initialized!", extended),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
@@ -120,15 +120,15 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

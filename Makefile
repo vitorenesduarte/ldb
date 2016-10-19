@@ -41,14 +41,21 @@ eunit:
 	${REBAR} as test eunit
 
 ct:
-	${REBAR} as test ct
+	pkill -9 beam.smp; ${REBAR} as test ct
 
 shell:
 	${REBAR} shell --apps ldb
 
 basic:
 	pkill -9 beam.smp; \
+		rm priv/evaluation/logs -rf; \
+		rm priv/evaluation/plots -rf; \
 		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
+
+graph:
+	cd priv/evaluation/; \
+		ldb_transmission_plot.sh; \
+		google-chrome plots/basic/local/multi_mode.pdf
 
 logs:
 	  tail -F priv/lager/*/log/*.log

@@ -26,7 +26,8 @@
 -behaviour(gen_server).
 
 %% ldb_whisperer callbacks
--export([start_link/0]).
+-export([start_link/0,
+         send/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -44,39 +45,44 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+-spec send(node_name(), term()) -> ok.
+send(NodeName, Message) ->
+    gen_server:cast(?MODULE, {send, NodeName, Message}).
+
 %% gen_server callbacks
 init([]) ->
     schedule_sync(),
 
-    lager:info("ldb_whisperer initialized!"),
+    ldb_log:info("ldb_whisperer initialized!", extended),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
+handle_cast({send, NodeName, Message}, State) ->
+    do_send(NodeName, Message),
+    {noreply, State};
+
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(sync, State) ->
-    {ok, Peers} = ldb_peer_service:members(),
+    {ok, NodeNames} = ldb_peer_service:members(),
 
     FoldFunction = fun({Key, Value}, _Acc) ->
         lists:foreach(
-            fun(Peer) ->
-                case ldb_backend:prepare_message(Key, Value, Peer) of
+            fun(NodeName) ->
+                MessageMakerFun = ldb_backend:message_maker(),
+                case MessageMakerFun(Key, Value, NodeName) of
                     {ok, Message} ->
-                        ldb_peer_service:forward_message(
-                            Peer,
-                            {ldb_listener, handle_message},
-                            Message
-                        );
+                        do_send(NodeName, Message);
                     nothing ->
                         ok
                 end
             end,
-            Peers
+            NodeNames
         )
     end,
 
@@ -85,7 +91,7 @@ handle_info(sync, State) ->
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -97,3 +103,29 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private
 schedule_sync() ->
     timer:send_after(?SYNC_INTERVAL, sync).
+
+%% @private
+do_send(NodeName, Message) ->
+    log_transmission(Message),
+    Result = ldb_peer_service:forward_message(
+        NodeName,
+        {ldb_listener, handle_message},
+        Message
+    ),
+
+    case Result of
+        ok ->
+            ok;
+        Error ->
+            ldb_log:info("Error trying to send message ~p to node ~p. Reason ~p", [Message, NodeName, Error])
+    end.
+
+%% @private
+log_transmission({_Key, state_send, CRDT}) ->
+    log_transmission(state_send, CRDT);
+log_transmission({_Key, delta_send, From, Sequence, Delta}) ->
+    log_transmission(delta_send, {From, Sequence, Delta});
+log_transmission({_Key, delta_ack, From, Sequence}) ->
+    log_transmission(delta_ack, {From, Sequence}).
+log_transmission(Type, Payload) ->
+    ldb_instrumentation:transmission(Type, Payload).

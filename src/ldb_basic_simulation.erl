@@ -36,10 +36,11 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {local_events :: non_neg_integer()}).
 
--define(SIMULATION_END_INTERVAL, 5000).
--define(MAX_VALUE, 10).
+-define(EVENT_NUMBER, 10).
+-define(EVENT_INTERVAL, 5000).
+-define(SIMULATION_END_INTERVAL, 10000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -48,29 +49,44 @@ start_link() ->
 %% gen_server callbacks
 init([]) ->
     ldb:create("SET", gset),
-    ldb:update("SET", {add, node()}),
-    schedule_simulation_end(),
+    schedule_event(),
 
-    lager:info("ldb_basic_simulation initialized!"),
-    {ok, #state{}}.
+    ldb_log:info("ldb_basic_simulation initialized!", extended),
+    {ok, #state{local_events=0}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
+
+handle_info(event, #state{local_events=LocalEvents0}=State) ->
+    LocalEvents1 = LocalEvents0 + 1,
+    Element = atom_to_list(node()) ++ integer_to_list(LocalEvents1),
+    ldb:update("SET", {add, Element}),
+
+    case LocalEvents1 == ?EVENT_NUMBER of
+        true ->
+            schedule_simulation_end();
+        false ->
+            schedule_event()
+    end,
+
+    {noreply, State#state{local_events=LocalEvents1}};
 
 handle_info(simulation_end, State) ->
     {ok, ClientNumber} = application:get_env(?APP, client_number),
     {ok, Value} = ldb:query("SET"),
+    Events = sets:size(Value),
 
-    lager:info("Current set size ~p | Client Number ~p | Node ~p", [sets:size(Value), ClientNumber, node()]),
+    ldb_log:info("Events observed ~p | Node ~p", [Events, node()], extended),
 
-    case sets:size(Value) == ClientNumber of
+    case Events == ClientNumber * ?EVENT_NUMBER of
         true ->
-            lager:info("All events have been observed"),
+            ldb_log:info("All events have been observed", extended),
+            ldb_instrumentation:convergence(),
             application:set_env(?APP, simulation_end, true);
         false ->
             schedule_simulation_end()
@@ -79,7 +95,7 @@ handle_info(simulation_end, State) ->
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -89,6 +105,9 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
+schedule_event() ->
+    timer:send_after(?EVENT_INTERVAL, event).
+
+%% @private
 schedule_simulation_end() ->
     timer:send_after(?SIMULATION_END_INTERVAL, simulation_end).
-

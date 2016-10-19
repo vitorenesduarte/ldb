@@ -49,11 +49,11 @@ handle_message(Message) ->
 
 %% gen_server callbacks
 init([]) ->
-    lager:info("ldb_listener initialized!"),
+    ldb_log:info("ldb_listener initialized!", extended),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast({handle_message, Message}, State) ->
@@ -62,11 +62,11 @@ handle_cast({handle_message, Message}, State) ->
     {noreply, State};
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

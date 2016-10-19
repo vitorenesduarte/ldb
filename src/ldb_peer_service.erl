@@ -30,15 +30,13 @@
          get_node_info/0]).
 
 %% @doc Return a list of neighbors
--callback members() -> {ok, [node_info()]}.
+-callback members() -> {ok, [node_name()]}.
 
 %% @doc Attempt to join node.
 -callback join(node_info()) -> ok | error().
 
 %% @doc Send a message to a node.
-%%      The process with the ref passed as argument should
-%%      handle the replies.
--callback forward_message(node_info(), handler(), message()) ->
+-callback forward_message(node_name(), handler(), message()) ->
     ok | error().
 
 %% @doc Retrieves the node info: {name, ip, port}
@@ -48,7 +46,7 @@
 start_link() ->
     do(start_link, []).
 
--spec members() -> {ok, [node_info()]}.
+-spec members() -> {ok, [node_name()]}.
 members() ->
     do(members, []).
 
@@ -56,10 +54,10 @@ members() ->
 join(NodeSpec) ->
     do(join, [NodeSpec]).
 
--spec forward_message(node_info(), handler(), message()) ->
+-spec forward_message(node_name(), handler(), message()) ->
     ok | error().
-forward_message(Node, Handler, Message) ->
-    do(forward_message, [Node, Handler, Message]).
+forward_message(Name, Handler, Message) ->
+    do(forward_message, [Name, Handler, Message]).
 
 -spec get_node_info() -> {ok, node_info()}.
 get_node_info() ->

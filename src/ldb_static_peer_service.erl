@@ -50,7 +50,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec members() -> {ok, [node_info()]}.
+-spec members() -> {ok, [node_name()]}.
 members() ->
     gen_server:call(?MODULE, members, infinity).
 
@@ -58,10 +58,10 @@ members() ->
 join(NodeInfo) ->
     gen_server:call(?MODULE, {join, NodeInfo}, infinity).
 
--spec forward_message(node_info(), handler(), message()) ->
+-spec forward_message(node_name(), handler(), message()) ->
     ok | error().
-forward_message(NodeInfo, Handler, Message) ->
-    gen_server:call(?MODULE, {forward_message, NodeInfo, Handler, Message}, infinity).
+forward_message(Name, Handler, Message) ->
+    gen_server:call(?MODULE, {forward_message, Name, Handler, Message}, infinity).
 
 -spec get_node_info() -> {ok, node_info()}.
 get_node_info() ->
@@ -73,31 +73,31 @@ init([]) ->
     {ok, _} = ldb_static_peer_service_server:start_link(NodeInfo),
     schedule_log(),
 
-    lager:info("ldb_static_peer_service initialized!"),
+    ldb_log:info("ldb_static_peer_service initialized!", extended),
     {ok, #state{node_info=NodeInfo, connected=orddict:new()}}.
 
 handle_call(members, _From, #state{connected=Connected}=State) ->
     Result = {ok, orddict:fetch_keys(Connected)},
     {reply, Result, State};
 
-handle_call({join, {_Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
+handle_call({join, {Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
             #state{connected=Connected0}=State) ->
-    {Result, Connected1} = case orddict:find(NodeInfo, Connected0) of
+    {Result, Connected1} = case orddict:find(Name, Connected0) of
         {ok, _} ->
             {ok, Connected0};
         error ->
             case ldb_static_peer_service_client:start_link(NodeInfo) of
                 {ok, Pid} ->
-                    {ok, orddict:store(NodeInfo, Pid, Connected0)};
+                    {ok, orddict:store(Name, Pid, Connected0)};
                 Error ->
-                    lager:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),
+                    ldb_log:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),
                     {Error, Connected0}
             end
     end,
     {reply, Result, State#state{connected=Connected1}};
 
-handle_call({forward_message, NodeInfo, Handler, Message}, _From, #state{connected=Connected}=State) ->
-    Result = case orddict:find(NodeInfo, Connected) of
+handle_call({forward_message, Name, Handler, Message}, _From, #state{connected=Connected}=State) ->
+    Result = case orddict:find(Name, Connected) of
         {ok, Pid} ->
             Pid ! {forward_message, Handler, Message},
             ok;
@@ -112,20 +112,21 @@ handle_call(get_node_info, _From, #state{node_info=NodeInfo}=State) ->
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(log, #state{connected=Connected}=State) ->
-    lager:info("Current connected nodes ~p | Node ~p", [Connected, node()]),
+    NodeNames = orddict:fetch_keys(Connected),
+    ldb_log:info("Current connected nodes ~p | Node ~p", [NodeNames, node()], extended),
     schedule_log(),
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -157,7 +158,7 @@ random_port() ->
     rand_compat:seed(erlang:phash2([node()]),
                      erlang:monotonic_time(),
                      erlang:unique_integer()),
-    rand_compat:uniform(1000) + 10000.
+    rand_compat:uniform(10000) + 3000.
 
 %% @private
 schedule_log() ->
