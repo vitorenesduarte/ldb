@@ -7,7 +7,7 @@ install:
 before_script:
   - epmd -daemon
 script:
-  - TRAVIS=true make test
+  - make test
   - make xref
   - make dialyzer
   - make lint
