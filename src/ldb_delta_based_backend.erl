@@ -87,7 +87,6 @@ message_maker() ->
                             DeltaBuffer
                         )
                 end,
-                ldb_log:info("LALALA delta size ~p | crdt size ~p", [byte_size(term_to_binary(Delta)), byte_size(term_to_binary(CRDT))]),
 
                 Message = {Key, delta_send, node(), Sequence, Delta},
                 {ok, Message};
