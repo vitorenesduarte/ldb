@@ -53,11 +53,11 @@ send(NodeName, Message) ->
 init([]) ->
     schedule_sync(),
 
-    lager:info("ldb_whisperer initialized!"),
+    ldb_log:info("ldb_whisperer initialized!", extended),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast({send, NodeName, Message}, State) ->
@@ -65,7 +65,7 @@ handle_cast({send, NodeName, Message}, State) ->
     {noreply, State};
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(sync, State) ->
@@ -91,7 +91,7 @@ handle_info(sync, State) ->
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -117,7 +117,7 @@ do_send(NodeName, Message) ->
         ok ->
             ok;
         Error ->
-            lager:info("Error trying to send message ~p to node ~p. Reason ~p", [Message, NodeName, Error])
+            ldb_log:info("Error trying to send message ~p to node ~p. Reason ~p", [Message, NodeName, Error])
     end.
 
 %% @private

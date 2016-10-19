@@ -42,7 +42,7 @@
 -callback update(key(), operation()) ->
     ok | not_found() | error().
 
-%% @doc Retunrs a function that will, given what's in the store,
+%% @doc Returns a function that will, given what's in the store,
 %%      decide what should be sent.
 %%      The function signature should be:
 %%         fun(key(), value(), node_name()) -> {ok, term()} | nothing.

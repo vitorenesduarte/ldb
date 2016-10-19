@@ -18,37 +18,52 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_util).
+-module(ldb_log).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
-%% ldb_util callbacks
--export([get_type/1,
-         wait_until/3]).
+%% ldb_log callbacks
+-export([info/1,
+         info/2,
+         info/3,
+         warning/1,
+         warning/2]).
 
-%% @doc Returns the actual type in types repository
-%%      (https://github.com/lasp-lang/types)
--spec get_type(atom()) -> atom().
-get_type(Type) ->
-    Map = [{gcounter, {state_gcounter, pure_gcounter}},
-           {gset, {state_gset, pure_gset}}],
-    {State, _Op} = orddict:fetch(Type, Map),
-    case ldb_config:mode() of
-        state_based ->
-            State;
-        delta_based ->
-            State
-    end.
+-spec info(string()) -> ok.
+info(S) ->
+    handle(lager:info(S)).
 
-%% @doc Wait until `Fun' returns true or `Retry' reaches 0.
-%%      The sleep time between retries is `Delay'.
-wait_until(_Fun, 0, _Delay) -> fail;
-wait_until(Fun, Retry, Delay) when Retry > 0 ->
-    case Fun() of
+-spec info(string(), extended | list()) -> ok.
+info(S, extended) ->
+    info(S, [], extended);
+
+info(S, Args) ->
+    handle(lager:info(S, Args)).
+
+-spec info(string(), list(), extended) -> ok.
+info(S, Args, extended) ->
+    case extended_logging() of
         true ->
-            ok;
-        _ ->
-            timer:sleep(Delay),
-            wait_until(Fun, Retry - 1, Delay)
+            handle(lager:info(S, Args));
+        false ->
+            ok
     end.
+
+-spec warning(string()) -> ok.
+warning(S) ->
+    handle(lager:warning(S)).
+
+-spec warning(string(), list()) -> ok.
+warning(S, Args) ->
+    handle(lager:warning(S, Args)).
+
+%% @private
+handle(_LagerResult) ->
+    ok.
+
+%% @private
+extended_logging() ->
+    application:get_env(?APP,
+                        ldb_extended_logging,
+                        false).

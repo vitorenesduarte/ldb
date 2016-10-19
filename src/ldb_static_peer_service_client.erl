@@ -46,22 +46,22 @@ start_link(NodeInfoOrSocket) ->
 init([{_Name, IpAddress, Port}=Info]) ->
     case gen_tcp:connect(IpAddress, Port, ?TCP_OPTIONS) of
         {ok, Socket} ->
-            lager:info("ldb_static_peer_service_client initialized! Node ~p to node ~p", [node(), Info]),
+            ldb_log:info("ldb_static_peer_service_client initialized! Node ~p to node ~p", [node(), Info], extended),
             {ok, #state{socket=Socket}};
         Error ->
             {stop, Error}
     end;
 
 init([Socket]) ->
-    lager:info("ldb_static_peer_service_client initialized! Node ~p listening to socket ~p", [node(), Socket]),
+    ldb_log:info("ldb_static_peer_service_client initialized! Node ~p listening to socket ~p", [node(), Socket], extended),
     {ok, #state{socket=Socket}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info({forward_message, _Handler, _Message}=M,
@@ -70,7 +70,7 @@ handle_info({forward_message, _Handler, _Message}=M,
         ok ->
             ok;
         Error ->
-            lager:info("Failed to send message: ~p", [Error])
+            ldb_log:info("Failed to send message: ~p", [Error])
     end,
 
     {noreply, State};
@@ -83,7 +83,7 @@ handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

@@ -95,6 +95,20 @@ start(Options) ->
                       set_env,
                       [?APP, ldb_simulation, Simulation]),
 
+        %% Set instrumentation
+        Instrumentation = true,
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, ldb_instrumentation, Instrumentation]),
+
+        %% Set extended logging
+        ExtendedLogging = true,
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, ldb_extended_logging, ExtendedLogging]),
+
         %% Set client number
         ClientNumber = length(Names),
         ok = rpc:call(Node,

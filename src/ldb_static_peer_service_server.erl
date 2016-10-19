@@ -50,11 +50,11 @@ init([{_Name, _IpAddress, Port}]) ->
 
     prepare_accept(),
 
-    lager:info("ldb_static_peer_service_server initialized!"),
+    ldb_log:info("ldb_static_peer_service_server initialized!"),
     {ok, #state{listener=Listener}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(accept, #state{listener=Listener}=State) ->
@@ -68,11 +68,11 @@ handle_cast(accept, #state{listener=Listener}=State) ->
     {noreply, State};
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

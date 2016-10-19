@@ -87,7 +87,7 @@ message_maker() ->
                             DeltaBuffer
                         )
                 end,
-                lager:info("LALALA delta size ~p | crdt size ~p", [byte_size(term_to_binary(Delta)), byte_size(term_to_binary(CRDT))]),
+                ldb_log:info("LALALA delta size ~p | crdt size ~p", [byte_size(term_to_binary(Delta)), byte_size(term_to_binary(CRDT))]),
 
                 Message = {Key, delta_send, node(), Sequence, Delta},
                 {ok, Message};
@@ -181,7 +181,7 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = node(),
 
-    lager:info("ldb_delta_based_backend initialized!"),
+    ldb_log:info("ldb_delta_based_backend initialized!", extended),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
@@ -229,15 +229,15 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

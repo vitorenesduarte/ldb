@@ -51,15 +51,15 @@ init([]) ->
     ldb:create("SET", gset),
     schedule_event(),
 
-    lager:info("ldb_basic_simulation initialized!"),
+    ldb_log:info("ldb_basic_simulation initialized!", extended),
     {ok, #state{local_events=0}}.
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(event, #state{local_events=LocalEvents0}=State) ->
@@ -81,11 +81,11 @@ handle_info(simulation_end, State) ->
     {ok, Value} = ldb:query("SET"),
     Events = sets:size(Value),
 
-    lager:info("Events observed ~p | Node ~p", [Events, node()]),
+    ldb_log:info("Events observed ~p | Node ~p", [Events, node()], extended),
 
     case Events == ClientNumber * ?EVENT_NUMBER of
         true ->
-            lager:info("All events have been observed"),
+            ldb_log:info("All events have been observed", extended),
             ldb_instrumentation:convergence(),
             application:set_env(?APP, simulation_end, true);
         false ->
@@ -95,7 +95,7 @@ handle_info(simulation_end, State) ->
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

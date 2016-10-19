@@ -323,7 +323,7 @@ read_lines(FilePath, FileDescriptor) ->
         eof ->
             [];
         {error, Error} ->
-            lager:warning("Error while reading line from file ~p. Error: ~p", [FilePath, Error]),
+            io:format("Error while reading line from file ~p. Error: ~p~n", [FilePath, Error]),
             [];
         Line ->
             [Line | read_lines(FilePath, FileDescriptor)]
@@ -589,13 +589,13 @@ update_average_dict(Type, Time, Bytes, Map) ->
                     lists:keyreplace(Time, 1, TimeToBytes0, {Time, BytesSum + Bytes});
                 false ->
                     %% This will never happen
-                    lager:warning("Unknown time ~p in list ~p", [Time, TimeToBytes0]),
+                    io:format("Unknown time ~p in list ~p~n", [Time, TimeToBytes0]),
                     TimeToBytes0
             end,
             orddict:store(Type, TimeToBytes1, Map);
         error ->
             %% This will never happen
-            lager:warning("Unknown type ~p in dictionary ~p", [Type, Map]),
+            io:format("Unknown type ~p in dictionary ~p~n", [Type, Map]),
             Map
     end.
 

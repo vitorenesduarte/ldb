@@ -73,7 +73,7 @@ init([]) ->
     {ok, _} = ldb_static_peer_service_server:start_link(NodeInfo),
     schedule_log(),
 
-    lager:info("ldb_static_peer_service initialized!"),
+    ldb_log:info("ldb_static_peer_service initialized!", extended),
     {ok, #state{node_info=NodeInfo, connected=orddict:new()}}.
 
 handle_call(members, _From, #state{connected=Connected}=State) ->
@@ -90,7 +90,7 @@ handle_call({join, {Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
                 {ok, Pid} ->
                     {ok, orddict:store(Name, Pid, Connected0)};
                 Error ->
-                    lager:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),
+                    ldb_log:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),
                     {Error, Connected0}
             end
     end,
@@ -112,21 +112,21 @@ handle_call(get_node_info, _From, #state{node_info=NodeInfo}=State) ->
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(log, #state{connected=Connected}=State) ->
     NodeNames = orddict:fetch_keys(Connected),
-    lager:info("Current connected nodes ~p | Node ~p", [NodeNames, node()]),
+    ldb_log:info("Current connected nodes ~p | Node ~p", [NodeNames, node()], extended),
     schedule_log(),
     {noreply, State};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

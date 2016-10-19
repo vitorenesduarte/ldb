@@ -71,7 +71,7 @@ init([]) ->
 
     {ok, TRef} = start_transmission_timer(),
 
-    lager:info("Instrumentation timer enabled!"),
+    ldb_log:info("Instrumentation timer enabled!", extended),
     {ok, #state{tref=TRef, size_per_type=orddict:new()}}.
 
 handle_call(convergence, _From, State) ->
@@ -80,11 +80,11 @@ handle_call(convergence, _From, State) ->
 
 handle_call(stop, _From, #state{tref=TRef}=State) ->
     {ok, cancel} = timer:cancel(TRef),
-    _ = lager:info("Instrumentation timer disabled!"),
+    ldb_log:info("Instrumentation timer disabled!", extended),
     {reply, ok, State#state{tref=undefined}};
 
 handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
+    ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast({transmission, Type, Payload}, #state{size_per_type=Map0}=State) ->
@@ -100,7 +100,7 @@ handle_cast({transmission, Type, Payload}, #state{size_per_type=Map0}=State) ->
     {noreply, State#state{size_per_type=Map}};
 
 handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
+    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(transmission, #state{size_per_type=Map}=State) ->
@@ -109,7 +109,7 @@ handle_info(transmission, #state{size_per_type=Map}=State) ->
     {noreply, State#state{tref=TRef}};
 
 handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
+    ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

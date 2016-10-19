@@ -59,7 +59,6 @@ init([]) ->
     %% we can start the `ldb_peer_service' and the `ldb_backend'
     {ok, _} = ldb_peer_service:start_link(),
     {ok, _} = ldb_backend:start_link(),
-    {ok, _} = ldb_instrumentation:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
 
@@ -71,12 +70,25 @@ init([]) ->
 
     case Simulation of
         basic ->
-            ldb_basic_simulation:start_link();
+            {ok, _} = ldb_basic_simulation:start_link();
         undefined ->
             ok
     end,
 
-    lager:info("ldb_sup initialized!"),
+    %% Configure instrumentation
+    InstrumentationDefault = list_to_atom(os:getenv("LDB_INSTRUMENTATION", "false")),
+    Instrumentation = application:get_env(?APP,
+                                          ldb_instrumentation,
+                                          InstrumentationDefault),
+
+    case Instrumentation of
+        true ->
+            {ok, _} = ldb_instrumentation:start_link();
+        false ->
+            ok
+    end,
+
+    ldb_log:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 10, 10},
     {ok, {RestartStrategy, []}}.
 
