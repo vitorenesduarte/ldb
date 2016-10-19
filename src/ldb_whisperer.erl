@@ -51,7 +51,12 @@ send(NodeName, Message) ->
 
 %% gen_server callbacks
 init([]) ->
-    schedule_sync(),
+    case ldb_config:mode() of
+        state_based ->
+            schedule_sync();
+        delta_based ->
+            schedule_sync()
+    end,
 
     ldb_log:info("ldb_whisperer initialized!", extended),
     {ok, #state{}}.
