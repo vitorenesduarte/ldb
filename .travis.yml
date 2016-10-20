@@ -7,10 +7,10 @@ install:
 before_script:
   - epmd -daemon
 script:
-  - make test
-  - make xref
-  - make dialyzer
-  - make lint
+#  - make test
+#  - make xref
+#  - make dialyzer
+#  - make lint
   - make java-client-test
 notifications:
   slack: haslab:jhAnACJzswFtYwKXpbZzjbFq
