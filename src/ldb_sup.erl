@@ -59,7 +59,19 @@ init([]) ->
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
-    {ok, _} = ldb_space_server:start_link(),
+
+    %% Configure space server 
+    SpaceServerPortDefault = list_to_atom(os:getenv("LDB_SPACE_SERVER_PORT", "undefined")),
+    SpaceServerPort = application:get_env(?APP,
+                                          ldb_space_server_port,
+                                          SpaceServerPortDefault),
+    case SpaceServerPort of
+        undefined ->
+            %% don't start the space server
+            ok;
+        _ ->
+            {ok, _} = ldb_space_server:start_link(SpaceServerPort)
+    end,
 
     %% Configure simulation
     SimulationDefault = list_to_atom(os:getenv("LDB_SIMULATION", "undefined")),
