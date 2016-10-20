@@ -55,7 +55,7 @@ init([Port]) ->
 
     prepare_accept(),
 
-    ldb_log:info("ldb_space_server initialized!", extended),
+    ldb_log:info("ldb_space_server initialized!"),
     {ok, #state{listener=Listener}}.
 
 handle_call(Msg, _From, State) ->
