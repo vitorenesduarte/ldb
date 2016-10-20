@@ -25,8 +25,10 @@
 
 -behaviour(gen_server).
 
+-define(UNKNOWN, -1).
 -define(OK, 0).
 -define(KEY_ALREADY_EXISTS, 1).
+-define(KEY_NOT_FOUND, 2).
 
 %% ldb_space_client callbacks
 -export([start_link/1]).
@@ -100,6 +102,18 @@ handle_message({Message}, Socket) ->
                     {[{code, ?OK}]};
                 {error, already_exists} ->
                     {[{code, ?KEY_ALREADY_EXISTS}]}
+            end;
+        update ->
+            {value, {_, Operation}} = lists:keysearch(<<"type">>, 1, Message),
+            lager:info("OP ~p", [Operation]),
+            case erlang:apply(ldb, update, [Key, Operation]) of
+                ok ->
+                    {[{code, ?OK}]};
+                {error, not_found} ->
+                    {[{code, ?KEY_NOT_FOUND}]};
+                Error ->
+                    ldb_log:info("Update request from client on key ~p with operation ~p produced the following error ~p", [Key, Operation, Error]),
+                    {[{code, ?UNKNOWN}]}
             end
     end,
 
