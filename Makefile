@@ -47,12 +47,7 @@ shell:
 	${REBAR} shell --apps ldb
 
 java-client-test:
-	pkill -9 beam.smp; LDB_SPACE_SERVER_PORT=6717 make shell &; \
-		apt-get install openjdk-8-jdk; \
-		apt-get install mvn; \
-		git clone https://github.com/vitorenesduarte/ldb-java-client; \
-		cd ldb-java-client; \
-		mvn test
+	./bin/java-client-test
 
 basic:
 	pkill -9 beam.smp; \
