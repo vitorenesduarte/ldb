@@ -17,6 +17,7 @@
 -type handler() :: {term(), term()}. %% {module, function}
 -type message() :: term().
 -define(TCP_OPTIONS, [binary, {active, true}, {packet, 4}, {keepalive, true}]).
+-define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
 
 %% defaults
 -define(DEFAULT_MODE, state_based).
