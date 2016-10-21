@@ -87,55 +87,6 @@ decode(Message) ->
     jiffy:decode(Message).
 
 %% @private
-handle_message({Message}, Socket) ->
-    lager:info("Message received ~p", [Message]),
-    {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Message),
-    {value, {_, Method0}} = lists:keysearch(<<"method">>, 1, Message),
-    {value, {_, Type0}} = lists:keysearch(<<"type">>, 1, Message),
-
-    %% @todo check if the request really has these defined
-    Key = binary_to_list(Key0),
-    Method = binary_to_atom(Method0),
-    Type = binary_to_atom(Type0),
-
-    Reply = case Method of
-        create ->
-            case erlang:apply(ldb, create, [Key, Type]) of
-                ok ->
-                    {[{code, ?OK}]};
-                {error, already_exists} ->
-                    {[{code, ?KEY_ALREADY_EXISTS}]}
-            end;
-        query ->
-            case erlang:apply(ldb, query, [Key]) of
-                {ok, QueryResult0} ->
-                    QueryResult = prepare_query_result(Type, QueryResult0),
-                    {[{code, ?OK}, {object, QueryResult}]};
-                {error, not_found} ->
-                    {[{code, ?KEY_NOT_FOUND}]}
-            end;
-        update ->
-            %% @todo check if the request really has operation defined
-            {value, {_, Operation0}} = lists:keysearch(<<"operation">>, 1, Message),
-            Operation = parse_operation(Type, Operation0),
-
-            case erlang:apply(ldb, update, [Key, Operation]) of
-                {ok, QueryResult0} ->
-                    QueryResult = prepare_query_result(Type, QueryResult0),
-                    {[{code, ?OK}, {object, QueryResult}]};
-                {error, not_found} ->
-                    {[{code, ?KEY_NOT_FOUND}]};
-                Error ->
-                    ldb_log:info("Update request from client on key ~p with operation ~p produced the following error ~p", [Key, Operation, Error]),
-                    {[{code, ?UNKNOWN}]}
-            end
-    end,
-
-    lager:info("Reply ~p", [Reply]),
-
-    send(Reply, Socket).
-
-%% @private
 send(Reply, Socket) ->
     case gen_tcp:send(Socket, encode(Reply)) of
         ok ->
@@ -147,6 +98,49 @@ send(Reply, Socket) ->
 %% @private
 binary_to_atom(B) ->
     binary_to_atom(B, utf8).
+
+%% @private
+handle_message({Message}, Socket) ->
+    lager:info("Message received ~p", [Message]),
+    {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Message),
+    {value, {_, Method0}} = lists:keysearch(<<"method">>, 1, Message),
+    {value, {_, Type0}} = lists:keysearch(<<"type">>, 1, Message),
+
+    %% @todo check if the request really has these defined
+    Key = binary_to_list(Key0),
+    Method = binary_to_atom(Method0),
+    Type = binary_to_atom(Type0),
+
+    LDBResult = case Method of
+        create ->
+            erlang:apply(ldb, create, [Key, Type]);
+        query ->
+            erlang:apply(ldb, query, [Key]);
+        update ->
+            %% @todo check if the request really has operation defined
+            {value, {_, Operation0}} = lists:keysearch(<<"operation">>, 1, Message),
+            Operation = parse_operation(Type, Operation0),
+            erlang:apply(ldb, update, [Key, Operation])
+    end,
+
+    Reply = create_reply(Type, LDBResult),
+    lager:info("Reply ~p", [Reply]),
+
+    send(Reply, Socket).
+
+%% @private
+create_reply(_Type, ok) ->
+    {[{code, ?OK}]};
+create_reply(Type, {ok, QueryResult0}) ->
+    QueryResult = prepare_query_result(Type, QueryResult0),
+    {[{code, ?OK}, {object, QueryResult}]};
+create_reply(_Type, {error, already_exists}) ->
+    {[{code, ?KEY_ALREADY_EXISTS}]};
+create_reply(_Type, {error, not_found}) ->
+    {[{code, ?KEY_NOT_FOUND}]};
+create_reply(_Type, Error) ->
+    ldb_log:info("Update request from client produced the following error ~p", [Error]),
+    {[{code, ?UNKNOWN}]}.
 
 %% @private
 parse_operation(Type, {Operation0}) ->
