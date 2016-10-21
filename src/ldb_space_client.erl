@@ -91,42 +91,39 @@ handle_message({Message}, Socket) ->
     lager:info("Message received ~p", [Message]),
     {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Message),
     {value, {_, Method0}} = lists:keysearch(<<"method">>, 1, Message),
+    {value, {_, Type0}} = lists:keysearch(<<"type">>, 1, Message),
 
+    %% @todo check if the request really has these defined
     Key = binary_to_list(Key0),
     Method = binary_to_atom(Method0),
+    Type = binary_to_atom(Type0),
 
     Reply = case Method of
         create ->
-            case lists:keysearch(<<"type">>, 1, Message) of
-                {value, {_, Type0}} ->
-                    Type = binary_to_atom(Type0),
-                    case erlang:apply(ldb, create, [Key, Type]) of
-                        ok ->
-                            {[{code, ?OK}]};
-                        {error, already_exists} ->
-                            {[{code, ?KEY_ALREADY_EXISTS}]}
-                    end;
-                false ->
-                    {[{code, ?INVALID}]}
+            case erlang:apply(ldb, create, [Key, Type]) of
+                ok ->
+                    {[{code, ?OK}]};
+                {error, already_exists} ->
+                    {[{code, ?KEY_ALREADY_EXISTS}]}
             end;
         update ->
-            case lists:keysearch(<<"operation">>, 1, Message) of
-                {value, {_, Operation0}} ->
-                    Operation = parse_operation(Operation0),
+            %% @todo check if the request really has operation defined
+            {value, {_, Operation0}} = lists:keysearch(<<"operation">>, 1, Message),
+            Operation = parse_operation(Type, Operation0),
 
-                    case erlang:apply(ldb, update, [Key, Operation]) of
-                        ok ->
-                            {[{code, ?OK}]};
-                        {error, not_found} ->
-                            {[{code, ?KEY_NOT_FOUND}]};
-                        Error ->
-                            ldb_log:info("Update request from client on key ~p with operation ~p produced the following error ~p", [Key, Operation, Error]),
-                            {[{code, ?UNKNOWN}]}
-                    end;
-                false ->
-                    {[{code, ?INVALID}]}
+            case erlang:apply(ldb, update, [Key, Operation]) of
+                {ok, QueryResult0} ->
+                    QueryResult = prepare_query_result(Type, QueryResult0),
+                    {[{code, ?OK}, {object, QueryResult}]};
+                {error, not_found} ->
+                    {[{code, ?KEY_NOT_FOUND}]};
+                Error ->
+                    ldb_log:info("Update request from client on key ~p with operation ~p produced the following error ~p", [Key, Operation, Error]),
+                    {[{code, ?UNKNOWN}]}
             end
     end,
+
+    lager:info("Reply ~p", [Reply]),
 
     send(Reply, Socket).
 
@@ -144,24 +141,19 @@ binary_to_atom(B) ->
     binary_to_atom(B, utf8).
 
 %% @private
-parse_operation(List0) ->
-    List1 = lists:foldl(
-        fun(E, Acc) ->
-            Parsed = case is_binary(E) of
-                true ->
-                    binary_to_atom(E);
-                false ->
-                    E
-            end,
-            lists:append(Acc, [Parsed])
-        end,
-        [],
-        List0
-    ),
+parse_operation(Type, {Operation0}) ->
+    {value, {_, OperationName0}} = lists:keysearch(<<"name">>, 1, Operation0),
+    OperationName = binary_to_atom(OperationName0),
 
-    case List1 of
-        [Op] ->
-            Op;
-        _ ->
-            list_to_tuple(List1)
+    case Type of
+        gset ->
+            {value, {_, Element0}} = lists:keysearch(<<"elem">>, 1, Operation0),
+            {OperationName, Element0}
+    end.
+
+%% @private
+prepare_query_result(Type, QueryResult) ->
+    case Type of
+        gset ->
+            sets:to_list(QueryResult)
     end.
