@@ -39,6 +39,6 @@ query(Key) ->
 
 %% @doc Update the value associated with a given `Key',
 %%      applying a given `Operation'.
--spec update(key(), operation()) -> ok | error().
+-spec update(key(), operation()) -> {ok, value()} | not_found() | error().
 update(Key, Operation) ->
     ldb_backend:update(Key, Operation).
