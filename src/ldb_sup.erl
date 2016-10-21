@@ -61,9 +61,9 @@ init([]) ->
     {ok, _} = ldb_listener:start_link(),
 
     %% Configure space server
-    SpaceServerPortDefault = list_to_integer(os:getenv("LDB_SPACE_SERVER_PORT", "-1")),
+    SpaceServerPortDefault = list_to_integer(os:getenv("LDB_PORT", "-1")),
     SpaceServerPort = application:get_env(?APP,
-                                          ldb_space_server_port,
+                                          ldb_port,
                                           SpaceServerPortDefault),
     case SpaceServerPort of
         -1 ->
