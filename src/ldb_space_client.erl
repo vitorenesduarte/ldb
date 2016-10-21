@@ -25,8 +25,8 @@
 
 -behaviour(gen_server).
 
--define(INVALID, -2).
--define(UNKNOWN, -1).
+-define(UNKNOWN, -2).
+-define(INVALID, -1).
 -define(OK, 0).
 -define(KEY_ALREADY_EXISTS, 1).
 -define(KEY_NOT_FOUND, 2).
@@ -105,6 +105,14 @@ handle_message({Message}, Socket) ->
                     {[{code, ?OK}]};
                 {error, already_exists} ->
                     {[{code, ?KEY_ALREADY_EXISTS}]}
+            end;
+        query ->
+            case erlang:apply(lbd, query, [Key]) of
+                {ok, QueryResult0} ->
+                    QueryResult = prepare_query_result(Type, QueryResult0),
+                    {[{code, ?OK}, {object, QueryResult}]};
+                {error, not_found} ->
+                    {[{code, ?KEY_NOT_FOUND}]}
             end;
         update ->
             %% @todo check if the request really has operation defined
