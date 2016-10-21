@@ -107,7 +107,7 @@ handle_message({Message}, Socket) ->
                     {[{code, ?KEY_ALREADY_EXISTS}]}
             end;
         query ->
-            case erlang:apply(lbd, query, [Key]) of
+            case erlang:apply(ldb, query, [Key]) of
                 {ok, QueryResult0} ->
                     QueryResult = prepare_query_result(Type, QueryResult0),
                     {[{code, ?OK}, {object, QueryResult}]};
