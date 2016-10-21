@@ -56,7 +56,7 @@ create(Key, Type) ->
 query(Key) ->
     gen_server:call(?MODULE, {query, Key}, infinity).
 
--spec update(key(), operation()) -> ok | not_found() | error().
+-spec update(key(), operation()) -> {ok, value()} | not_found() | error().
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
@@ -112,8 +112,8 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     end,
 
     Result = case ldb_store:update(Key, Function) of
-        {ok, _} ->
-            ok;
+        {ok, {Type, _}=CRDT} ->
+            {ok, Type:query(CRDT)};
         Error ->
             Error
     end,
