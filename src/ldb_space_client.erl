@@ -150,12 +150,16 @@ parse_operation(Type, {Operation0}) ->
     case Type of
         gset ->
             {value, {_, Element0}} = lists:keysearch(<<"elem">>, 1, Operation0),
-            {OperationName, Element0}
+            {OperationName, Element0};
+        gcounter ->
+            OperationName
     end.
 
 %% @private
 prepare_query_result(Type, QueryResult) ->
     case Type of
         gset ->
-            sets:to_list(QueryResult)
+            sets:to_list(QueryResult);
+        gcounter ->
+            QueryResult
     end.
