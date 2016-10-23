@@ -40,7 +40,7 @@
 %% @doc Update the value associated with a given `key()',
 %%      applying a given `operation()'.
 -callback update(key(), operation()) ->
-    {ok, value()} | not_found() | error().
+    ok | not_found() | error().
 
 %% @doc Returns a function that will, given what's in the store,
 %%      decide what should be sent.
