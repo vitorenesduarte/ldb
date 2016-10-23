@@ -133,7 +133,7 @@ create_reply(_Type, ok) ->
     {[{code, ?OK}]};
 create_reply(Type, {ok, QueryResult0}) ->
     QueryResult = prepare_query_result(Type, QueryResult0),
-    {[{code, ?OK}, {object, QueryResult}]};
+    {[{code, ?OK}, {value, QueryResult}]};
 create_reply(_Type, {error, not_found}) ->
     {[{code, ?KEY_NOT_FOUND}]};
 create_reply(_Type, Error) ->
@@ -150,7 +150,11 @@ parse_operation(Type, {Operation0}) ->
             {value, {_, Element0}} = lists:keysearch(<<"elem">>, 1, Operation0),
             {OperationName, Element0};
         gcounter ->
-            OperationName
+            OperationName;
+        mvmap ->
+            {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Operation0),
+            {value, {_, Value0}} = lists:keysearch(<<"value">>, 1, Operation0),
+            {OperationName, Key0, Value0}
     end.
 
 %% @private
@@ -159,5 +163,12 @@ prepare_query_result(Type, QueryResult) ->
         gset ->
             sets:to_list(QueryResult);
         gcounter ->
-            QueryResult
+            QueryResult;
+        mvmap ->
+            lists:map(
+                fun({Key, Value}) ->
+                    {[{key, Key}, {values, sets:to_list(Value)}]}
+                end,
+                QueryResult
+           )
     end.
