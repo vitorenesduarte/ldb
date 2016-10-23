@@ -31,8 +31,7 @@
 %%      (https://github.com/lasp-lang/types)
 -spec get_type(atom()) -> atom().
 get_type(Type) ->
-    Map = [{gcounter, {state_gcounter, pure_gcounter}},
-           {gset, {state_gset, pure_gset}}],
+    Map = types_map(),
     {State, _Op} = orddict:fetch(Type, Map),
     case ldb_config:mode() of
         state_based ->
@@ -52,3 +51,11 @@ wait_until(Fun, Retry, Delay) when Retry > 0 ->
             timer:sleep(Delay),
             wait_until(Fun, Retry - 1, Delay)
     end.
+
+%% @private
+types_map() ->
+    Map0 = orddict:new(),
+    Map1 = orddict:store(gcounter, {state_gcounter, pure_gcounter}, Map0),
+    Map2 = orddict:store(gset, {state_gset, pure_gset}, Map1),
+    Map3 = orddict:store(mvmap, {state_mvmap, undefined}, Map2),
+    Map3.
