@@ -28,8 +28,7 @@
 -define(UNKNOWN, -2).
 -define(INVALID, -1).
 -define(OK, 0).
--define(KEY_ALREADY_EXISTS, 1).
--define(KEY_NOT_FOUND, 2).
+-define(KEY_NOT_FOUND, 1).
 
 %% ldb_space_client callbacks
 -export([start_link/1]).
@@ -49,7 +48,7 @@ start_link(Socket) ->
     gen_server:start_link(?MODULE, [Socket], []).
 
 init([Socket]) ->
-    ldb_log:info("ldb_space_client initialized! Node ~p listening to new client ~p", [node(), Socket], extended),
+    ldb_log:info("ldb_space_client initialized! Node ~p listening to new client ~p", [node(), Socket]),
     {ok, #state{socket=Socket}}.
 
 handle_call(Msg, _From, State) ->
@@ -101,7 +100,8 @@ binary_to_atom(B) ->
 
 %% @private
 handle_message({Message}, Socket) ->
-    lager:info("Message received ~p", [Message]),
+    %%lager:info("Message received ~p", [Message]),
+
     {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Message),
     {value, {_, Method0}} = lists:keysearch(<<"method">>, 1, Message),
     {value, {_, Type0}} = lists:keysearch(<<"type">>, 1, Message),
@@ -124,7 +124,7 @@ handle_message({Message}, Socket) ->
     end,
 
     Reply = create_reply(Type, LDBResult),
-    lager:info("Reply ~p", [Reply]),
+    %%lager:info("Reply ~p", [Reply]),
 
     send(Reply, Socket).
 
@@ -134,8 +134,6 @@ create_reply(_Type, ok) ->
 create_reply(Type, {ok, QueryResult0}) ->
     QueryResult = prepare_query_result(Type, QueryResult0),
     {[{code, ?OK}, {object, QueryResult}]};
-create_reply(_Type, {error, already_exists}) ->
-    {[{code, ?KEY_ALREADY_EXISTS}]};
 create_reply(_Type, {error, not_found}) ->
     {[{code, ?KEY_NOT_FOUND}]};
 create_reply(_Type, Error) ->

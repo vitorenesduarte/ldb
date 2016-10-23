@@ -28,7 +28,7 @@
          update/2]).
 
 %% @doc Create a `Key' in the store with a given `Type'.
--spec create(key(), type()) -> ok | already_exists().
+-spec create(key(), type()) -> ok.
 create(Key, Type) ->
     ldb_backend:create(Key, Type).
 

@@ -1,5 +1,4 @@
 -define(APP, ldb).
--type already_exists() :: {error, already_exists}.
 -type not_found() :: {error, not_found}.
 -type error() :: {error, atom()}.
 

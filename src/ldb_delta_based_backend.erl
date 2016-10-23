@@ -48,7 +48,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec create(key(), type()) -> ok | already_exists().
+-spec create(key(), type()) -> ok.
 create(Key, Type) ->
     gen_server:call(?MODULE, {create, Key, Type}, infinity).
 
