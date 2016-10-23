@@ -120,7 +120,12 @@ handle_message({Message}, Socket) ->
             %% @todo check if the request really has operation defined
             {value, {_, Operation0}} = lists:keysearch(<<"operation">>, 1, Message),
             Operation = parse_operation(Type, Operation0),
-            erlang:apply(ldb, update, [Key, Operation])
+            case erlang:apply(ldb, update, [Key, Operation]) of
+                {ok, _} ->
+                    ok;
+                Else ->
+                    Else
+            end
     end,
 
     Reply = create_reply(Type, LDBResult),
