@@ -2,6 +2,10 @@
   {git,"https://github.com/basho/goldrush.git",
        {ref,"8f1b715d36b650ec1e1f5612c00e28af6ab0de82"}},
   1},
+ {<<"jiffy">>,
+  {git,"https://github.com/davisp/jiffy",
+       {ref,"a7db72493d2288533afbb417d5c2e6f11db84639"}},
+  0},
  {<<"lager">>,
   {git,"https://github.com/basho/lager",
        {ref,"81eaef0ce98fdbf64ab95665e3bc2ec4b24c7dac"}},
@@ -12,5 +16,5 @@
   0},
  {<<"types">>,
   {git,"https://github.com/lasp-lang/types",
-       {ref,"2b2753862ab24cec9660ca592e04259db4814e56"}},
+       {ref,"6f5d08879b4489893f3928e809357d3661782e36"}},
   0}].

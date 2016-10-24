@@ -55,12 +55,23 @@ init([]) ->
             ok
     end,
 
-    %% Now, with peer service and mode properly configured,
-    %% we can start the `ldb_peer_service' and the `ldb_backend'
     {ok, _} = ldb_peer_service:start_link(),
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
+
+    %% Configure space server
+    SpaceServerPortDefault = list_to_integer(os:getenv("LDB_PORT", "-1")),
+    SpaceServerPort = application:get_env(?APP,
+                                          ldb_port,
+                                          SpaceServerPortDefault),
+    case SpaceServerPort of
+        -1 ->
+            %% don't start the space server
+            ok;
+        _ ->
+            {ok, _} = ldb_space_server:start_link(SpaceServerPort)
+    end,
 
     %% Configure simulation
     SimulationDefault = list_to_atom(os:getenv("LDB_SIMULATION", "undefined")),

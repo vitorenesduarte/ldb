@@ -28,7 +28,7 @@
          update/2]).
 
 %% @doc Create a `Key' in the store with a given `Type'.
--spec create(key(), type()) -> ok | already_exists().
+-spec create(key(), type()) -> ok.
 create(Key, Type) ->
     ldb_backend:create(Key, Type).
 
@@ -39,6 +39,6 @@ query(Key) ->
 
 %% @doc Update the value associated with a given `Key',
 %%      applying a given `Operation'.
--spec update(key(), operation()) -> {ok, value()} | not_found() | error().
+-spec update(key(), operation()) -> ok | not_found() | error().
 update(Key, Operation) ->
     ldb_backend:update(Key, Operation).

@@ -31,7 +31,7 @@
          message_handler/1]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
--callback create(key(), type()) -> ok | already_exists().
+-callback create(key(), type()) -> ok.
 
 %% @doc Reads the value associated with a given `key()'.
 -callback query(key()) ->
@@ -40,7 +40,7 @@
 %% @doc Update the value associated with a given `key()',
 %%      applying a given `operation()'.
 -callback update(key(), operation()) ->
-    {ok, value()} | not_found() | error().
+    ok | not_found() | error().
 
 %% @doc Returns a function that will, given what's in the store,
 %%      decide what should be sent.
@@ -55,7 +55,7 @@
 start_link() ->
     do(start_link, []).
 
--spec create(key(), type()) -> ok | already_exists().
+-spec create(key(), type()) -> ok.
 create(Key, Type) ->
     do(create, [Key, Type]).
 

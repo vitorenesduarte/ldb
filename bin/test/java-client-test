@@ -1,0 +1,7 @@
+#!/bin/bash
+cd ../../
+pkill -9 beam.smp; LDB_PORT=6717 make shell &
+rm -rf ldb-java-client/
+git clone https://github.com/vitorenesduarte/ldb-java-client
+cd ldb-java-client
+mvn test
