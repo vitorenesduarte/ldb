@@ -9,6 +9,7 @@
                   crypto,
                   bson,
                   mongodb,
+                  httpc,
                   jiffy,
                   lager,
                   rand_compat,
