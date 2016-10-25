@@ -12,7 +12,7 @@ if [ ! -z "$MESOS_TASK_ID" ]; then
 
   # Set node name
   if [ -z "$NODE_NAME" ]; then
-    export NODE_NAME=ldb-${PEER_IP}-${PEER_PORT}
+    export NODE_NAME=ldb-${PEER_PORT}@${PEER_PORT}
   fi
 fi
 
