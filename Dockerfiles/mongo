@@ -11,4 +11,4 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927 && \
 VOLUME ["/data/db"]
 WORKDIR /data
 
-CMD mongod --port=$((PORT0 - 1000)) --rest --httpinterface
+CMD mongod --port=$PORT0
