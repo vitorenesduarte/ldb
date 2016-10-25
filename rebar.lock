@@ -14,6 +14,7 @@
   {git,"https://github.com/basho/lager",
        {ref,"81eaef0ce98fdbf64ab95665e3bc2ec4b24c7dac"}},
   0},
+ {<<"lhttpc">>,{pkg,<<"lhttpc">>,<<"1.4.0">>},1},
  {<<"mongodb">>,
   {git,"https://github.com/comtihon/mongodb-erlang",
        {ref,"bb36cb3d490772fdf8d6cb3024de0e3afe4e25fb"}},
