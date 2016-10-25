@@ -5,7 +5,7 @@ ERLANG_BIN       = $(shell dirname $(shell which erl))
 REBAR            = $(shell pwd)/rebar3
 MAKE						 = make
 
-.PHONY: rel deps test eqc plots
+.PHONY: test eqc
 
 all: compile
 

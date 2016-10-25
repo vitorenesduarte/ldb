@@ -7,6 +7,8 @@
                   kernel,
                   stdlib,
                   crypto,
+                  bson,
+                  mongodb,
                   jiffy,
                   lager,
                   rand_compat,
