@@ -3,8 +3,8 @@
 # If we're running in Mesos...
 if [ ! -z "$MESOS_TASK_ID" ]; then
   # Choose publicly routable IP.
-  if [ -z "$IP" ]; then
-    export IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
+  if [ -z "$PEER_IP" ]; then
+    export PEER_IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
   fi
 
   # Peer port
@@ -12,7 +12,7 @@ if [ ! -z "$MESOS_TASK_ID" ]; then
 
   # Set node name
   if [ -z "$NODE_NAME" ]; then
-    export NODE_NAME=ldb-${IP}-${PEER_PORT}
+    export NODE_NAME=ldb-${PEER_IP}-${PEER_PORT}
   fi
 fi
 
@@ -23,7 +23,7 @@ fi
 export RELX_REPLACE_OS_VARS=true
 
 echo "MESOS_TASK_ID: ${MESOS_TASK_ID}"
-echo "IP: ${IP}"
+echo "PEER_IP: ${PEER_IP}"
 echo "PEER_PORT: ${PEER_PORT}"
 echo "NODE_NAME: ${NODE_NAME}"
 
