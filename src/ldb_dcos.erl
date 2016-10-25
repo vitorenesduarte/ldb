@@ -29,7 +29,9 @@
 %% @doc
 push_logs() ->
     Url = task_url("ldb-mongo"),
-    get_request(Url).
+    R = get_request(Url),
+    D = jiffy:decode(R),
+    lager:info("~n~n~nDECODE~n~p~n~n", [D]).
 
 %% @private
 get_request(Url) ->
