@@ -60,7 +60,12 @@ init([]) ->
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
 
-    {ok, _} = ldb_dcos_app:start_link(),
+    case os:getenv("DCOS", "undefined") of
+        "undefined" ->
+            ok;
+        _ ->
+            {ok, _} = ldb_dcos_app:start_link()
+    end,
 
     %% Configure space server
     SpaceServerPortDefault = list_to_integer(os:getenv("LDB_PORT", "-1")),
