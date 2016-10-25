@@ -47,7 +47,7 @@ shell:
 	${REBAR} shell --apps ldb
 
 java-client-test:
-	cd bin/test/; ./java-client-test
+	./test/java-client-test
 
 basic:
 	pkill -9 beam.smp; \

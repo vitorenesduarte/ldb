@@ -5,3 +5,4 @@ log/
 src/*.swp
 priv/evaluation/logs/
 priv/evaluation/plots/
+ldb-java-client/
