@@ -10,6 +10,7 @@
                   bson,
                   mongodb,
                   jiffy,
+                  inets,
                   lager,
                   rand_compat,
                   types
