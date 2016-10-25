@@ -49,6 +49,17 @@ shell:
 java-client-test:
 	./test/java-client-test
 
+##
+## Release targets
+##
+
+stage:
+	${REBAR} release -d
+
+##
+## Evaluation targets
+##
+
 basic:
 	pkill -9 beam.smp; \
 		rm priv/evaluation/logs -rf; \
