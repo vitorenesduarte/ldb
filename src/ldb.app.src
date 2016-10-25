@@ -7,7 +7,9 @@
                   kernel,
                   stdlib,
                   crypto,
+                  jiffy,
                   lager,
+                  rand_compat,
                   types
                  ]},
   {mod, {ldb_app, []}},
