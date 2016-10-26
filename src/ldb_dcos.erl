@@ -48,7 +48,8 @@ ldbs() ->
     {Names, NodeInfo} = lists:foldl(
         fun(Task, {Names0, NodeInfo0}) ->
             %% Get task ip
-            {value, {_, Ip}} = lists:keysearch(<<"host">>, 1, Task),
+            {value, {_, Ip0}} = lists:keysearch(<<"host">>, 1, Task),
+            Ip = binary_to_list(Ip0),
             {ok, IpAddress} = inet_parse:address(Ip),
 
             %% Get task port
