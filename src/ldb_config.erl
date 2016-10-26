@@ -28,6 +28,7 @@
          store/0,
          peer_service/0,
          node_number/0,
+         instrumentation/0,
          extended_logging/0]).
 
 %% @doc Returns the enabled mode.
@@ -64,6 +65,11 @@ peer_service() ->
 node_number() ->
     {ok, NodeNumber} = application:get_env(?APP, ldb_node_number),
     NodeNumber.
+
+%% @doc Returns true if instrumentation is enabled.
+-spec instrumentation() -> atom().
+instrumentation() ->
+    application:get_env(?APP, ldb_instrumentation, false).
 
 %% @doc Returns true if extended logging is enabled.
 -spec extended_logging() -> atom().

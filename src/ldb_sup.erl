@@ -123,6 +123,10 @@ init([]) ->
             ok
     end,
 
+    application:set_env(?APP,
+                        ldb_instrumentation,
+                        Instrumentation),
+
     %% Configure extended logging
     ExtendedLogging = list_to_atom(os:getenv("LDB_EXTENDED_LOGGING", "false")),
     case ExtendedLogging /= undefined of
