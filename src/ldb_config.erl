@@ -26,7 +26,9 @@
 -export([mode/0,
          backend/0,
          store/0,
-         peer_service/0]).
+         peer_service/0,
+         node_number/0,
+         extended_logging/0]).
 
 %% @doc Returns the enabled mode.
 %%      The result can be:
@@ -53,5 +55,17 @@ store() ->
     application:get_env(?APP, ldb_store, ?DEFAULT_STORE).
 
 %% @doc Returns the enabled peer service.
+-spec peer_service() -> atom().
 peer_service() ->
     application:get_env(?APP, ldb_peer_service, ?DEFAULT_PEER_SERVICE).
+
+%% @doc Returns the node number.
+-spec node_number() -> non_neg_integer().
+node_number() ->
+    {ok, NodeNumber} = application:get_env(?APP, ldb_node_number),
+    NodeNumber.
+
+%% @doc Returns true if extended logging is enabled.
+-spec extended_logging() -> atom().
+extended_logging() ->
+    application:get_env(?APP, ldb_extended_logging, false).
