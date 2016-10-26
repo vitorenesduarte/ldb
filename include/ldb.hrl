@@ -24,5 +24,5 @@
 -define(DEFAULT_PEER_SERVICE, ldb_static_peer_service).
 
 %% pure_op
--type vclock() :: state_gcounter:state_gcounter().
+-type vclock() :: orddict:orddict().
 -type mclock() :: orddict:orddict().

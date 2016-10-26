@@ -41,14 +41,14 @@
          handle_info/2,
          terminate/2,
          code_change/3,
-         incrementVClock/2,
+         increment_vclock/2,
          update_rtm/3,
          update_stablevv/1,
          get_counter/2,
-         equalsVClock/2,
-         happenedBefore/2,
+         equals_vclock/2,
+         happened_before/2,
          already_seen_message/3,
-         inToBeDeliveredQueue/2,
+         in_to_be_delivered_queue/2,
          causal_delivery/3,
          try_to_deliever/2,
          can_be_delivered/3]).
@@ -101,10 +101,10 @@ init([]) ->
     Actor = node(),
 
     %% Generate local version vector.
-    VClock = state_gcounter:new(),
+    VClock = orddict:new(),
 
     %% Generate local stable version vector.
-    SVC = state_gcounter:new(),
+    SVC = orddict:new(),
 
     %% Generate local recent timestamp matrix.
     RTM = orddict:new(),
@@ -118,10 +118,10 @@ init([]) ->
     ldb_log:info("ldb_pure_op_based_backend initialized!", extended),
 
     {ok, #state{actor=Actor,
-                vc=VClock, 
-                svc=SVC, 
-                rtm=RTM, 
-                to_be_delivered_queue=ToBeDeliveredQueue, 
+                vc=VClock,
+                svc=SVC,
+                rtm=RTM,
+                to_be_delivered_queue=ToBeDeliveredQueue,
                 to_be_ack_queue=ToBeAckQueue}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
@@ -142,26 +142,26 @@ handle_call({query, Key}, _From, State) ->
 handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, vc=VC0, to_be_ack_queue=ToBeAckQueue0}=State) ->
 
     %% Increment vclock.
-    VC1 = incrementVClock(Actor, VC0),
-    
+    VC1 = increment_vclock(Actor, VC0),
+
     %% Get neighbours
     {ok, Members} = ldb_peer_service:members(),
-    
+
     %% Generate list of peers that need the message (neighbours minus message sender, self and message creator).
     ToMembers = Members -- [Actor],
-    
+
     %% Get current time.
     Now = ldb_util:timestamp(),
-    
+
     %% Add members to the queue of not acked messages.
     ToBeAckQueue1 = ToBeAckQueue0 ++ [{{Actor, VC1}, MessageBody, Actor, Now, ToMembers}],
-    
+
     %% Generate message.
     Msg1 = {tcbcast, {update, Key, Operation}, Actor, VC1, Actor},
-    
+
     %% Send Message.
     [ldb_whisperer:send(Peer, Msg1) || Peer <- ToMembers],
-        
+
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, VC1, CRDT)
     end,
@@ -178,7 +178,7 @@ handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({tcbcast, {update, Key, Operation} = MessageBody, MessageActor, MessageVC, Sender}, 
+handle_cast({tcbcast, {update, Key, Operation} = MessageBody, MessageActor, MessageVC, Sender},
     #state{vc=VC0, to_be_ack_queue=ToBeAckQueue0, to_be_delivered_queue=ToBeDeliveredQueue0} = State) ->
         case already_seen_message(MessageVC, VC0, ToBeDeliveredQueue0) of
             true ->
@@ -188,29 +188,29 @@ handle_cast({tcbcast, {update, Key, Operation} = MessageBody, MessageActor, Mess
             false ->
                 %% Get neighbours
                 {ok, Members} = ldb_peer_service:members(),
-                
+
                 %% Generate list of peers that need the message (neighbours minus message sender, self and message creator).
                 ToMembers = Members -- [Sender, node(), MessageActor],
                 ldb_log:info("Broadcasting message to peers: ~p", [ToMembers]),
-                
+
                 %% Generate message.
                 Msg = {tcbcast, MessageBody, MessageActor, MessageVC, node()},
-                
+
                 %% Send Message.
                 [ldb_whisperer:send(Peer, Msg) || Peer <- ToMembers],
-                
+
                 %% Get current time.
                 Now = ldb_util:timestamp(),
-                
+
                 %% Generate message.
                 MessageAck = {tcbcast_ack, MessageActor, MessageVC, node()},
-                
+
                 %% Send ack back to message sender.
                 ldb_whisperer:send(Sender, MessageAck),
-                
+
                 %% Attempt to deliver locally if we received it on the wire.
                 tcbdeliver(MessageActor, {update, Key, Operation}, MessageVC),
-                
+
                 %% Add members to the queue of not ack messages and increment the vector clock.
                 ToBeAckQueue1 = ToBeAckQueue0 ++ [{{MessageActor, MessageVC}, MessageBody, Sender, Now, ToMembers}],
 
@@ -237,23 +237,23 @@ handle_cast({tcbcast_ack, MessageActor, MessageVC, Sender}, #state{to_be_ack_que
                              1,
                              ToBeAckQueue0, {{MessageActor, MessageVC}, MessageBody, From, Timestamp, Members})
     end,
-    
+
     {noreply, State#state{to_be_ack_queue=ToBeAckQueue1}};
 
-handle_cast({tcbdeliver, MessageActor, MessageBody, MessageVC}, 
+handle_cast({tcbdeliver, MessageActor, MessageBody, MessageVC},
     #state{vc=VC0, rtm=RTM0, to_be_delivered_queue=ToBeDeliveredQueue0} = State) ->
-    
+
     %% Check if the message should be delivered and delivers it or not.
     {VC1, ToBeDeliveredQueue1} = causal_delivery({MessageActor, MessageBody, MessageVC},
                                            VC0,
                                            ToBeDeliveredQueue0),
-    
+
     %% Update the Recent Timestamp Matrix.
     RTM1 = update_rtm(RTM0, MessageActor, MessageVC),
-    
+
     %% Update the Stable Version Vector.
     %SVV1 = update_stablevv(RTM1),
-    
+
     {noreply, State#state{vc=VC1, rtm=RTM1, to_be_delivered_queue=ToBeDeliveredQueue1}};
 
 handle_cast(check_resend, #state{to_be_ack_queue=ToBeAckQueue0} = State) ->
@@ -285,9 +285,14 @@ handle_info(Msg, State) ->
     ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
-incrementVClock(Actor, VClock) ->
-    {ok, VC} = state_gcounter:mutate(increment, Actor, VClock),
-    VC.
+increment_vclock(Node, VClock) ->
+    Ctr = case orddict:find(Node, VClock) of
+        {ok, Ctr0} ->
+            Ctr0 + 1;
+        error ->
+            1
+    end,
+    orddict:store(Node, Ctr, VClock).
 
 update_rtm(RTM, MsgActor, MsgVV) ->
     orddict:store(MsgActor, MsgVV, RTM).
@@ -322,13 +327,14 @@ get_counter(Node, VClock) ->
             0
     end.
 
-equalsVClock(VClock1, VClock2) ->
-    state_gcounter:equal(VClock1,VClock2).
+equals_vclock(VClock1, VClock2) ->
+    Fun = fun(Value1, Value2) -> Value1 == Value2 end,
+    orddict_ext:equal(VClock1, VClock2, Fun).
 
-happenedBefore(VClock1, VClock2) ->
-    state_gcounter:is_strict_inflation(VClock1, VClock2).
+happened_before(VClock1, VClock2) ->
+    pure_trcb:happened_before(VClock1, VClock2).
 
-can_be_delivered({_, MsgVClock}, {_, NodeVClock}, Origin) ->
+can_be_delivered(MsgVClock, NodeVClock, Origin) ->
     orddict:fold(
         fun(Key, Value, Acc) ->
             case orddict:find(Key, NodeVClock) of
@@ -348,16 +354,16 @@ can_be_delivered({_, MsgVClock}, {_, NodeVClock}, Origin) ->
     ).
 
 already_seen_message(MessageVC, NodeVC, ToBeDeliveredQueue) ->
-    case happenedBefore(MessageVC, NodeVC) orelse
-        equalsVClock(MessageVC, NodeVC) orelse
-            inToBeDeliveredQueue(MessageVC, ToBeDeliveredQueue) of
+    case happened_before(MessageVC, NodeVC) orelse
+        equals_vclock(MessageVC, NodeVC) orelse
+            in_to_be_delivered_queue(MessageVC, ToBeDeliveredQueue) of
                         true ->
                             true;
                         false ->
                             false
     end.
 
-inToBeDeliveredQueue(MsgVC, ToBeDeliveredQueue) ->
+in_to_be_delivered_queue(MsgVC, ToBeDeliveredQueue) ->
     lists:keymember(MsgVC, 3, ToBeDeliveredQueue).
 
 %% @doc check if a message should be deliver and deliver it, if not add it to the queue
@@ -369,7 +375,7 @@ causal_delivery({Origin, {_, Key, Operation} = MessageBody, MessageVClock}, VV, 
             end,
             case ldb_store:update(Key, Function) of
                 {ok, _} ->
-                    NewVV = incrementVClock(Origin, VV),
+                    NewVV = increment_vclock(Origin, VV),
                     try_to_deliever(Queue, {NewVV, Queue});
                 _ ->
                     {VV, Queue ++ [{Origin, MessageBody, MessageVClock}]}
@@ -389,7 +395,7 @@ try_to_deliever([{Origin, {_, Key, Operation}, MessageVClock}=El | RQueue], {VV,
             end,
             case ldb_store:update(Key, Function) of
                 {ok, _} ->
-                    NewVV = incrementVClock(Origin, VV),
+                    NewVV = increment_vclock(Origin, VV),
                     Queue1 = lists:delete(El, Queue),
                     try_to_deliever(Queue1, {NewVV, Queue1});
                 _ ->

@@ -117,7 +117,7 @@ schedule_state_sync() ->
 %% @private
 schedule_check_resend() ->
     ok.
-    % timer:send_after(?CHECK_RESEND_INTERVAL, check_resend).    
+% timer:send_after(?CHECK_RESEND_INTERVAL, check_resend).
 
 %% @private
 do_send(NodeName, Message) ->
@@ -142,7 +142,7 @@ log_transmission({Key, delta_send, From, Sequence, Delta}) ->
     log_transmission(delta_send, {Key, From, Sequence, Delta});
 log_transmission({Key, delta_ack, From, Sequence}) ->
     log_transmission(delta_ack, {Key, From, Sequence});
-log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) -> 
+log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) ->
     log_transmission(tcbcast, {Op, MessageActor, MessageVC, From});
 log_transmission({tcbcast_ack, MessageActor, MessageVC, From}) ->
     log_transmission(tcbcast_ack, {MessageActor, MessageVC, From});
