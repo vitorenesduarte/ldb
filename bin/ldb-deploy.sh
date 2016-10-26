@@ -20,7 +20,7 @@ cd /tmp
 
 MEMORY=1024.0
 CPU=1
-INSTANCES=5
+INSTANCES=3
 
 cat <<EOF > ldbs.json
 {
