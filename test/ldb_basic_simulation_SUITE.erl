@@ -60,9 +60,10 @@ end_per_testcase(Case, Config) ->
 
 all() ->
     [
-     state_based_test,
-     delta_based_test,
-     join_decompositions_test
+     %state_based_test,
+     %delta_based_test,
+     %join_decompositions_test,
+     pure_op_based_test
     ].
 
 %% ===================================================================
@@ -77,6 +78,9 @@ delta_based_test(_Config) ->
 
 join_decompositions_test(_Config) ->
     run(join_decompositions).
+
+pure_op_based_test(_Config) ->
+    run(pure_op_based).
 
 %% @private
 run(Evaluation) ->
@@ -108,7 +112,9 @@ get_mode_and_join_decompositions(state_based) ->
 get_mode_and_join_decompositions(delta_based) ->
     {delta_based, false};
 get_mode_and_join_decompositions(join_decompositions) ->
-    {delta_based, true}.
+    {delta_based, true};
+get_mode_and_join_decompositions(pure_op_based) ->
+    {pure_op_based, false}.
 
 %% @private
 node_names() ->

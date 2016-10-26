@@ -44,7 +44,9 @@ backend() ->
         state_based ->
             ldb_state_based_backend;
         delta_based ->
-            ldb_delta_based_backend
+            ldb_delta_based_backend;
+        pure_op_based ->
+            ldb_pure_op_based_backend
     end.
 
 %% @doc Returns the enabled store.

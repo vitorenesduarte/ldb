@@ -39,7 +39,8 @@
 
 -record(state, {}).
 
--define(SYNC_INTERVAL, 5000).
+-define(STATE_SYNC_INTERVAL, 5000).
+% -define(CHECK_RESEND_INTERVAL, 5000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -53,9 +54,11 @@ send(NodeName, Message) ->
 init([]) ->
     case ldb_config:mode() of
         state_based ->
-            schedule_sync();
+            schedule_state_sync();
         delta_based ->
-            schedule_sync()
+            schedule_state_sync();
+        pure_op_based ->
+            schedule_check_resend()
     end,
 
     ldb_log:info("ldb_whisperer initialized!", extended),
@@ -73,7 +76,7 @@ handle_cast(Msg, State) ->
     ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(sync, State) ->
+handle_info(state_sync, State) ->
     {ok, NodeNames} = ldb_peer_service:members(),
 
     FoldFunction = fun({Key, Value}, _Acc) ->
@@ -92,9 +95,11 @@ handle_info(sync, State) ->
     end,
 
     ldb_store:fold(FoldFunction, undefined),
-    schedule_sync(),
+    schedule_state_sync(),
     {noreply, State};
 
+% handle_info(check_resend, _State) ->
+%     gen_server:cast(ldb_pure_op_based_backend, check_resend);
 handle_info(Msg, State) ->
     ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
@@ -106,8 +111,13 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-schedule_sync() ->
-    timer:send_after(?SYNC_INTERVAL, sync).
+schedule_state_sync() ->
+    timer:send_after(?STATE_SYNC_INTERVAL, state_sync).
+
+%% @private
+schedule_check_resend() ->
+    ok.
+    % timer:send_after(?CHECK_RESEND_INTERVAL, check_resend).    
 
 %% @private
 do_send(NodeName, Message) ->
@@ -126,11 +136,17 @@ do_send(NodeName, Message) ->
     end.
 
 %% @private
-log_transmission({_Key, state_send, CRDT}) ->
-    log_transmission(state_send, CRDT);
-log_transmission({_Key, delta_send, From, Sequence, Delta}) ->
-    log_transmission(delta_send, {From, Sequence, Delta});
-log_transmission({_Key, delta_ack, From, Sequence}) ->
-    log_transmission(delta_ack, {From, Sequence}).
+log_transmission({Key, state_send, CRDT}) ->
+    log_transmission(state_send, {Key, CRDT});
+log_transmission({Key, delta_send, From, Sequence, Delta}) ->
+    log_transmission(delta_send, {Key, From, Sequence, Delta});
+log_transmission({Key, delta_ack, From, Sequence}) ->
+    log_transmission(delta_ack, {Key, From, Sequence});
+log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) -> 
+    log_transmission(tcbcast, {Op, MessageActor, MessageVC, From});
+log_transmission({tcbcast_ack, MessageActor, MessageVC, From}) ->
+    log_transmission(tcbcast_ack, {MessageActor, MessageVC, From});
+log_transmission({tcbdeliver, MessageActor, MessageBody, MessageVC}) ->
+    log_transmission(tcbdeliver, {MessageActor, MessageVC, MessageBody}).
 log_transmission(Type, Payload) ->
     ldb_instrumentation:transmission(Type, Payload).

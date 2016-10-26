@@ -48,9 +48,10 @@ shell:
 
 basic:
 	pkill -9 beam.smp; \
-		rm priv/evaluation/logs -rf; \
-		rm priv/evaluation/plots -rf; \
-		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
+ 		rm -rf priv/lager; \
+		rm -rf priv/evaluation/logs; \
+		rm -rf priv/evaluation/plots; \
+		TRAVIS=true ${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
 
 graph:
 	cd priv/evaluation/; \

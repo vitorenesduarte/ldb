@@ -65,7 +65,13 @@ handle_cast(Msg, State) ->
 handle_info(event, #state{local_events=LocalEvents0}=State) ->
     LocalEvents1 = LocalEvents0 + 1,
     Element = atom_to_list(node()) ++ integer_to_list(LocalEvents1),
+    ldb_log:info("before update LSLALALALALALALALALALALALAL"),
     ldb:update("SET", {add, Element}),
+    ldb_log:info("after update LSLALALALALALALALALALALALAL"),
+    {ok, Value} = ldb:query("SET"),
+    Events = sets:size(Value),
+    ldb_log:info("Events observed ~p | Node ~p", [Events, node()], extended),
+
 
     case LocalEvents1 == ?EVENT_NUMBER of
         true ->
@@ -106,6 +112,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% @private
 schedule_event() ->
+    lager:info("LALALAL will schedule_event"),
     timer:send_after(?EVENT_INTERVAL, event).
 
 %% @private

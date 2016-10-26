@@ -22,3 +22,7 @@
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_STORE, ldb_ets_store).
 -define(DEFAULT_PEER_SERVICE, ldb_static_peer_service).
+
+%% pure_op
+-type vclock() :: state_gcounter:state_gcounter().
+-type mclock() :: orddict:orddict().

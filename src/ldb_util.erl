@@ -25,7 +25,8 @@
 
 %% ldb_util callbacks
 -export([get_type/1,
-         wait_until/3]).
+         wait_until/3,
+         timestamp/0]).
 
 %% @doc Returns the actual type in types repository
 %%      (https://github.com/lasp-lang/types)
@@ -33,14 +34,17 @@
 get_type(Type) ->
     Map = [{gcounter, {state_gcounter, pure_gcounter}},
            {gset, {state_gset, pure_gset}}],
-    {State, _Op} = orddict:fetch(Type, Map),
+    {State, Op} = orddict:fetch(Type, Map),
     case ldb_config:mode() of
         state_based ->
             State;
         delta_based ->
-            State
+            State;
+        pure_op_based ->
+            Op
     end.
 
+%% @todo add spec
 %% @doc Wait until `Fun' returns true or `Retry' reaches 0.
 %%      The sleep time between retries is `Delay'.
 wait_until(_Fun, 0, _Delay) -> fail;
@@ -52,3 +56,10 @@ wait_until(Fun, Retry, Delay) when Retry > 0 ->
             timer:sleep(Delay),
             wait_until(Fun, Retry - 1, Delay)
     end.
+
+
+%% @doc Returns unix timestamp
+-spec timestamp() -> non_neg_integer().
+timestamp() ->
+    {Mega, Sec, _Micro} = erlang:timestamp(),
+    Mega * 1000000 + Sec.

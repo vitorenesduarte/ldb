@@ -176,7 +176,7 @@ megasize(Size) ->
 %% @private
 record_transmission(Map) ->
     Filename = main_log(),
-    Timestamp = timestamp(),
+    Timestamp = ldb_util:timestamp(),
     Lines = orddict:fold(
         fun(Type, Size, Acc) ->
             Acc ++ get_line(Type, Timestamp, Size)
@@ -189,7 +189,7 @@ record_transmission(Map) ->
 %% @private
 record_convergence() ->
     Filename = main_log(),
-    Timestamp = timestamp(),
+    Timestamp = ldb_util:timestamp(),
     Line = get_line(convergence, Timestamp, 0),
     append_to_file(Filename, Line).
 
@@ -214,11 +214,9 @@ write_file(Filename, Line, Mode) ->
     ok.
 
 %% @private
-timestamp() ->
-    {Mega, Sec, _Micro} = erlang:timestamp(),
-    Mega * 1000000 + Sec.
-
-%% @private
 get_transmission_type(state_send) -> state_send;
 get_transmission_type(delta_send) -> delta_send;
-get_transmission_type(delta_ack) -> delta_send.
+get_transmission_type(delta_ack) -> delta_send;
+get_transmission_type(tcbcast) -> pure_send;
+get_transmission_type(tcbcast_ack) -> pure_send;
+get_transmission_type(tcbdeliver) -> pure_send.
