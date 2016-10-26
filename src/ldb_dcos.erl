@@ -43,7 +43,33 @@ ldbs() ->
     Url = task_url("ldbs"),
     {ok, R} = get_request(Url),
     D = jsx:decode(R),
-    lager:info("~n~n~nDECODE~n~p~n~n", [D]).
+    Tasks = lists:keyfind(<<"tasks">>, 1, D),
+    {MyName, _, _} = ldb_peer_service:get_node_info(),
+    {Names, NodeInfo} = lists:foldl(
+        fun(Task, {Names0, NodeInfo0}) ->
+            %% Get task ip
+            {value, {_, Ip}} = lists:keyfind(<<"host">>, 1, Task),
+            {ok, IpAddress} = inet_parse:address(Ip),
+
+            %% Get task port
+            {value, {_, Ports}} = lists:keyfind(<<"ports">>, 1, Task),
+            [Port] = Ports,
+
+            %% Node name
+            Name = list_to_atom(
+                "ldb-" ++ integer_to_list(Port) ++ "@" ++ Ip
+            ),
+
+            Names1 = ordsets:add_element(Name, Names0),
+            NodeInfo1 = orddict:store(Name, {Name, IpAddress, Port}, NodeInfo0),
+            {Names1, NodeInfo1}
+        end,
+        {[], []},
+        Tasks
+    ),
+    lager:info("~n~n~nNames~n~p~n~n", [Names]),
+    lager:info("~n~n~nNodeInfo~n~p~n~n", [NodeInfo]),
+    lager:info("~n~n~n?~n~p~n~n", [ordsets:is_element(MyName, Names)]).
 
 %% @private
 get_request(Url) ->
