@@ -5,6 +5,11 @@ TOKEN=$(dcos config show core.dcos_acs_token)
 
 ENV_VARS=(
   BRANCH
+  LDB_MODE
+  LDB_SIMULATION
+  LDB_NODE_NUMBER
+  LDB_INSTRUMENTATION
+  LDB_EXTENDED_LOGGING
 )
 
 for ENV_VAR in "${ENV_VARS[@]}"
@@ -20,7 +25,6 @@ cd /tmp
 
 MEMORY=1024.0
 CPU=1
-INSTANCES=3
 
 cat <<EOF > ldbs.json
 {
@@ -32,7 +36,7 @@ cat <<EOF > ldbs.json
   "constraints": [["hostname", "UNIQUE", ""]],
   "cpus": $CPU,
   "mem": $MEMORY,
-  "instances": $INSTANCES,
+  "instances": $LDB_NODE_NUMBER,
   "container": {
     "type": "DOCKER",
     "docker": {
@@ -48,7 +52,12 @@ cat <<EOF > ldbs.json
   "env" : {
     "BRANCH": "$BRANCH",
     "DCOS": "$DCOS",
-    "TOKEN": "$TOKEN"
+    "TOKEN": "$TOKEN",
+    "LDB_MODE": "$LDB_MODE",
+    "LDB_SIMULATION": "$LDB_SIMULATION",
+    "LDB_NODE_NUMBER": "$LDB_NODE_NUMBER",
+    "LDB_INSTRUMENTATION": "$LDB_INSTRUMENTATION",
+    "LDB_EXTENDED_LOGGING": "$LDB_EXTENDED_LOGGING"
   },
   "healthChecks": [
     {
