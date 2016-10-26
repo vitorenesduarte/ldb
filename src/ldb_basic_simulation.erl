@@ -77,13 +77,13 @@ handle_info(event, #state{local_events=LocalEvents0}=State) ->
     {noreply, State#state{local_events=LocalEvents1}};
 
 handle_info(simulation_end, State) ->
-    {ok, ClientNumber} = application:get_env(?APP, client_number),
+    NodeNumber = ldb_config:node_number(),
     {ok, Value} = ldb:query("SET"),
     Events = sets:size(Value),
 
     ldb_log:info("Events observed ~p | Node ~p", [Events, node()], extended),
 
-    case Events == ClientNumber * ?EVENT_NUMBER of
+    case Events == NodeNumber * ?EVENT_NUMBER of
         true ->
             ldb_log:info("All events have been observed", extended),
             ldb_instrumentation:convergence(),

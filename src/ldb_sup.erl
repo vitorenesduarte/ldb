@@ -49,7 +49,8 @@ init([]) ->
 
 
     %% Configure node number
-    NodeNumber = list_to_integer(os:getenv("LDB_NODE_NUMBER", "-1")),
+    NodeNumberDefault = list_to_integer(os:getenv("LDB_NODE_NUMBER", "-1")),
+    NodeNumber = application:get_env(?APP, ldb_node_number, NodeNumberDefault),
     case NodeNumber of
         -1 ->
             ok;

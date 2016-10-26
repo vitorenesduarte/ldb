@@ -113,7 +113,7 @@ start(Options) ->
         ClientNumber = length(Names),
         ok = rpc:call(Node,
                       application, set_env,
-                      [?APP, client_number, ClientNumber]),
+                      [?APP, ldb_node_number, ClientNumber]),
 
         %% Set evaluation identifier
         EvaluationIdentifier = proplists:get_value(ldb_evaluation_identifier, Options),
