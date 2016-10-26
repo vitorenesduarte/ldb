@@ -47,6 +47,18 @@ init([]) ->
     %% Start peer service
     {ok, _} = ldb_peer_service:start_link(),
 
+
+    %% Configure node number
+    NodeNumber = list_to_integer(os:getenv("LDB_NODE_NUMBER", "-1")),
+    case NodeNumber of
+        -1 ->
+            ok;
+        _ ->
+            application:set_env(?APP,
+                                ldb_node_number,
+                                NodeNumber)
+    end,
+
     %% If running in DCOS, create overlay
     ok = case os:getenv("DCOS", "undefined") of
         "undefined" ->
@@ -94,17 +106,6 @@ init([]) ->
             {ok, _} = ldb_basic_simulation:start_link();
         undefined ->
             ok
-    end,
-
-    %% Configure node number
-    NodeNumber = list_to_integer(os:getenv("LDB_NODE_NUMBER", "-1")),
-    case NodeNumber of
-        -1 ->
-            ok;
-        _ ->
-            application:set_env(?APP,
-                                ldb_node_number,
-                                NodeNumber)
     end,
 
     %% Configure instrumentation
