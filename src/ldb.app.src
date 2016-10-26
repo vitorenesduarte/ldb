@@ -9,7 +9,7 @@
                   crypto,
                   bson,
                   mongodb,
-                  jiffy,
+                  jsx,
                   inets,
                   lager,
                   rand_compat,

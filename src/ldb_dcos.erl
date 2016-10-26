@@ -35,14 +35,14 @@ push_logs() ->
 mongo() ->
     Url = task_url("ldb-mongo"),
     {ok, R} = get_request(Url),
-    D = jiffy:decode(R),
+    D = jsx:decode(R),
     lager:info("~n~n~nDECODE~n~p~n~n", [D]).
 
 %% @private
 ldbs() ->
     Url = task_url("ldbs"),
     {ok, R} = get_request(Url),
-    D = jiffy:decode(R),
+    D = jsx:decode(R),
     lager:info("~n~n~nDECODE~n~p~n~n", [D]).
 
 %% @private
