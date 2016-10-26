@@ -43,16 +43,16 @@ ldbs() ->
     Url = task_url("ldbs"),
     {ok, R} = get_request(Url),
     D = jsx:decode(R),
-    Tasks = lists:keyfind(<<"tasks">>, 1, D),
+    {value, {_, Tasks}} = lists:keysearch(<<"tasks">>, 1, D),
     {ok, {MyName, _, _}} = ldb_peer_service:get_node_info(),
     {Names, NodeInfo} = lists:foldl(
         fun(Task, {Names0, NodeInfo0}) ->
             %% Get task ip
-            {value, {_, Ip}} = lists:keyfind(<<"host">>, 1, Task),
+            {value, {_, Ip}} = lists:keysearch(<<"host">>, 1, Task),
             {ok, IpAddress} = inet_parse:address(Ip),
 
             %% Get task port
-            {value, {_, Ports}} = lists:keyfind(<<"ports">>, 1, Task),
+            {value, {_, Ports}} = lists:keysearch(<<"ports">>, 1, Task),
             [Port] = Ports,
 
             %% Node name
