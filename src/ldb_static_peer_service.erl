@@ -152,7 +152,7 @@ init_node_info() ->
             list_to_integer(PeerPort)
     end,
 
-    lager:info("NODE INFO ~p", {Name, Ip, Port}),
+    lager:info("NODE INFO ~p", {Name, IP, Port}),
     {Name, IP, Port}.
 
 random_port() ->
