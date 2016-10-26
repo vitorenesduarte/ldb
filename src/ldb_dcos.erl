@@ -44,7 +44,7 @@ ldbs() ->
     {ok, R} = get_request(Url),
     D = jsx:decode(R),
     Tasks = lists:keyfind(<<"tasks">>, 1, D),
-    {MyName, _, _} = ldb_peer_service:get_node_info(),
+    {ok, {MyName, _, _}} = ldb_peer_service:get_node_info(),
     {Names, NodeInfo} = lists:foldl(
         fun(Task, {Names0, NodeInfo0}) ->
             %% Get task ip
