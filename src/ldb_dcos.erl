@@ -23,30 +23,22 @@
 
 -include("ldb.hrl").
 
+-define(RETRY_TIME, 5000).
+
 %% ldb_dcos callbacks
--export([push_logs/0]).
+-export([create_overlay/0]).
 
-%% @doc
-push_logs() ->
-    mongo(),
-    ldbs().
-
-%% @private
-mongo() ->
-    Url = task_url("ldb-mongo"),
-    {ok, R} = get_request(Url),
-    D = jsx:decode(R),
-    lager:info("~n~n~nDECODE~n~p~n~n", [D]).
-
-%% @private
-ldbs() ->
+%% @docs
+create_overlay() ->
+    %% Get tasks from marathon
     Url = task_url("ldbs"),
-    {ok, R} = get_request(Url),
-    D = jsx:decode(R),
-    {value, {_, Tasks}} = lists:keysearch(<<"tasks">>, 1, D),
-    {ok, {MyName, _, _}} = ldb_peer_service:get_node_info(),
-    {Names, NodeInfo} = lists:foldl(
-        fun(Task, {Names0, NodeInfo0}) ->
+    {ok, Response} = get_request(Url),
+    {value, {_, Tasks}} = lists:keysearch(<<"tasks">>, 1, Response),
+
+    %% Process marathon reply
+    {Names, NameToNodeInfo} = lists:foldl(
+        fun(Task, {Names0, NameToNodeInfo0}) ->
+
             %% Get task ip
             {value, {_, Ip0}} = lists:keysearch(<<"host">>, 1, Task),
             Ip = binary_to_list(Ip0),
@@ -62,15 +54,54 @@ ldbs() ->
             ),
 
             Names1 = ordsets:add_element(Name, Names0),
-            NodeInfo1 = orddict:store(Name, {Name, IpAddress, Port}, NodeInfo0),
-            {Names1, NodeInfo1}
+            NameToNodeInfo1 = orddict:store(Name, {Name, IpAddress, Port}, NameToNodeInfo0),
+            {Names1, NameToNodeInfo1}
         end,
         {[], []},
         Tasks
     ),
-    lager:info("~n~n~nNames~n~p~n~n", [Names]),
-    lager:info("~n~n~nNodeInfo~n~p~n~n", [NodeInfo]),
-    lager:info("~n~n~n?~n~p~n~n", [ordsets:is_element(MyName, Names)]).
+
+    {IdToName, MyId, _} = lists:foldl(
+        fun(Name, {Acc0, MyId0, Counter0}) ->
+            Acc1 = orddict:store(Counter0, Name, Acc0),
+            MyId1 = case Name == node() of
+                true ->
+                    Counter0;
+                false ->
+                    MyId0
+            end,
+            Counter1 = Counter0 + 1,
+            {Acc1, MyId1, Counter1}
+        end,
+        {[], -1, 0},
+        Names
+    ),
+
+    Overlay = line(),
+
+    NodeNumber = ldb_config:node_number(),
+    case length(Names) == NodeNumber of
+        true ->
+            %% All are connected
+            ToConnectIds = orddict:fetch(MyId, Overlay),
+            connect(ToConnectIds, IdToName, NameToNodeInfo);
+        false ->
+            timer:sleep(?RETRY_TIME),
+            create_overlay()
+    end.
+
+%% @private
+connect([], _, _) -> ok;
+connect([Id|Ids]=All, IdToName, NameToNodeInfo) ->
+    Name = orddict:fetch(Id, IdToName),
+    NodeInfo = orddict:fetch(Name, NameToNodeInfo),
+    case ldb_peer_service:join(NodeInfo) of
+        ok ->
+            connect(Ids, IdToName, NameToNodeInfo);
+        Error ->
+            ldb_log:info("Couldn't connect to ~p. Error ~p. Will try again in 5 seconds", [NodeInfo, Error]),
+            connect(All, IdToName, NameToNodeInfo)
+    end.
 
 %% @private
 get_request(Url) ->
@@ -78,10 +109,10 @@ get_request(Url) ->
 
     case httpc:request(get, {Url, Headers}, [], [{body_format, binary}]) of
         {ok, {{_, 200, _}, _, Body}} ->
-            lager:info("~n~n~nREPLY~n~p~n~n", [Body]),
-            {ok, Body};
+            JSONBody = jsx:decode(Body),
+            {ok, JSONBody};
         Error ->
-            ldb_log:info("Get request with url ~p failed with ~p", [Url, Error], extended),
+            ldb_log:info("Get request with url ~p failed with ~p", [Url, Error]),
             error
     end.
 
@@ -100,3 +131,11 @@ token() ->
 %% @private
 task_url(Task) ->
     dcos() ++ "/service/marathon/v2/apps/" ++ Task ++ "/tasks".
+
+%% @private
+line() ->
+    [
+     {0, [1]},
+     {1, [2]},
+     {2, [0]}
+    ].
