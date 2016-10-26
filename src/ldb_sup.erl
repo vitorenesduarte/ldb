@@ -44,6 +44,17 @@ init([]) ->
             ok
     end,
 
+    %% Start peer service
+    {ok, _} = ldb_peer_service:start_link(),
+
+    %% If running in DCOS, create overlay
+    ok = case os:getenv("DCOS", "undefined") of
+        "undefined" ->
+            ok;
+        _ ->
+            ldb_dcos:create_overlay()
+    end,
+
     %% Configure mode
     Mode = list_to_atom(os:getenv("LDB_MODE", "undefined")),
     case Mode /= undefined of
@@ -55,17 +66,9 @@ init([]) ->
             ok
     end,
 
-    {ok, _} = ldb_peer_service:start_link(),
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
-
-    case os:getenv("DCOS", "undefined") of
-        "undefined" ->
-            ok;
-        _ ->
-            {ok, _} = ldb_dcos_app:start_link()
-    end,
 
     %% Configure space server
     SpaceServerPortDefault = list_to_integer(os:getenv("LDB_PORT", "-1")),
@@ -102,6 +105,17 @@ init([]) ->
     case Instrumentation of
         true ->
             {ok, _} = ldb_instrumentation:start_link();
+        false ->
+            ok
+    end,
+
+    %% Configure extended logging
+    ExtendedLogging = list_to_atom(os:getenv("LDB_EXTENDED_LOGGING", "false")),
+    case ExtendedLogging /= undefined of
+        true ->
+            application:set_env(?APP,
+                                ldb_extended_logging,
+                                ExtendedLogging);
         false ->
             ok
     end,
