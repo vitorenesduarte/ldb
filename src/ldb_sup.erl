@@ -96,6 +96,17 @@ init([]) ->
             ok
     end,
 
+    %% Configure node number
+    NodeNumber = list_to_integer(os:getenv("LDB_NODE_NUMBER", "-1")),
+    case NodeNumber of
+        -1 ->
+            ok;
+        _ ->
+            application:set_env(?APP,
+                                ldb_node_number,
+                                NodeNumber)
+    end,
+
     %% Configure instrumentation
     InstrumentationDefault = list_to_atom(os:getenv("LDB_INSTRUMENTATION", "false")),
     Instrumentation = application:get_env(?APP,
