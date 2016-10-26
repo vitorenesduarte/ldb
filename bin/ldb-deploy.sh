@@ -20,6 +20,7 @@ cd /tmp
 
 MEMORY=2048.0
 CPU=2
+INSTANCES=5
 
 cat <<EOF > ldbs.json
 {
@@ -31,7 +32,7 @@ cat <<EOF > ldbs.json
   "constraints": [["hostname", "UNIQUE", ""]],
   "cpus": $CPU,
   "mem": $MEMORY,
-  "instances": 1,
+  "instances": $INSTANCES,
   "container": {
     "type": "DOCKER",
     "docker": {
