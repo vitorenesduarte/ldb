@@ -30,6 +30,10 @@
 
 %% @docs
 create_overlay() ->
+    ldb_log:info("Will wait 30s before trying to create the overlay", extended),
+    timer:sleep(30 * 1000),
+    ldb_log:info("Will create the overlay", extended),
+
     %% Get tasks from marathon
     Url = task_url("ldbs"),
     {ok, Response} = get_request(Url),

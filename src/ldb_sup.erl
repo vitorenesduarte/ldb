@@ -65,7 +65,7 @@ init([]) ->
         "undefined" ->
             ok;
         _ ->
-            %%ldb_dcos:create_overlay()
+            ldb_dcos:create_overlay()
             ok
     end,
 
