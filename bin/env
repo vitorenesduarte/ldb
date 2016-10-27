@@ -27,9 +27,5 @@ echo "PEER_IP: ${PEER_IP}"
 echo "PEER_PORT: ${PEER_PORT}"
 echo "NODE_NAME: ${NODE_NAME}"
 
-echo -e "\n\n\nNMAP\n\n"
-nmap -p 14094 10.13.13.144
-
-
 RELNAME="`dirname \"$0\"`"/ldb
 exec ${RELNAME} foreground "$@"
