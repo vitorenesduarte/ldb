@@ -76,10 +76,12 @@ handle_info({forward_message, _Handler, _Message}=M,
     {noreply, State};
 
 handle_info({tcp, _Socket, Data}, State) ->
+    lager:info("\n\n\nTCP MESSAGE RECEIVED ~p\n\n\n", [Data]),
     handle_message(decode(Data)),
     {noreply, State};
 
 handle_info({tcp_closed, _Socket}, State) ->
+    lager:info("\n\n\nTCP CLOSED\n\n\n"),
     {stop, normal, State};
 
 handle_info(Msg, State) ->
