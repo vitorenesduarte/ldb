@@ -40,10 +40,12 @@
 
 -spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(NodeInfoOrSocket) ->
+    lager:info("\n\n\nSTART LINK ~p\n\n\n", [NodeInfoOrSocket]),
     gen_server:start_link(?MODULE, [NodeInfoOrSocket], []).
 
 %% gen_server callbacks
 init([{_Name, IpAddress, Port}=Info]) ->
+    lager:info("\n\n\nINIT 1~p\n\n\n", [Info]),
     case gen_tcp:connect(IpAddress, Port, ?TCP_OPTIONS) of
         {ok, Socket} ->
             ldb_log:info("ldb_static_peer_service_client initialized! Node ~p to node ~p", [node(), Info], extended),
@@ -53,6 +55,7 @@ init([{_Name, IpAddress, Port}=Info]) ->
     end;
 
 init([Socket]) ->
+    lager:info("\n\n\nINIT 2~p\n\n\n", [Socket]),
     ldb_log:info("ldb_static_peer_service_client initialized! Node ~p listening to socket ~p", [node(), Socket], extended),
     {ok, #state{socket=Socket}}.
 

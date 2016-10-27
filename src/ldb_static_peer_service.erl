@@ -56,6 +56,7 @@ members() ->
 
 -spec join(node_info()) -> ok | error().
 join(NodeInfo) ->
+    lager:info("\n\n\nJOIN RECEIVED ON NODE ~p to NODE ~p\n\n\n", [node(), NodeInfo]),
     gen_server:call(?MODULE, {join, NodeInfo}, infinity).
 
 -spec forward_message(node_name(), handler(), message()) ->
@@ -86,6 +87,7 @@ handle_call({join, {Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
         {ok, _} ->
             {ok, Connected0};
         error ->
+            lager:info("\n\n\nNOT CONNECTED YET\n\n\n"),
             case ldb_static_peer_service_client:start_link(NodeInfo) of
                 {ok, Pid} ->
                     {ok, orddict:store(Name, Pid, Connected0)};
