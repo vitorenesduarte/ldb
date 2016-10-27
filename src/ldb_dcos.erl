@@ -23,7 +23,7 @@
 
 -include("ldb.hrl").
 
--define(WAIT_TIME, 30000).
+-define(WAIT_TIME, 0).
 -define(RETRY_TIME, 5000).
 
 %% ldb_dcos callbacks
