@@ -65,6 +65,7 @@ init([]) ->
         "undefined" ->
             ok;
         _ ->
+            {ok, _} = ldb_mongo:start_link(),
             ldb_dcos:create_overlay()
     end,
 
