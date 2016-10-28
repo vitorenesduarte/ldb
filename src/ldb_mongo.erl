@@ -54,9 +54,9 @@ init([]) ->
             lager:info("RESPONSE ~p", [Response]),
             {value, {_, [Task]}} = lists:keysearch(<<"tasks">>, 1, Response),
             lager:info("TASK ~p", [Task]),
-            {value, {_, {Host0}}} = lists:keysearch(<<"host">>, 1, Task),
+            {value, {_, Host0}} = lists:keysearch(<<"host">>, 1, Task),
             Host = binary_to_list(Host0),
-            {value, {_, {[Port]}}} = lists:keysearch(<<"ports">>, 1, Task),
+            {value, {_, [Port]}} = lists:keysearch(<<"ports">>, 1, Task),
 
             {ok, Connection} = ?MONGO:connect([{database, ?DATABASE},
                                                {host, Host},
