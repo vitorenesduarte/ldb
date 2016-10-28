@@ -24,10 +24,14 @@
 -include("ldb.hrl").
 
 -export([mode/0,
+         join_decompositions/0,
          backend/0,
          store/0,
          peer_service/0,
          node_number/0,
+         simulation/0,
+         evaluation_identifier/0,
+         evaluation_timestamp/0,
          instrumentation/0,
          extended_logging/0]).
 
@@ -39,6 +43,12 @@
 -spec mode() -> atom().
 mode() ->
     application:get_env(?APP, ldb_mode, ?DEFAULT_MODE).
+
+%% @doc Returns true is join decompositions are enabled.
+-spec join_decompositions() -> atom().
+join_decompositions() ->
+    {ok, JoinDecompositions} = application:get_env(?APP, ldb_join_decompositions),
+    JoinDecompositions.
 
 %% @doc Returns the enabled backend.
 -spec backend() -> atom().
@@ -65,6 +75,26 @@ peer_service() ->
 node_number() ->
     {ok, NodeNumber} = application:get_env(?APP, ldb_node_number),
     NodeNumber.
+
+%% @doc Returns the current simulation.
+-spec simulation() -> atom().
+simulation() ->
+    {ok, Simulation} = application:get_env(?APP, ldb_simulation),
+    Simulation.
+
+%% @doc Returns the evaluation identifier.
+-spec evaluation_identifier() -> atom().
+evaluation_identifier() ->
+    {ok, EvaluationIdentifier} =
+        application:get_env(?APP, evaluation_identifier),
+    EvaluationIdentifier.
+
+%% @doc Returns the evaluation timestamp.
+-spec evaluation_timestamp() -> atom().
+evaluation_timestamp() ->
+    {ok, EvaluationTimestamp} =
+        application:get_env(?APP, evaluation_timestamp),
+    EvaluationTimestamp.
 
 %% @doc Returns true if instrumentation is enabled.
 -spec instrumentation() -> atom().

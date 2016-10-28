@@ -54,6 +54,9 @@ init([]) ->
     %% Configure mode
     configure_var(ldb_mode, "LDB_MODE", "undefined"),
 
+    %% Configure join decompositions
+    configure_var(ldb_join_decompositions, "LDB_JOIN_DECOMPOSITIONS", "false"),
+
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),

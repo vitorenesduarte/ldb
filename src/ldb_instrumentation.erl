@@ -140,18 +140,15 @@ log_dir() ->
 
 %% @private
 simulation_id() ->
-    {ok, Simulation} = application:get_env(?APP,
-                                           ldb_simulation),
+    Simulation = ldb_config:simulation(),
     LocalOrDCOS = case os:getenv("DCOS", "undefined") of
         "undefined" ->
             "local";
         _ ->
             "dcos"
     end,
-    {ok, EvalIdentifier} = application:get_env(?APP,
-                                              ldb_evaluation_identifier),
-    {ok, EvalTimestamp} = application:get_env(?APP,
-                                              ldb_evaluation_timestamp),
+    EvalIdentifier = ldb_config:evaluation_indentifier(),
+    EvalTimestamp = ldb_config:evaluation_timestamp(),
 
     Id = atom_to_list(Simulation) ++ "/"
       ++ LocalOrDCOS ++ "/"
