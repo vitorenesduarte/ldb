@@ -1,0 +1,12 @@
+FROM ubuntu:xenial
+
+MAINTAINER Vitor Enes Duarte <vitorenesduarte@gmail.com>
+
+RUN cd /tmp && \
+    apt-get update && \
+    apt-get -y install wget curl build-essential make gcc ruby-dev git expect gnuplot python
+
+CMD cd /opt && \
+    git clone https://github.com/vitorenesduarte/ldb.git -b $BRANCH && \
+    cd ldb/bin && \
+    ./transmission.sh
