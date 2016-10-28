@@ -23,11 +23,11 @@
 
 -include("ldb.hrl").
 
--define(WAIT_TIME, 0).
--define(RETRY_TIME, 5000).
+-define(WAIT_TIME, 5000).
 
 %% ldb_dcos callbacks
--export([create_overlay/0]).
+-export([create_overlay/0,
+         get_task_info/1]).
 
 %% @docs
 create_overlay() ->
@@ -36,65 +36,71 @@ create_overlay() ->
     ldb_log:info("Will create the overlay"),
 
     %% Get tasks from marathon
-    Url = task_url("ldbs"),
-    {ok, Response} = get_request(Url),
-    {value, {_, Tasks}} = lists:keysearch(<<"tasks">>, 1, Response),
+    case get_task_info("ldbs") of
+        {ok, Response} ->
+            {value, {_, Tasks}} = lists:keysearch(<<"tasks">>, 1, Response),
+            %% Process marathon reply
+            {Names, NameToNodeInfo} = lists:foldl(
+                fun(Task, {Names0, NameToNodeInfo0}) ->
 
-    %% Process marathon reply
-    {Names, NameToNodeInfo} = lists:foldl(
-        fun(Task, {Names0, NameToNodeInfo0}) ->
+                    %% Get task ip
+                    {value, {_, Ip0}} = lists:keysearch(<<"host">>, 1, Task),
+                    Ip = binary_to_list(Ip0),
+                    {ok, IpAddress} = inet_parse:address(Ip),
 
-            %% Get task ip
-            {value, {_, Ip0}} = lists:keysearch(<<"host">>, 1, Task),
-            Ip = binary_to_list(Ip0),
-            {ok, IpAddress} = inet_parse:address(Ip),
+                    %% Get task port
+                    {value, {_, Ports}} = lists:keysearch(<<"ports">>, 1, Task),
+                    [Port] = Ports,
 
-            %% Get task port
-            {value, {_, Ports}} = lists:keysearch(<<"ports">>, 1, Task),
-            [Port] = Ports,
+                    %% Node name
+                    Name = list_to_atom(
+                        "ldb-" ++ integer_to_list(Port) ++ "@" ++ Ip
+                    ),
 
-            %% Node name
-            Name = list_to_atom(
-                "ldb-" ++ integer_to_list(Port) ++ "@" ++ Ip
+                    Names1 = ordsets:add_element(Name, Names0),
+                    NameToNodeInfo1 = orddict:store(Name, {Name, IpAddress, Port}, NameToNodeInfo0),
+                    {Names1, NameToNodeInfo1}
+                end,
+                {[], []},
+                Tasks
             ),
 
-            Names1 = ordsets:add_element(Name, Names0),
-            NameToNodeInfo1 = orddict:store(Name, {Name, IpAddress, Port}, NameToNodeInfo0),
-            {Names1, NameToNodeInfo1}
-        end,
-        {[], []},
-        Tasks
-    ),
+            {IdToName, MyId, _} = lists:foldl(
+                fun(Name, {Acc0, MyId0, Counter0}) ->
+                    Acc1 = orddict:store(Counter0, Name, Acc0),
+                    MyId1 = case Name == node() of
+                        true ->
+                            Counter0;
+                        false ->
+                            MyId0
+                    end,
+                    Counter1 = Counter0 + 1,
+                    {Acc1, MyId1, Counter1}
+                end,
+                {[], -1, 0},
+                Names
+            ),
 
-    {IdToName, MyId, _} = lists:foldl(
-        fun(Name, {Acc0, MyId0, Counter0}) ->
-            Acc1 = orddict:store(Counter0, Name, Acc0),
-            MyId1 = case Name == node() of
+            Overlay = line(),
+
+            NodeNumber = ldb_config:node_number(),
+            case length(Names) == NodeNumber of
                 true ->
-                    Counter0;
+                    %% All are connected
+                    ToConnectIds = orddict:fetch(MyId, Overlay),
+                    connect(ToConnectIds, IdToName, NameToNodeInfo),
+                    schedule_simulation_end(MyId);
                 false ->
-                    MyId0
-            end,
-            Counter1 = Counter0 + 1,
-            {Acc1, MyId1, Counter1}
-        end,
-        {[], -1, 0},
-        Names
-    ),
-
-    Overlay = line(),
-
-    NodeNumber = ldb_config:node_number(),
-    case length(Names) == NodeNumber of
-        true ->
-            %% All are connected
-            ToConnectIds = orddict:fetch(MyId, Overlay),
-            connect(ToConnectIds, IdToName, NameToNodeInfo),
-            schedule_simulation_end(MyId);
-        false ->
-            timer:sleep(?RETRY_TIME),
+                    create_overlay()
+            end;
+        error ->
             create_overlay()
     end.
+
+%% @doc
+get_task_info(Task) ->
+    Url = task_url(Task),
+    get_request(Url).
 
 %% @private
 connect([], _, _) -> ok;
