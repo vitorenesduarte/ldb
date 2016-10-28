@@ -80,6 +80,9 @@ init([]) ->
     %% Configure evaluation identifier
     configure_var(ldb_evaluation_identifier, "LDB_EVALUATION_IDENTIFIER", "undefined"),
 
+    %% Configure evaluation timestamp
+    configure_var(ldb_evaluation_timestamp, "LDB_EVALUATION_TIMESTAMP", "undefined"),
+
     %% Configure instrumentation
     Instrumentation = configure_var(ldb_instrumentation, "LDB_INSTRUMENTATION", "false"),
     case Instrumentation of
