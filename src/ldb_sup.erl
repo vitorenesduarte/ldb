@@ -34,31 +34,13 @@ start_link() ->
 
 init([]) ->
     %% Configure peer service
-    PeerService = list_to_atom(os:getenv("LDB_PEER_SERVICE", "undefined")),
-    case PeerService /= undefined of
-        true ->
-            application:set_env(?APP,
-                                ldb_peer_service,
-                                PeerService);
-        false ->
-            ok
-    end,
+    configure_var(ldb_peer_service, "LDB_PEER_SERVICE", "undefined"),
+
+    %% Configure node number
+    configure_int(ldb_node_number, "LDB_NODE_NUMBER", "1"),
 
     %% Start peer service
     {ok, _} = ldb_peer_service:start_link(),
-
-
-    %% Configure node number
-    NodeNumberDefault = list_to_integer(os:getenv("LDB_NODE_NUMBER", "-1")),
-    NodeNumber = application:get_env(?APP, ldb_node_number, NodeNumberDefault),
-    case NodeNumber of
-        -1 ->
-            ok;
-        _ ->
-            application:set_env(?APP,
-                                ldb_node_number,
-                                NodeNumber)
-    end,
 
     %% If running in DCOS, create overlay
     ok = case os:getenv("DCOS", "undefined") of
@@ -70,25 +52,14 @@ init([]) ->
     end,
 
     %% Configure mode
-    Mode = list_to_atom(os:getenv("LDB_MODE", "undefined")),
-    case Mode /= undefined of
-        true ->
-            application:set_env(?APP,
-                                ldb_mode,
-                                Mode);
-        false ->
-            ok
-    end,
+    configure_var(ldb_mode, "LDB_MODE", "undefined"),
 
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
     {ok, _} = ldb_listener:start_link(),
 
     %% Configure space server
-    SpaceServerPortDefault = list_to_integer(os:getenv("LDB_PORT", "-1")),
-    SpaceServerPort = application:get_env(?APP,
-                                          ldb_port,
-                                          SpaceServerPortDefault),
+    SpaceServerPort = configure_int(ldb_port, "LDB_PORT", "-1"),
     case SpaceServerPort of
         -1 ->
             %% don't start the space server
@@ -98,11 +69,7 @@ init([]) ->
     end,
 
     %% Configure simulation
-    SimulationDefault = list_to_atom(os:getenv("LDB_SIMULATION", "undefined")),
-    Simulation = application:get_env(?APP,
-                                     ldb_simulation,
-                                     SimulationDefault),
-
+    Simulation = configure_var(ldb_simulation, "LDB_SIMULATION", "undefined"),
     case Simulation of
         basic ->
             {ok, _} = ldb_basic_simulation:start_link();
@@ -110,12 +77,11 @@ init([]) ->
             ok
     end,
 
-    %% Configure instrumentation
-    InstrumentationDefault = list_to_atom(os:getenv("LDB_INSTRUMENTATION", "false")),
-    Instrumentation = application:get_env(?APP,
-                                          ldb_instrumentation,
-                                          InstrumentationDefault),
+    %% Configure evaluation identifier
+    configure_var(ldb_evaluation_identifier, "LDB_EVALUATION_IDENTIFIER", "undefined"),
 
+    %% Configure instrumentation
+    Instrumentation = configure_var(ldb_instrumentation, "LDB_INSTRUMENTATION", "false"),
     case Instrumentation of
         true ->
             {ok, _} = ldb_instrumentation:start_link();
@@ -123,22 +89,25 @@ init([]) ->
             ok
     end,
 
-    application:set_env(?APP,
-                        ldb_instrumentation,
-                        Instrumentation),
-
     %% Configure extended logging
-    ExtendedLogging = list_to_atom(os:getenv("LDB_EXTENDED_LOGGING", "false")),
-    case ExtendedLogging /= undefined of
-        true ->
-            application:set_env(?APP,
-                                ldb_extended_logging,
-                                ExtendedLogging);
-        false ->
-            ok
-    end,
+    configure_var(ldb_extended_logging, "LDB_EXTENDED_LOGGING", "false"),
 
     ldb_log:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 10, 10},
     {ok, {RestartStrategy, []}}.
 
+
+%% @private
+configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, ParseFun) ->
+    Default = ParseFun(os:getenv(EnvironmentVariable, EnvironmentDefault)),
+    Value = application:get_env(?APP,
+                                LDBVariable,
+                                Default),
+    application:set_env(?APP,
+                        LDBVariable,
+                        Value),
+    Value.
+configure_var(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
+    configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_atom(V) end).
+configure_int(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
+    configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_integer(V) end).
