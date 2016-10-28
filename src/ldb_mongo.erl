@@ -65,6 +65,11 @@ init([]) ->
             ?MONGO:insert(Connection, ?COLLECTION,
                           [{<<"id">>, <<"task-id-123456">>}]),
 
+            Count = ?MONGO:count(Connection, ?COLLECTION,
+                                 {<<"id">>, <<"task-id-123456">>}),
+
+            lager:info("COUNTCOUNT ~p", [Count]),
+
             ldb_log:info("ldb_mongo initialized!", extended),
             {ok, #state{connection=Connection}};
         error ->
