@@ -51,7 +51,9 @@ start_link() ->
 init([]) ->
     case ldb_dcos:get_task_info("ldb-mongo") of
         {ok, Response} ->
+            lager:info("RESPONSE ~p", [Response]),
             {value, {_, [Task]}} = lists:keysearch(<<"tasks">>, 1, Response),
+            lager:info("TASK ~p", [Task]),
             {value, {_, {Host0}}} = lists:keysearch(<<"host">>, 1, Task),
             Host = binary_to_list(Host0),
             {value, {_, {[Port]}}} = lists:keysearch(<<"ports">>, 1, Task),
