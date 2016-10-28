@@ -120,7 +120,11 @@ connect([Id|Ids]=All, IdToName, NameToNodeInfo) ->
 schedule_simulation_end(MyId) ->
     case MyId == 0 of
         true ->
-            {ok, _} = spawn_link(check_simulation_end());
+            {ok, _} = spawn_link(
+                fun() ->
+                    check_simulation_end()
+                end
+            );
         false ->
             ok
     end.
