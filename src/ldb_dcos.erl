@@ -23,7 +23,7 @@
 
 -include("ldb.hrl").
 
--define(WAIT_TIME, 5000).
+-define(RETRY_TIME, 5000).
 
 %% ldb_dcos callbacks
 -export([create_overlay/0,
@@ -31,8 +31,8 @@
 
 %% @docs
 create_overlay() ->
-    ldb_log:info("Will create the overlay in ~p", [?WAIT_TIME]),
-    timer:sleep(?WAIT_TIME),
+    ldb_log:info("Will create the overlay in ~p", [?RETRY_TIME]),
+    timer:sleep(?RETRY_TIME),
     ldb_log:info("Will create the overlay"),
 
     %% Get tasks from marathon

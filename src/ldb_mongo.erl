@@ -23,6 +23,11 @@
 
 -include("ldb.hrl").
 
+-define(RETRY_TIME, 5000).
+-define(MONGO, mc_worker_api).
+-define(DATABASE, <<"ldb">>).
+-define(COLLECTION, <<"logs">>).
+
 -behaviour(gen_server).
 
 %% ldb_store callbacks
@@ -36,7 +41,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {connection}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -44,8 +49,26 @@ start_link() ->
 
 %% gen_server callbacks
 init([]) ->
-    ldb_log:info("ldb_mongo initialized!", extended),
-    {ok, #state{}}.
+    case ldb_dcos:get_task_info("ldb-mongo") of
+        {ok, Response} ->
+            {value, {_, [Task]}} = lists:keysearch(<<"tasks">>, 1, Response),
+            {value, {_, {Host0}}} = lists:keysearch(<<"host">>, 1, Task),
+            Host = binary_to_list(Host0),
+            {value, {_, {[Port]}}} = lists:keysearch(<<"ports">>, 1, Task),
+
+            {ok, Connection} = ?MONGO:connect([{database, ?DATABASE},
+                                               {host, Host},
+                                               {port, Port}]),
+
+            ?MONGO:insert(Connection, ?COLLECTION,
+                          [{<<"id">>, <<"task-id-123456">>}]),
+
+            ldb_log:info("ldb_mongo initialized!", extended),
+            {ok, #state{connection=Connection}};
+        error ->
+            timer:sleep(?RETRY_TIME),
+            init([])
+    end.
 
 handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
