@@ -89,7 +89,8 @@ create_overlay() ->
         true ->
             %% All are connected
             ToConnectIds = orddict:fetch(MyId, Overlay),
-            connect(ToConnectIds, IdToName, NameToNodeInfo);
+            connect(ToConnectIds, IdToName, NameToNodeInfo),
+            schedule_simulation_end(MyId);
         false ->
             timer:sleep(?RETRY_TIME),
             create_overlay()
@@ -108,6 +109,21 @@ connect([Id|Ids]=All, IdToName, NameToNodeInfo) ->
             timer:sleep(5000),
             connect(All, IdToName, NameToNodeInfo)
     end.
+
+%% @private
+schedule_simulation_end(MyId) ->
+    case MyId == 0 of
+        true ->
+            {ok, _} = spawn_link(check_simulation_end());
+        false ->
+            ok
+    end.
+
+%% @private
+check_simulation_end() ->
+    %% @todo
+    %% ask mongo if #logs == node_number
+    ok.
 
 %% @private
 get_request(Url) ->
