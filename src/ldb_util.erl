@@ -25,7 +25,9 @@
 
 %% ldb_util callbacks
 -export([get_type/1,
-         wait_until/3]).
+         wait_until/3,
+         atom_to_binary/1,
+         binary_to_atom/1]).
 
 %% @doc Returns the actual type in types repository
 %%      (https://github.com/lasp-lang/types)
@@ -51,6 +53,16 @@ wait_until(Fun, Retry, Delay) when Retry > 0 ->
             timer:sleep(Delay),
             wait_until(Fun, Retry - 1, Delay)
     end.
+
+%% @doc
+-spec atom_to_binary(atom()) -> binary().
+atom_to_binary(Atom) ->
+    erlang:atom_to_binary(Atom, utf8).
+
+%% @doc
+-spec binary_to_atom(binary()) -> atom().
+binary_to_atom(Binary) ->
+    erlang:binary_to_atom(Binary, utf8).
 
 %% @private
 types_map() ->
