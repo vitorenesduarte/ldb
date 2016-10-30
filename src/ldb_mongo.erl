@@ -23,37 +23,45 @@
 
 -include("ldb.hrl").
 
--define(RETRY_TIME, 5000).
 -define(MONGO, mc_worker_api).
 -define(DATABASE, <<"ldb">>).
 -define(COLLECTION, <<"logs">>).
 
--behaviour(gen_server).
+%% ldb_mongo callbacks
+-export([log_number/0,
+         push_logs/0]).
 
-%% ldb_store callbacks
--export([start_link/0]).
+-spec log_number() -> non_neg_integer().
+log_number() ->
+    case get_connection() of
+        {ok, Connection} ->
+            EvaluationTimestamp = ldb_config:evaluation_timestamp(),
+            ?MONGO:count(Connection,
+                         ?COLLECTION,
+                         {<<"timestamp">>, ldb_util:atom_to_binary(EvaluationTimestamp)});
+        _ ->
+            0
+    end.
 
-%% gen_server callbacks
--export([init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         terminate/2,
-         code_change/3]).
+-spec push_logs() -> ok | error.
+push_logs() ->
+    case get_connection() of
+        {ok, Connection} ->
+            EvaluationTimestamp = ldb_config:evaluation_timestamp(),
+            ?MONGO:insert(Connection,
+                          ?COLLECTION,
+                          [{<<"timestamp">>, ldb_util:atom_to_binary(EvaluationTimestamp)},
+                           {<<"logs">>, ldb_util:atom_to_binary(node())}]),
+            ok;
+        _ ->
+            error
+    end.
 
--record(state, {connection}).
-
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
-%% gen_server callbacks
-init([]) ->
-    case ldb_dcos:get_task_info("ldb-mongo") of
+%% @private
+get_connection() ->
+    case ldb_dcos:get_app_tasks("ldb-mongo") of
         {ok, Response} ->
-            lager:info("RESPONSE ~p", [Response]),
             {value, {_, [Task]}} = lists:keysearch(<<"tasks">>, 1, Response),
-            lager:info("TASK ~p", [Task]),
             {value, {_, Host0}} = lists:keysearch(<<"host">>, 1, Task),
             Host = binary_to_list(Host0),
             {value, {_, [Port]}} = lists:keysearch(<<"ports">>, 1, Task),
@@ -61,36 +69,8 @@ init([]) ->
             {ok, Connection} = ?MONGO:connect([{database, ?DATABASE},
                                                {host, Host},
                                                {port, Port}]),
-
-            ?MONGO:insert(Connection, ?COLLECTION,
-                          [{<<"id">>, <<"task-id-123456">>}]),
-
-            Count = ?MONGO:count(Connection, ?COLLECTION,
-                                 {<<"id">>, <<"task-id-123456">>}),
-
-            lager:info("COUNTCOUNT ~p", [Count]),
-
-            ldb_log:info("ldb_mongo initialized!", extended),
-            {ok, #state{connection=Connection}};
+            {ok, Connection};
         error ->
-            timer:sleep(?RETRY_TIME),
-            init([])
+            ldb_log:info("Cannot contact Marathon!"),
+            error
     end.
-
-handle_call(Msg, _From, State) ->
-    ldb_log:warning("Unhandled call message: ~p", [Msg]),
-    {noreply, State}.
-
-handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
-    {noreply, State}.
-
-handle_info(Msg, State) ->
-    ldb_log:warning("Unhandled info message: ~p", [Msg]),
-    {noreply, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
