@@ -30,8 +30,8 @@
          get_task_info/1]).
 
 %% @docs
-create_overlay(Overlay) ->
-    ldb_log:info("Will create the overlay ~p in ~p", [Overlay, ?RETRY_TIME]),
+create_overlay(OverlayName) ->
+    ldb_log:info("Will create the overlay ~p in ~p", [OverlayName, ?RETRY_TIME]),
     timer:sleep(?RETRY_TIME),
 
     %% Get tasks from marathon
@@ -80,9 +80,9 @@ create_overlay(Overlay) ->
                 Names
             ),
 
-            Overlay = line(),
-
             NodeNumber = ldb_config:node_number(),
+            Overlay = ldb_overlay:get(OverlayName, NodeNumber),
+
             case length(Names) == NodeNumber of
                 true ->
                     %% All are connected
@@ -90,10 +90,10 @@ create_overlay(Overlay) ->
                     connect(ToConnectIds, IdToName, NameToNodeInfo),
                     schedule_simulation_end(MyId);
                 false ->
-                    create_overlay(Overlay)
+                    create_overlay(OverlayName)
             end;
         error ->
-            create_overlay(Overlay)
+            create_overlay(OverlayName)
     end.
 
 %% @doc
@@ -162,11 +162,3 @@ token() ->
 %% @private
 task_url(Task) ->
     dcos() ++ "/service/marathon/v2/apps/" ++ Task ++ "/tasks".
-
-%% @private
-line() ->
-    [
-     {0, [1]},
-     {1, [2]},
-     {2, [0]}
-    ].
