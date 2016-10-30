@@ -153,7 +153,7 @@ simulation_id() ->
     Id = atom_to_list(Simulation) ++ "/"
       ++ LocalOrDCOS ++ "/"
       ++ atom_to_list(EvalIdentifier) ++ "/"
-      ++ integer_to_list(EvalTimestamp),
+      ++ atom_to_list(EvalTimestamp),
     Id.
 
 %% @private
