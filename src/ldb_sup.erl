@@ -62,7 +62,12 @@ init([]) ->
             ok;
         _ ->
             {ok, _} = ldb_mongo:start_link(),
-            ldb_dcos:create_overlay()
+
+            %% Configure DCOS overlay
+            Overlay = configure_var(ldb_dcos_overlay,
+                                    "LDB_DCOS_OVERLAY",
+                                    "undefined"),
+            ldb_dcos:create_overlay(Overlay)
     end,
 
     %% Configure mode

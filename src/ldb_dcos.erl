@@ -26,14 +26,13 @@
 -define(RETRY_TIME, 5000).
 
 %% ldb_dcos callbacks
--export([create_overlay/0,
+-export([create_overlay/1,
          get_task_info/1]).
 
 %% @docs
-create_overlay() ->
-    ldb_log:info("Will create the overlay in ~p", [?RETRY_TIME]),
+create_overlay(Overlay) ->
+    ldb_log:info("Will create the overlay ~p in ~p", [Overlay, ?RETRY_TIME]),
     timer:sleep(?RETRY_TIME),
-    ldb_log:info("Will create the overlay"),
 
     %% Get tasks from marathon
     case get_task_info("ldbs") of
@@ -91,10 +90,10 @@ create_overlay() ->
                     connect(ToConnectIds, IdToName, NameToNodeInfo),
                     schedule_simulation_end(MyId);
                 false ->
-                    create_overlay()
+                    create_overlay(Overlay)
             end;
         error ->
-            create_overlay()
+            create_overlay(Overlay)
     end.
 
 %% @doc
