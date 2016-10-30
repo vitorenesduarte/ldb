@@ -51,7 +51,7 @@ push_logs() ->
             ?MONGO:insert(Connection,
                           ?COLLECTION,
                           [{<<"timestamp">>, ldb_util:atom_to_binary(EvaluationTimestamp)},
-                           {<<"logs">>, ldb_util:atom_to_binary(node())}]),
+                           {<<"logs">>, get_logs()}]),
             ok;
         _ ->
             error
@@ -74,3 +74,17 @@ get_connection() ->
             ldb_log:info("Cannot contact Marathon!"),
             error
     end.
+
+%% @private
+get_logs() ->
+    Filename = ldb_instrumentation:log_file(),
+    Lines = ldb_util:read_lines(Filename),
+    Logs = lists:foldl(
+        fun(Line, Acc) ->
+            Acc ++ Line
+        end,
+        "",
+        Lines
+    ),
+    BinaryLogs = list_to_binary(Logs),
+    BinaryLogs.
