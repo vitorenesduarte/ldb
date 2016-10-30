@@ -23,19 +23,21 @@
 
 -include("ldb.hrl").
 
--define(RETRY_TIME, 5000).
+-define(CREATE_OVERLAY_TIME, 5000).
+-define(SIMULATION_END_TIME, 30000).
 
 %% ldb_dcos callbacks
 -export([create_overlay/1,
-         get_task_info/1]).
+         get_app_tasks/1,
+         push_logs/0]).
 
 %% @docs
 create_overlay(OverlayName) ->
-    ldb_log:info("Will create the overlay ~p in ~p", [OverlayName, ?RETRY_TIME]),
-    timer:sleep(?RETRY_TIME),
+    ldb_log:info("Will create the overlay ~p in ~p", [OverlayName, ?CREATE_OVERLAY_TIME]),
+    timer:sleep(?CREATE_OVERLAY_TIME),
 
     %% Get tasks from marathon
-    case get_task_info("ldbs") of
+    case get_app_tasks("ldbs") of
         {ok, Response} ->
             {value, {_, Tasks}} = lists:keysearch(<<"tasks">>, 1, Response),
             %% Process marathon reply
@@ -97,8 +99,13 @@ create_overlay(OverlayName) ->
     end.
 
 %% @doc
-get_task_info(Task) ->
-    Url = task_url(Task),
+push_logs() ->
+    %% @todo
+    ok.
+
+%% @doc
+get_app_tasks(App) ->
+    Url = tasks_url(App),
     get_request(Url).
 
 %% @private
@@ -130,21 +137,48 @@ schedule_simulation_end(MyId) ->
 
 %% @private
 check_simulation_end() ->
-    %% @todo
-    %% ask mongo if #logs == node_number
-    ok.
+    LogNumber = ldb_mongo:log_number(),
+    NodeNumber = ldb_config:node_number(),
+
+    case LogNumber == NodeNumber of
+        true ->
+            ldb_log:info("Simulation has ended. Will stop ldb", extended),
+            stop_ldb();
+        false ->
+            ldb_log:info("Simulation has not ended. ~p of ~p", [LogNumber, NodeNumber], extended),
+            timer:sleep(?SIMULATION_END_TIME),
+            check_simulation_end()
+    end.
 
 %% @private
-get_request(Url) ->
+request(Method, Url) ->
     Headers = headers(),
 
-    case httpc:request(get, {Url, Headers}, [], [{body_format, binary}]) of
+    case httpc:request(Method, {Url, Headers}, [], [{body_format, binary}]) of
         {ok, {{_, 200, _}, _, Body}} ->
             JSONBody = jsx:decode(Body),
             {ok, JSONBody};
         Error ->
-            ldb_log:info("Get request with url ~p failed with ~p", [Url, Error]),
+            ldb_log:info("~p request with url ~p failed with ~p", [Method, Url, Error]),
             error
+    end.
+
+%% @private
+get_request(Url) ->
+    request(get, Url).
+
+%% @private
+delete_request(Url) ->
+    request(delete, Url).
+
+%% @private
+stop_ldb() ->
+    Url = app_url("ldbs"),
+    case delete_request(Url) of
+        {ok, _} ->
+            ok;
+        error ->
+            ldb_log:info("Stop ldb failed")
     end.
 
 %% @private
@@ -160,5 +194,9 @@ token() ->
     os:getenv("TOKEN", "undefined").
 
 %% @private
-task_url(Task) ->
-    dcos() ++ "/service/marathon/v2/apps/" ++ Task ++ "/tasks".
+app_url(App) ->
+    dcos() ++ "/service/marathon/v2/apps/" ++ App.
+
+%% @private
+tasks_url(App) ->
+    dcos() ++ "/service/marathon/v2/apps/" ++ App ++ "/tasks".
