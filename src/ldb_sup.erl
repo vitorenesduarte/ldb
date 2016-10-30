@@ -44,7 +44,14 @@ init([]) ->
                   ?DEFAULT_STORE),
 
     %% Configure node number
-    configure_int(ldb_node_number, "LDB_NODE_NUMBER", "1"),
+    configure_int(ldb_node_number,
+                  "LDB_NODE_NUMBER",
+                  "1"),
+
+    %% Configure extended logging
+    configure_var(ldb_extended_logging,
+                  "LDB_EXTENDED_LOGGING",
+                  "false"),
 
     %% Start peer service
     {ok, _} = ldb_peer_service:start_link(),
@@ -59,7 +66,9 @@ init([]) ->
     end,
 
     %% Configure mode
-    configure_var(ldb_mode, "LDB_MODE", ?DEFAULT_MODE),
+    configure_var(ldb_mode,
+                  "LDB_MODE",
+                  ?DEFAULT_MODE),
 
     %% Configure join decompositions
     configure_var(ldb_join_decompositions,
@@ -71,7 +80,10 @@ init([]) ->
     {ok, _} = ldb_listener:start_link(),
 
     %% Configure space server
-    SpaceServerPort = configure_int(ldb_port, "LDB_PORT", "-1"),
+    SpaceServerPort = configure_int(ldb_port,
+                                    "LDB_PORT",
+                                    "-1"),
+
     case SpaceServerPort of
         -1 ->
             %% don't start the space server
@@ -111,11 +123,6 @@ init([]) ->
         false ->
             ok
     end,
-
-    %% Configure extended logging
-    configure_var(ldb_extended_logging,
-                  "LDB_EXTENDED_LOGGING",
-                  "false"),
 
     ldb_log:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 10, 10},
