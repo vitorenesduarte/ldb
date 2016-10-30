@@ -28,8 +28,7 @@
 
 %% ldb_dcos callbacks
 -export([create_overlay/1,
-         get_app_tasks/1,
-         push_logs/0]).
+         get_app_tasks/1]).
 
 %% @docs
 create_overlay(OverlayName) ->
@@ -99,11 +98,6 @@ create_overlay(OverlayName) ->
     end.
 
 %% @doc
-push_logs() ->
-    %% @todo
-    ok.
-
-%% @doc
 get_app_tasks(App) ->
     Url = tasks_url(App),
     get_request(Url).
@@ -133,7 +127,8 @@ schedule_simulation_end(MyId) ->
             );
         false ->
             ok
-    end.
+    end,
+    ok.
 
 %% @private
 check_dcos_experiment_end() ->
