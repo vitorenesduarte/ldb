@@ -24,7 +24,7 @@
 -include("ldb.hrl").
 
 -define(CREATE_OVERLAY_TIME, 5000).
--define(SIMULATION_END_TIME, 30000).
+-define(EXPERIMENT_END_TIME, 30000).
 
 %% ldb_dcos callbacks
 -export([create_overlay/1,
@@ -128,7 +128,7 @@ schedule_simulation_end(MyId) ->
         true ->
             spawn_link(
                 fun() ->
-                    check_simulation_end()
+                    check_dcos_experiment_end()
                 end
             );
         false ->
@@ -136,7 +136,7 @@ schedule_simulation_end(MyId) ->
     end.
 
 %% @private
-check_simulation_end() ->
+check_dcos_experiment_end() ->
     LogNumber = ldb_mongo:log_number(),
     NodeNumber = ldb_config:node_number(),
 
@@ -146,8 +146,8 @@ check_simulation_end() ->
             stop_ldb();
         false ->
             ldb_log:info("Simulation has not ended. ~p of ~p", [LogNumber, NodeNumber], extended),
-            timer:sleep(?SIMULATION_END_TIME),
-            check_simulation_end()
+            timer:sleep(?EXPERIMENT_END_TIME),
+            check_dcos_experiment_end()
     end.
 
 %% @private
