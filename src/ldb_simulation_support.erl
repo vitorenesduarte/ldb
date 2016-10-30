@@ -239,4 +239,6 @@ codepath() ->
 %% @private
 timestamp() ->
     {Mega, Sec, _Micro} = erlang:timestamp(),
-    Mega * 1000000 + Sec.
+    Timestamp = Mega * 1000000 + Sec,
+    TaskId = "local",
+    list_to_atom(TaskId ++ "_" ++ integer_to_list(Timestamp)).
