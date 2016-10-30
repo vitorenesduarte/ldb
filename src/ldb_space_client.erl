@@ -96,10 +96,6 @@ send(Reply, Socket) ->
     end.
 
 %% @private
-binary_to_atom(B) ->
-    binary_to_atom(B, utf8).
-
-%% @private
 handle_message(Message, Socket) ->
     %%lager:info("Message received ~p", [Message]),
 
@@ -109,8 +105,8 @@ handle_message(Message, Socket) ->
 
     %% @todo check if the request really has these defined
     Key = binary_to_list(Key0),
-    Method = binary_to_atom(Method0),
-    Type = binary_to_atom(Type0),
+    Method = ldb_util:binary_to_atom(Method0),
+    Type = ldb_util:binary_to_atom(Type0),
 
     LDBResult = case Method of
         create ->
@@ -149,7 +145,7 @@ create_reply(_Type, Error) ->
 %% @private
 parse_operation(Type, Operation0) ->
     {value, {_, OperationName0}} = lists:keysearch(<<"name">>, 1, Operation0),
-    OperationName = binary_to_atom(OperationName0),
+    OperationName = ldb_util:binary_to_atom(OperationName0),
 
     case Type of
         gset ->
