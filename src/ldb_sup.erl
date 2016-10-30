@@ -61,8 +61,6 @@ init([]) ->
         "undefined" ->
             ok;
         _ ->
-            {ok, _} = ldb_mongo:start_link(),
-
             %% Configure DCOS overlay
             Overlay = configure_var(ldb_dcos_overlay,
                                     "LDB_DCOS_OVERLAY",
