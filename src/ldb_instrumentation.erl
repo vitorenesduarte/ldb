@@ -147,7 +147,7 @@ simulation_id() ->
         _ ->
             "dcos"
     end,
-    EvalIdentifier = ldb_config:evaluation_indentifier(),
+    EvalIdentifier = ldb_config:evaluation_identifier(),
     EvalTimestamp = ldb_config:evaluation_timestamp(),
 
     Id = atom_to_list(Simulation) ++ "/"

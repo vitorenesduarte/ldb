@@ -34,7 +34,14 @@ start_link() ->
 
 init([]) ->
     %% Configure peer service
-    configure_var(ldb_peer_service, "LDB_PEER_SERVICE", "undefined"),
+    configure_var(ldb_peer_service,
+                  "LDB_PEER_SERVICE",
+                  ?DEFAULT_PEER_SERVICE),
+
+    %% Configure store
+    configure_var(ldb_store,
+                  "LDB_STORE",
+                  ?DEFAULT_STORE),
 
     %% Configure node number
     configure_int(ldb_node_number, "LDB_NODE_NUMBER", "1"),
@@ -52,10 +59,12 @@ init([]) ->
     end,
 
     %% Configure mode
-    configure_var(ldb_mode, "LDB_MODE", "undefined"),
+    configure_var(ldb_mode, "LDB_MODE", ?DEFAULT_MODE),
 
     %% Configure join decompositions
-    configure_var(ldb_join_decompositions, "LDB_JOIN_DECOMPOSITIONS", "false"),
+    configure_var(ldb_join_decompositions,
+                  "LDB_JOIN_DECOMPOSITIONS",
+                  "false"),
 
     {ok, _} = ldb_backend:start_link(),
     {ok, _} = ldb_whisperer:start_link(),
@@ -72,7 +81,9 @@ init([]) ->
     end,
 
     %% Configure simulation
-    Simulation = configure_var(ldb_simulation, "LDB_SIMULATION", "undefined"),
+    Simulation = configure_var(ldb_simulation,
+                               "LDB_SIMULATION",
+                               "undefined"),
     case Simulation of
         basic ->
             {ok, _} = ldb_basic_simulation:start_link();
@@ -81,13 +92,19 @@ init([]) ->
     end,
 
     %% Configure evaluation identifier
-    configure_var(ldb_evaluation_identifier, "LDB_EVALUATION_IDENTIFIER", "undefined"),
+    configure_var(ldb_evaluation_identifier,
+                  "LDB_EVALUATION_IDENTIFIER",
+                  "undefined"),
 
     %% Configure evaluation timestamp
-    configure_var(ldb_evaluation_timestamp, "LDB_EVALUATION_TIMESTAMP", "undefined"),
+    configure_var(ldb_evaluation_timestamp,
+                  "LDB_EVALUATION_TIMESTAMP",
+                  "undefined"),
 
     %% Configure instrumentation
-    Instrumentation = configure_var(ldb_instrumentation, "LDB_INSTRUMENTATION", "false"),
+    Instrumentation = configure_var(ldb_instrumentation,
+                                    "LDB_INSTRUMENTATION",
+                                    "false"),
     case Instrumentation of
         true ->
             {ok, _} = ldb_instrumentation:start_link();
@@ -96,7 +113,9 @@ init([]) ->
     end,
 
     %% Configure extended logging
-    configure_var(ldb_extended_logging, "LDB_EXTENDED_LOGGING", "false"),
+    configure_var(ldb_extended_logging,
+                  "LDB_EXTENDED_LOGGING",
+                  "false"),
 
     ldb_log:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 10, 10},
@@ -105,7 +124,9 @@ init([]) ->
 
 %% @private
 configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, ParseFun) ->
-    Default = ParseFun(os:getenv(EnvironmentVariable, EnvironmentDefault)),
+    Default = ParseFun(
+        os:getenv(EnvironmentVariable, EnvironmentDefault)
+    ),
     Value = application:get_env(?APP,
                                 LDBVariable,
                                 Default),
