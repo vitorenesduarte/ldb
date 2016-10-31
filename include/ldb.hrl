@@ -9,10 +9,10 @@
 -type operation() :: term().
 
 %% peer service
--type node_name() :: node().
+-type ldb_node_id() :: non_neg_integer().
 -type node_ip() :: inet:ip_address().
 -type node_port() :: non_neg_integer().
--type node_info() :: {node_name(), node_ip(), node_port()}.
+-type node_info() :: {ldb_node_id(), node_ip(), node_port()}.
 -type handler() :: {term(), term()}. %% {module, function}
 -type message() :: term().
 -define(TCP_OPTIONS, [binary, {active, true}, {packet, 4}, {keepalive, true}]).
