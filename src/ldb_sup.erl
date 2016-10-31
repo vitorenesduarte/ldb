@@ -33,6 +33,11 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
+    %% Configure ldb id
+    configure_int(ldb_id,
+                  "LDB_ID",
+                  "-42"),
+
     %% Configure peer service
     configure_var(ldb_peer_service,
                   "LDB_PEER_SERVICE",
