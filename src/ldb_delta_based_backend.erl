@@ -42,7 +42,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: atom()}).
+-record(state, {actor :: non_neg_integer()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->

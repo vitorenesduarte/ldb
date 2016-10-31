@@ -130,9 +130,9 @@ start(Options) ->
                       set_env,
                       [?APP, ldb_evaluation_timestamp, EvaluationTimestamp]),
 
-	%% Set id
-	ok = rpc:call(Node,
-		      application,
+        %% Set id
+        ok = rpc:call(Node,
+                      application,
                       set_env,
                       [?APP, ldb_id, Id])
 

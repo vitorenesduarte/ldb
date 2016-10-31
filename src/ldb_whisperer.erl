@@ -55,7 +55,9 @@ init([]) ->
         state_based ->
             schedule_state_sync();
         delta_based ->
-            schedule_state_sync()
+            schedule_state_sync();
+        pure_op_based ->
+            ok
     end,
 
     ldb_log:info("ldb_whisperer initialized!", extended),

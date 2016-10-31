@@ -53,7 +53,7 @@
          try_to_deliever/2,
          can_be_delivered/3]).
 
--record(state, {actor :: atom(),
+-record(state, {actor :: non_neg_integer(),
                 vc :: vclock(),
                 svc :: vclock(),
                 rtm :: mclock(),
@@ -166,12 +166,7 @@ handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, v
         Type:mutate(Operation, VC1, CRDT)
     end,
 
-    Result = case ldb_store:update(Key, Function) of
-        {ok, _} ->
-            ok;
-        Error ->
-            Error
-    end,
+    Result = ldb_store:update(Key, Function),
     {reply, Result, State#state{vc=VC1, to_be_ack_queue=ToBeAckQueue1}};
 
 handle_call(Msg, _From, State) ->
@@ -374,7 +369,7 @@ causal_delivery({Origin, {Key, Operation} = MessageBody, MessageVClock}, VV, Que
                 Type:mutate(Operation, MessageVClock, CRDT)
             end,
             case ldb_store:update(Key, Function) of
-                {ok, _} ->
+                ok ->
                     NewVV = increment_vclock(Origin, VV),
                     try_to_deliever(Queue, {NewVV, Queue});
                 _ ->
@@ -394,7 +389,7 @@ try_to_deliever([{Origin, {Key, Operation}, MessageVClock}=El | RQueue], {VV, Qu
                 Type:mutate(Operation, MessageVClock, CRDT)
             end,
             case ldb_store:update(Key, Function) of
-                {ok, _} ->
+                ok ->
                     NewVV = increment_vclock(Origin, VV),
                     Queue1 = lists:delete(El, Queue),
                     try_to_deliever(Queue1, {NewVV, Queue1});
