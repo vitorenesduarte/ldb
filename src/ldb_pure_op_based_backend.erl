@@ -98,7 +98,7 @@ message_handler(_) ->
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
-    Actor = node(),
+    Actor = ldb_config:id(),
 
     %% Generate local version vector.
     VClock = orddict:new(),
@@ -157,7 +157,7 @@ handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, v
     ToBeAckQueue1 = ToBeAckQueue0 ++ [{{Actor, VC1}, MessageBody, Actor, Now, ToMembers}],
 
     %% Generate message.
-    Msg1 = {tcbcast, {update, Key, Operation}, Actor, VC1, Actor},
+    Msg1 = {tcbcast, {Key, Operation}, Actor, VC1, Actor},
 
     %% Send Message.
     [ldb_whisperer:send(Peer, Msg1) || Peer <- ToMembers],
@@ -178,7 +178,7 @@ handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({tcbcast, {update, Key, Operation} = MessageBody, MessageActor, MessageVC, Sender},
+handle_cast({tcbcast, {Key, Operation} = MessageBody, MessageActor, MessageVC, Sender},
     #state{vc=VC0, to_be_ack_queue=ToBeAckQueue0, to_be_delivered_queue=ToBeDeliveredQueue0} = State) ->
         case already_seen_message(MessageVC, VC0, ToBeDeliveredQueue0) of
             true ->
@@ -190,11 +190,11 @@ handle_cast({tcbcast, {update, Key, Operation} = MessageBody, MessageActor, Mess
                 {ok, Members} = ldb_peer_service:members(),
 
                 %% Generate list of peers that need the message (neighbours minus message sender, self and message creator).
-                ToMembers = Members -- [Sender, node(), MessageActor],
+                ToMembers = Members -- [Sender, ldb_config:id(), MessageActor],
                 ldb_log:info("Broadcasting message to peers: ~p", [ToMembers]),
 
                 %% Generate message.
-                Msg = {tcbcast, MessageBody, MessageActor, MessageVC, node()},
+                Msg = {tcbcast, MessageBody, MessageActor, MessageVC, ldb_config:id()},
 
                 %% Send Message.
                 [ldb_whisperer:send(Peer, Msg) || Peer <- ToMembers],
@@ -203,13 +203,13 @@ handle_cast({tcbcast, {update, Key, Operation} = MessageBody, MessageActor, Mess
                 Now = ldb_util:timestamp(),
 
                 %% Generate message.
-                MessageAck = {tcbcast_ack, MessageActor, MessageVC, node()},
+                MessageAck = {tcbcast_ack, MessageActor, MessageVC, ldb_config:id()},
 
                 %% Send ack back to message sender.
                 ldb_whisperer:send(Sender, MessageAck),
 
                 %% Attempt to deliver locally if we received it on the wire.
-                tcbdeliver(MessageActor, {update, Key, Operation}, MessageVC),
+                tcbdeliver(MessageActor, {Key, Operation}, MessageVC),
 
                 %% Add members to the queue of not ack messages and increment the vector clock.
                 ToBeAckQueue1 = ToBeAckQueue0 ++ [{{MessageActor, MessageVC}, MessageBody, Sender, Now, ToMembers}],
@@ -367,7 +367,7 @@ in_to_be_delivered_queue(MsgVC, ToBeDeliveredQueue) ->
     lists:keymember(MsgVC, 3, ToBeDeliveredQueue).
 
 %% @doc check if a message should be deliver and deliver it, if not add it to the queue
-causal_delivery({Origin, {_, Key, Operation} = MessageBody, MessageVClock}, VV, Queue) ->
+causal_delivery({Origin, {Key, Operation} = MessageBody, MessageVClock}, VV, Queue) ->
     case can_be_delivered(MessageVClock, VV, Origin) of
         true ->
             Function = fun({Type, _}=CRDT) ->
@@ -387,7 +387,7 @@ causal_delivery({Origin, {_, Key, Operation} = MessageBody, MessageVClock}, VV, 
 %% @doc Check for all messages in the queue to be delivered
 %% Called upon delievery of a new message that could affect the delivery of messages in the queue
 try_to_deliever([], {VV, Queue}) -> {VV, Queue};
-try_to_deliever([{Origin, {_, Key, Operation}, MessageVClock}=El | RQueue], {VV, Queue}=V) ->
+try_to_deliever([{Origin, {Key, Operation}, MessageVClock}=El | RQueue], {VV, Queue}=V) ->
     case can_be_delivered(MessageVClock, VV, Origin) of
         true ->
             Function = fun({Type, _}=CRDT) ->
@@ -410,3 +410,9 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%encode_op({add, E}) ->
+%    {1, E}.
+
+%decode_op({1, E}) ->
+%    {add, E}.

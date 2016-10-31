@@ -88,7 +88,7 @@ message_maker() ->
                         )
                 end,
 
-                Message = {Key, delta_send, node(), Sequence, Delta},
+                Message = {Key, delta_send, ldb_config:id(), Sequence, Delta},
                 {ok, Message};
             false ->
                 nothing
@@ -132,7 +132,7 @@ message_handler({_, delta_send, _, _, _}) ->
                         end
                 end,
 
-                send_ack(From, {Key, delta_ack, node(), N}),
+                send_ack(From, {Key, delta_ack, ldb_config:id(), N}),
 
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
@@ -178,7 +178,7 @@ send_ack(NodeName, AckMessage) ->
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
-    Actor = node(),
+    Actor = ldb_config:id(),
 
     ldb_log:info("ldb_delta_based_backend initialized!", extended),
     {ok, #state{actor=Actor}}.

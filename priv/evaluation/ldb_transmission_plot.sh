@@ -56,14 +56,17 @@ generate_plots(Simulation, EvalIds) ->
                 {ordsets:new(), ordsets:new(), orddict:new()},
                 EvalTimestamps
             ),
-
+            io:format("T ~p EvalId ~p", [T, EvalId]),
             TitlesToInputFiles = generate_executions_average_plot(T, Simulation, EvalId),
+            io:format("Titles to ~p", [TitlesToInputFiles]),
             lists:append(Acc, TitlesToInputFiles)
 
         end,
         orddict:new(),
         EvalIds
     ),
+
+    io:format("TTI ~p~n", [TitlesToInputFiles]),
 
     {Titles, Files} = lists:foldl(
         fun({Title, File}, {Titles0, Files0}) ->
@@ -696,11 +699,14 @@ generate_executions_average_plot({Types, Times, ToAverage}, Simulation, EvalId) 
     Result = run_gnuplot(InputFiles, Titles, OutputFile, AverageConvergenceTime),
     io:format("Generating average plot of all executions ~p. Output: ~p~n~n", [OutputFile, Result]),
 
+    io:format("in avg ~p~n~n~n", [InputFiles]),
+    io:format("in avg ~p~n~n~n", [Types]),
+
     lists:foldl(
         fun(N, TitlesToInputFiles) ->
-            %Type = lists:nth(N, Types),
+            Type = lists:nth(N, Types),
             InputFile = lists:nth(N, InputFiles),
-            Title = get_title(list_to_atom(EvalId)),
+            Title = get_title(Type),
             orddict:store(Title, InputFile, TitlesToInputFiles)
         end,
         orddict:new(),
@@ -758,7 +764,14 @@ get_titles(Types) ->
 
 %% @private
 get_title(state_send) -> "State Based";
-get_title(delta_send) -> "Delta Based";
+get_title(delta_send) -> "Delta Send";
+get_title(delta_ack) -> "Delta Ack";
+get_title(tcbcast) -> "TCB Cast";
+get_title(tcbcast_ack) -> "TCB Cast Ack";
+get_title(tcbdeliever) -> "TCB Deliever";
+get_title(pure_op_based_line) -> "Pure - Line";
+get_title(delta_based_line) -> "Delta - Line";
+get_title(join_decompositions_line) -> "Decompositions - Line";
 get_title(state_based_erdos_renyi) -> "State - Erdos Renyi";
 get_title(delta_based_erdos_renyi) -> "Deltas - Erdos Renyi";
 get_title(join_decompositions_erdos_renyi) -> "Decompositions - Erdos Renyi";

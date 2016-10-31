@@ -26,6 +26,7 @@
 -export([mode/0,
          backend/0,
          store/0,
+         id/0,
          peer_service/0]).
 
 %% @doc Returns the enabled mode.
@@ -57,3 +58,7 @@ store() ->
 %% @doc Returns the enabled peer service.
 peer_service() ->
     application:get_env(?APP, ldb_peer_service, ?DEFAULT_PEER_SERVICE).
+
+id() ->
+    {ok, Id} = application:get_env(?APP, ldb_id),
+    Id.

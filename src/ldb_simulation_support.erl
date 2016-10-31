@@ -53,9 +53,8 @@ start(Options) ->
         end
     end,
     NameToNode = lists:foldl(InitializerFun, orddict:new(), Names),
-    Nodes = [Node || {_Name, Node} <- orddict:to_list(NameToNode)],
 
-    LoaderFun = fun(Node) ->
+    LoaderFun = fun({_Name, Node}) ->
         ct:pal("Loading ldb on node: ~p", [Node]),
 
         %% Load ldb
@@ -69,9 +68,9 @@ start(Options) ->
                       set_env,
                       [lager, log_root, NodeDir])
     end,
-    lists:foreach(LoaderFun, Nodes),
+    lists:foreach(LoaderFun, NameToNode),
 
-    ConfigureFun = fun(Node) ->
+    ConfigureFun = fun({Name, Node}) ->
         ct:pal("Configuring node: ~p", [Node]),
 
         %% Set mode
@@ -127,18 +126,23 @@ start(Options) ->
         ok = rpc:call(Node,
                       application,
                       set_env,
-                      [?APP, ldb_evaluation_timestamp, EvaluationTimestamp])
+                      [?APP, ldb_evaluation_timestamp, EvaluationTimestamp]),
+  Id = list_to_integer(lists:nth(1, string:tokens(atom_to_list(Name), "n"))),
+	ok = rpc:call(Node,
+		      application,
+                      set_env,
+                      [?APP, ldb_id, Id])
 
     end,
-    lists:foreach(ConfigureFun, Nodes),
+    lists:foreach(ConfigureFun, NameToNode),
 
-    StartFun = fun(Node) ->
+    StartFun = fun({_Name, Node}) ->
         {ok, _} = rpc:call(Node,
                            application,
                            ensure_all_started,
                            [?APP])
     end,
-    lists:foreach(StartFun, Nodes),
+    lists:foreach(StartFun, NameToNode),
 
     NameToNode.
 

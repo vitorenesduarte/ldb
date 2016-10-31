@@ -145,8 +145,6 @@ log_transmission({Key, delta_ack, From, Sequence}) ->
 log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) ->
     log_transmission(tcbcast, {Op, MessageActor, MessageVC, From});
 log_transmission({tcbcast_ack, MessageActor, MessageVC, From}) ->
-    log_transmission(tcbcast_ack, {MessageActor, MessageVC, From});
-log_transmission({tcbdeliver, MessageActor, MessageBody, MessageVC}) ->
-    log_transmission(tcbdeliver, {MessageActor, MessageVC, MessageBody}).
+    log_transmission(tcbcast_ack, {MessageActor, MessageVC, From}).
 log_transmission(Type, Payload) ->
     ldb_instrumentation:transmission(Type, Payload).

@@ -216,7 +216,6 @@ write_file(Filename, Line, Mode) ->
 %% @private
 get_transmission_type(state_send) -> state_send;
 get_transmission_type(delta_send) -> delta_send;
-get_transmission_type(delta_ack) -> delta_send;
-get_transmission_type(tcbcast) -> pure_send;
-get_transmission_type(tcbcast_ack) -> pure_send;
-get_transmission_type(tcbdeliver) -> pure_send.
+get_transmission_type(delta_ack) -> delta_ack;
+get_transmission_type(tcbcast) -> tcbcast;
+get_transmission_type(tcbcast_ack) -> tcbcast_ack.

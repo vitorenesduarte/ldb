@@ -61,8 +61,8 @@ end_per_testcase(Case, Config) ->
 all() ->
     [
      %state_based_test,
-     %delta_based_test,
-     %join_decompositions_test,
+     delta_based_test,
+     join_decompositions_test,
      pure_op_based_test
     ].
 
