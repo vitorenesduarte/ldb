@@ -69,7 +69,7 @@ basic:
  		rm -rf priv/lager; \
 		rm -rf priv/evaluation/logs; \
 		rm -rf priv/evaluation/plots; \
-		TRAVIS=true ${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
+		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
 
 graph:
 	cd priv/evaluation/; \
