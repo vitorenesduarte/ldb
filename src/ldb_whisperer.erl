@@ -40,7 +40,6 @@
 -record(state, {}).
 
 -define(STATE_SYNC_INTERVAL, 5000).
-% -define(CHECK_RESEND_INTERVAL, 5000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -56,9 +55,7 @@ init([]) ->
         state_based ->
             schedule_state_sync();
         delta_based ->
-            schedule_state_sync();
-        pure_op_based ->
-            schedule_check_resend()
+            schedule_state_sync()
     end,
 
     ldb_log:info("ldb_whisperer initialized!", extended),
@@ -98,8 +95,6 @@ handle_info(state_sync, State) ->
     schedule_state_sync(),
     {noreply, State};
 
-% handle_info(check_resend, _State) ->
-%     gen_server:cast(ldb_pure_op_based_backend, check_resend);
 handle_info(Msg, State) ->
     ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
@@ -113,11 +108,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private
 schedule_state_sync() ->
     timer:send_after(?STATE_SYNC_INTERVAL, state_sync).
-
-%% @private
-schedule_check_resend() ->
-    ok.
-% timer:send_after(?CHECK_RESEND_INTERVAL, check_resend).
 
 %% @private
 do_send(NodeName, Message) ->
