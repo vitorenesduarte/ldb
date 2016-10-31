@@ -48,7 +48,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec create(key(), type()) -> ok | already_exists().
+-spec create(key(), type()) -> ok.
 create(Key, Type) ->
     gen_server:call(?MODULE, {create, Key, Type}, infinity).
 
@@ -111,12 +111,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
         Type:mutate(Operation, Actor, CRDT)
     end,
 
-    Result = case ldb_store:update(Key, Function) of
-        {ok, _} ->
-            ok;
-        Error ->
-            Error
-    end,
+    Result = ldb_store:update(Key, Function),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->

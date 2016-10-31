@@ -43,7 +43,7 @@ info(S, Args) ->
 
 -spec info(string(), list(), extended) -> ok.
 info(S, Args, extended) ->
-    case extended_logging() of
+    case ldb_config:extended_logging() of
         true ->
             handle(lager:info(S, Args));
         false ->
@@ -61,9 +61,3 @@ warning(S, Args) ->
 %% @private
 handle(_LagerResult) ->
     ok.
-
-%% @private
-extended_logging() ->
-    application:get_env(?APP,
-                        ldb_extended_logging,
-                        false).

@@ -34,12 +34,11 @@
 
 %% @doc Creates a `key()' in store with `value()', if the key
 %%      is not already present in the store.
--callback create(key(), value()) -> ok | already_exists().
+-callback create(key(), value()) -> ok.
 
-%% @doc Applies a given `function()' to a given `key()',
-%%      returning the new value.
+%% @doc Applies a given `function()' to a given `key()'.
 -callback update(key(), function()) ->
-    {ok, value()} | not_found() | error().
+    ok | not_found() | error().
 
 %% @doc Folds the store.
 %%      The first argument is the function to be passed to the fold.
@@ -54,11 +53,11 @@ start_link() ->
 get(Key) ->
     do(get, [Key]).
 
--spec create(key(), value()) -> ok | already_exists().
+-spec create(key(), value()) -> ok.
 create(Key, Value) ->
     do(create, [Key, Value]).
 
--spec update(key(), function()) -> {ok, value()} | not_found().
+-spec update(key(), function()) -> ok | not_found() | error.
 update(Key, Function) ->
     do(update, [Key, Function]).
 

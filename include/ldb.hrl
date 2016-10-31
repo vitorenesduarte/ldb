@@ -1,5 +1,4 @@
 -define(APP, ldb).
--type already_exists() :: {error, already_exists}.
 -type not_found() :: {error, not_found}.
 -type error() :: {error, atom()}.
 
@@ -17,12 +16,13 @@
 -type handler() :: {term(), term()}. %% {module, function}
 -type message() :: term().
 -define(TCP_OPTIONS, [binary, {active, true}, {packet, 4}, {keepalive, true}]).
-
-%% defaults
--define(DEFAULT_MODE, state_based).
--define(DEFAULT_STORE, ldb_ets_store).
--define(DEFAULT_PEER_SERVICE, ldb_static_peer_service).
+-define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
 
 %% pure_op
 -type vclock() :: orddict:orddict().
 -type mclock() :: orddict:orddict().
+
+%% defaults
+-define(DEFAULT_MODE, "state_based").
+-define(DEFAULT_STORE, "ldb_ets_store").
+-define(DEFAULT_PEER_SERVICE, "ldb_static_peer_service").

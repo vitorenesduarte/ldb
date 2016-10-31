@@ -11,6 +11,7 @@ script:
   - make xref
   - make dialyzer
   - make lint
+  - make java-client-test
 notifications:
   slack: haslab:jhAnACJzswFtYwKXpbZzjbFq
   email: false

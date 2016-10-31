@@ -18,15 +18,16 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_static_peer_service_client).
+-module(ldb_space_server).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
 -behaviour(gen_server).
 
-%% ldb_static_peer_service_client callbacks
--export([start_link/1]).
+%% ldb_space_server callbacks
+-export([start_link/0,
+         start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -36,43 +37,44 @@
          terminate/2,
          code_change/3]).
 
--record(state, {socket :: gen_tcp:socket()}).
+-record(state, {listener :: gen_tcp:socket()}).
 
--spec start_link(gen_tcp:socket()) -> {ok, pid()} | ignore | {error, term()}.
-start_link(Socket) ->
-    gen_server:start_link(?MODULE, [Socket], []).
+-define(SPACE_PORT, 6717).
+
+-spec start_link() -> {ok, pid()} | ignore | {error, term()}.
+start_link() ->
+    start_link(?SPACE_PORT).
+
+-spec start_link(node_port()) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Port) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Port], []).
 
 %% gen_server callbacks
-init([Socket]) ->
-    ldb_log:info("ldb_static_peer_service_client initialized! Node ~p listening to socket ~p", [node(), Socket], extended),
-    {ok, #state{socket=Socket}}.
+init([Port]) ->
+    {ok, Listener} = gen_tcp:listen(Port, ?SPACE_TCP_OPTIONS),
+
+    prepare_accept(),
+
+    ldb_log:info("ldb_space_server initialized!"),
+    {ok, #state{listener=Listener}}.
 
 handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
+handle_cast(accept, #state{listener=Listener}=State) ->
+    {ok, Socket} = gen_tcp:accept(Listener),
+
+    {ok, Pid} = ldb_space_client:start_link(Socket),
+    gen_tcp:controlling_process(Socket, Pid),
+
+    prepare_accept(),
+
+    {noreply, State};
+
 handle_cast(Msg, State) ->
     ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
-
-handle_info({forward_message, _Handler, _Message}=M,
-            #state{socket=Socket}=State) ->
-    case gen_tcp:send(Socket, encode(M)) of
-        ok ->
-            ok;
-        Error ->
-            ldb_log:info("Failed to send message: ~p", [Error])
-    end,
-
-    {noreply, State};
-
-handle_info({tcp, _Socket, Data}, State) ->
-    handle_message(decode(Data)),
-    {noreply, State};
-
-handle_info({tcp_closed, Socket}, State) ->
-    ldb_log:info("TCP closed ~p", [Socket]),
-    {stop, normal, State};
 
 handle_info(Msg, State) ->
     ldb_log:warning("Unhandled info message: ~p", [Msg]),
@@ -85,13 +87,5 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-encode(Message) ->
-    term_to_binary(Message).
-
-%% @private
-decode(Message) ->
-    binary_to_term(Message).
-
-%% @private
-handle_message({forward_message, {Module, Function}, Message}) ->
-    erlang:apply(Module, Function, [Message]).
+prepare_accept() ->
+    gen_server:cast(?MODULE, accept).

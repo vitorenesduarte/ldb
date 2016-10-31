@@ -48,7 +48,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec create(key(), type()) -> ok | already_exists().
+-spec create(key(), type()) -> ok.
 create(Key, Type) ->
     gen_server:call(?MODULE, {create, Key, Type}, infinity).
 
@@ -106,7 +106,7 @@ message_handler({_, delta_send, _, _, _}) ->
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
-                {Sequence, DeltaBuffer} = case join_decompositions() of
+                {Sequence, DeltaBuffer} = case ldb_config:join_decompositions() of
                     true ->
                         Delta = Type:delta(state_driven, RemoteCRDT, LocalCRDT),
 
@@ -219,12 +219,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
         end
     end,
 
-    Result = case ldb_store:update(Key, Function) of
-        {ok, _} ->
-            ok;
-        Error ->
-            Error
-    end,
+    Result = ldb_store:update(Key, Function),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
@@ -244,9 +239,3 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%% @private
-join_decompositions() ->
-    application:get_env(?APP,
-                        ldb_join_decompositions,
-                        false).

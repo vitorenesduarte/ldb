@@ -51,12 +51,12 @@ start_link() ->
 get(Key) ->
     gen_server:call(?MODULE, {get, Key}, infinity).
 
--spec create(key(), value()) -> ok | already_exists().
+-spec create(key(), value()) -> ok.
 create(Key, Value) ->
     gen_server:call(?MODULE, {create, Key, Value}, infinity).
 
 -spec update(key(), function()) ->
-    {ok, value()} | not_found() | error().
+    ok | not_found() | error().
 update(Key, Function) ->
     gen_server:call(?MODULE, {update, Key, Function}, infinity).
 
@@ -78,7 +78,7 @@ handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->
 handle_call({create, Key, Value}, _From, #state{ets_id=ETS}=State) ->
     Result = case do_get(Key, ETS) of
         {ok, _} ->
-            {error, already_exists};
+            ok;
         _ ->
             do_put(Key, Value, ETS),
             ok
@@ -92,7 +92,7 @@ handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
             case Function(Value) of
                 {ok, NewValue} ->
                     do_put(Key, NewValue, ETS),
-                    {ok, NewValue};
+                    ok;
                 Error ->
                     Error
             end;

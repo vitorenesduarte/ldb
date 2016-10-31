@@ -120,72 +120,18 @@ get_mode_and_join_decompositions(pure_op_based) ->
 node_names() ->
     case os:getenv("TRAVIS", "false") of
         "false" ->
-            [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12];
+            lists:seq(0, 12);
         "true" ->
-            [n0, n1, n2]
+            lists:seq(0, 2)
     end.
 
 %% @private
 topologies() ->
     case os:getenv("TRAVIS", "false") of
         "false" ->
-            [{erdos_renyi, erdos_renyi()},
-             {hyparview, hyparview()},
-             {ring, ring()}];
+            [{ring, ldb_overlay:get(ring, 13)},
+             {hyparview, ldb_overlay:get(hyparview, 13)},
+             {erdos_renyi, ldb_overlay:get(erdos_renyi, 13)}];
         "true" ->
-            [{line, line()}]
+            [{line, ldb_overlay:get(line, 3)}]
     end.
-
-%% @private
-line() ->
-    [{n0, [n1]},
-     {n1, [n0, n2]},
-     {n2, [n1]}].
-
-%% @private
-erdos_renyi() ->
-    [{n0, [n4, n6, n10]},
-     {n1, [n2, n5, n8, n9, n12]},
-     {n2, [n1, n3, n7, n9, n11, n12]},
-     {n3, [n2, n8, n6]},
-     {n4, [n0, n9]},
-     {n5, [n1, n10, n11, n12]},
-     {n6, [n0, n3, n11]},
-     {n7, [n2, n9]},
-     {n8, [n1, n3, n9]},
-     {n9, [n1, n2, n4, n7, n8, n10, n11]},
-     {n10, [n0, n5, n9]},
-     {n11, [n2, n5, n6, n9]},
-     {n12, [n1, n2, n5]}].
-
-%% @private
-hyparview() ->
-    [{n0, [n1, n2, n11]},
-     {n1, [n0, n2, n3]},
-     {n2, [n0, n1, n7]},
-     {n3, [n1, n5, n8]},
-     {n4, [n6, n7, n8]},
-     {n5, [n3, n9, n12]},
-     {n6, [n4, n7, n12]},
-     {n7, [n2, n4, n6]},
-     {n8, [n3, n4, n10]},
-     {n9, [n5, n11]},
-     {n10, [n8, n11, n12]},
-     {n11, [n0, n9, n10]},
-     {n12, [n5, n6, n10]}].
-
-%% @private
-ring() ->
-    [{n0, [n12, n1]},
-     {n1, [n0, n2]},
-     {n2, [n1, n3]},
-     {n3, [n2, n4]},
-     {n4, [n3, n5]},
-     {n5, [n4, n6]},
-     {n6, [n5, n7]},
-     {n7, [n6, n8]},
-     {n8, [n7, n9]},
-     {n9, [n8, n10]},
-     {n10, [n9, n11]},
-     {n11, [n10, n12]},
-     {n12, [n11, n0]}].

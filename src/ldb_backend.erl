@@ -31,7 +31,7 @@
          message_handler/1]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
--callback create(key(), type()) -> ok | already_exists().
+-callback create(key(), type()) -> ok.
 
 %% @doc Reads the value associated with a given `key()'.
 -callback query(key()) ->
@@ -55,7 +55,7 @@
 start_link() ->
     do(start_link, []).
 
--spec create(key(), type()) -> ok | already_exists().
+-spec create(key(), type()) -> ok.
 create(Key, Type) ->
     do(create, [Key, Type]).
 

@@ -5,7 +5,7 @@ ERLANG_BIN       = $(shell dirname $(shell which erl))
 REBAR            = $(shell pwd)/rebar3
 MAKE						 = make
 
-.PHONY: rel deps test eqc plots
+.PHONY: test eqc
 
 all: compile
 
@@ -43,8 +43,26 @@ eunit:
 ct:
 	pkill -9 beam.smp; TRAVIS=true ${REBAR} as test ct
 
+cover:
+	pkill -9 beam.smp; TRAVIS=true ${REBAR} as test ct --cover ; \
+		${REBAR} cover
+
 shell:
 	${REBAR} shell --apps ldb
+
+java-client-test:
+	./test/java-client-test
+
+##
+## Release targets
+##
+
+stage:
+	${REBAR} release -d
+
+##
+## Evaluation targets
+##
 
 basic:
 	pkill -9 beam.smp; \
