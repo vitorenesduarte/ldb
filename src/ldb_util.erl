@@ -25,7 +25,10 @@
 
 %% ldb_util callbacks
 -export([get_type/1,
-         wait_until/3]).
+         wait_until/3,
+         atom_to_binary/1,
+         binary_to_atom/1,
+         read_lines/1]).
 
 %% @doc Returns the actual type in types repository
 %%      (https://github.com/lasp-lang/types)
@@ -50,6 +53,35 @@ wait_until(Fun, Retry, Delay) when Retry > 0 ->
         _ ->
             timer:sleep(Delay),
             wait_until(Fun, Retry - 1, Delay)
+    end.
+
+%% @doc
+-spec atom_to_binary(atom()) -> binary().
+atom_to_binary(Atom) ->
+    erlang:atom_to_binary(Atom, utf8).
+
+%% @doc
+-spec binary_to_atom(binary()) -> atom().
+binary_to_atom(Binary) ->
+    erlang:binary_to_atom(Binary, utf8).
+
+%% @doc
+-spec read_lines(string()) -> [string()].
+read_lines(FilePath) ->
+    {ok, FileDescriptor} = file:open(FilePath, [read]),
+    Lines = get_lines(FilePath, FileDescriptor),
+    Lines.
+
+%% @private
+get_lines(FilePath, FileDescriptor) ->
+    case io:get_line(FileDescriptor, '') of
+        eof ->
+            [];
+        {error, Error} ->
+            ldb_log:warning("Error while reading line from file ~p. Error: ~p", [FilePath, Error]),
+            [];
+        Line ->
+            [Line | get_lines(FilePath, FileDescriptor)]
     end.
 
 %% @private

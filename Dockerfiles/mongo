@@ -1,0 +1,14 @@
+FROM ubuntu:xenial
+
+MAINTAINER Vitor Enes Duarte <vitorenesduarte@gmail.com>
+
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927 && \
+    echo "deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-3.2.list && \
+    apt-get update && \
+    apt-get install -y mongodb-org && \
+    echo -e "[Unit]\nDescription=High-performance, schema-free document-oriented database\nAfter=network.target\nDocumentation=https://docs.mongodb.org/manual\n\n[Service]\nUser=mongodb\nGroup=mongodb\nExecStart=/usr/bin/mongod --quiet --config /etc/mongod.conf\n\n[Install]\nWantedBy=multi-user.target" | tee /lib/systemd/system/mongod.service
+
+VOLUME ["/data/db"]
+WORKDIR /data
+
+CMD mongod --port=$PORT0

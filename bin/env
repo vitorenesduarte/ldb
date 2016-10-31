@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# If we're running in Mesos...
+if [ ! -z "$MESOS_TASK_ID" ]; then
+  # Choose publicly routable IP.
+  if [ -z "$PEER_IP" ]; then
+    export PEER_IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
+  fi
+
+  # Peer port
+  export PEER_PORT=${PORT0}
+
+  # Set node name
+  if [ -z "$NODE_NAME" ]; then
+    export NODE_NAME=ldb-${PEER_PORT}@${PEER_IP}
+  fi
+fi
+
+if [ -z "$COOKIE" ]; then
+  export COOKIE=ldb
+fi
+
+export RELX_REPLACE_OS_VARS=true
+
+echo "MESOS_TASK_ID: ${MESOS_TASK_ID}"
+echo "PEER_IP: ${PEER_IP}"
+echo "PEER_PORT: ${PEER_PORT}"
+echo "NODE_NAME: ${NODE_NAME}"
+
+RELNAME="`dirname \"$0\"`"/ldb
+exec ${RELNAME} foreground "$@"

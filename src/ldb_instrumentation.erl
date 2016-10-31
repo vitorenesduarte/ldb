@@ -29,7 +29,8 @@
 -export([start_link/0,
          transmission/2,
          convergence/0,
-         stop/0]).
+         stop/0,
+         log_file/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -40,7 +41,8 @@
          code_change/3]).
 
 -record(state, {tref :: timer:tref(),
-                size_per_type :: orddict:orddict()}).
+                size_per_type :: orddict:orddict(),
+                filename :: string()}).
 
 -define(TRANSMISSION_INTERVAL, 1000). %% 1 second.
 
@@ -60,6 +62,10 @@ convergence() ->
 stop() ->
     gen_server:call(?MODULE, stop, infinity).
 
+-spec log_file() -> string().
+log_file() ->
+    gen_server:call(?MODULE, log_file, infinity).
+
 %% gen_server callbacks
 init([]) ->
     LogDir = log_dir(),
@@ -72,10 +78,12 @@ init([]) ->
     {ok, TRef} = start_transmission_timer(),
 
     ldb_log:info("Instrumentation timer enabled!", extended),
-    {ok, #state{tref=TRef, size_per_type=orddict:new()}}.
+    {ok, #state{tref=TRef,
+                size_per_type=orddict:new(),
+                filename=Filename}}.
 
-handle_call(convergence, _From, State) ->
-    record_convergence(),
+handle_call(convergence, _From, #state{filename=Filename}=State) ->
+    record_convergence(Filename),
     {reply, ok, State};
 
 handle_call(stop, _From, #state{tref=TRef}=State) ->
@@ -83,11 +91,15 @@ handle_call(stop, _From, #state{tref=TRef}=State) ->
     ldb_log:info("Instrumentation timer disabled!", extended),
     {reply, ok, State#state{tref=undefined}};
 
+handle_call(log_file, _From, #state{filename=Filename}=State) ->
+    {reply, Filename, State};
+
 handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({transmission, Type, Payload}, #state{size_per_type=Map0}=State) ->
+handle_cast({transmission, Type, Payload},
+            #state{size_per_type=Map0}=State) ->
     TransmissionType = get_transmission_type(Type),
     Size = termsize(Payload),
     Current = case orddict:find(TransmissionType, Map0) of
@@ -103,9 +115,10 @@ handle_cast(Msg, State) ->
     ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(transmission, #state{size_per_type=Map}=State) ->
+handle_info(transmission,
+            #state{size_per_type=Map, filename=Filename}=State) ->
     {ok, TRef} = start_transmission_timer(),
-    record_transmission(Map),
+    record_transmission(Filename, Map),
     {noreply, State#state{tref=TRef}};
 
 handle_info(Msg, State) ->
@@ -140,23 +153,20 @@ log_dir() ->
 
 %% @private
 simulation_id() ->
-    {ok, Simulation} = application:get_env(?APP,
-                                           ldb_simulation),
+    Simulation = ldb_config:simulation(),
     LocalOrDCOS = case os:getenv("DCOS", "undefined") of
         "undefined" ->
             "local";
         _ ->
             "dcos"
     end,
-    {ok, EvalIdentifier} = application:get_env(?APP,
-                                              ldb_evaluation_identifier),
-    {ok, EvalTimestamp} = application:get_env(?APP,
-                                              ldb_evaluation_timestamp),
+    EvalIdentifier = ldb_config:evaluation_identifier(),
+    EvalTimestamp = ldb_config:evaluation_timestamp(),
 
     Id = atom_to_list(Simulation) ++ "/"
       ++ LocalOrDCOS ++ "/"
       ++ atom_to_list(EvalIdentifier) ++ "/"
-      ++ integer_to_list(EvalTimestamp),
+      ++ atom_to_list(EvalTimestamp),
     Id.
 
 %% @private
@@ -174,8 +184,7 @@ megasize(Size) ->
     MegaSize.
 
 %% @private
-record_transmission(Map) ->
-    Filename = main_log(),
+record_transmission(Filename, Map) ->
     Timestamp = timestamp(),
     Lines = orddict:fold(
         fun(Type, Size, Acc) ->
@@ -187,8 +196,7 @@ record_transmission(Map) ->
     append_to_file(Filename, Lines).
 
 %% @private
-record_convergence() ->
-    Filename = main_log(),
+record_convergence(Filename) ->
     Timestamp = timestamp(),
     Line = get_line(convergence, Timestamp, 0),
     append_to_file(Filename, Line).

@@ -80,14 +80,16 @@ handle_call(members, _From, #state{connected=Connected}=State) ->
     Result = {ok, orddict:fetch_keys(Connected)},
     {reply, Result, State};
 
-handle_call({join, {Name, {_, _, _, _}=_Ip, _Port}=NodeInfo}, _From,
+handle_call({join, {Name, {_, _, _, _}=Ip, Port}=NodeInfo}, _From,
             #state{connected=Connected0}=State) ->
     {Result, Connected1} = case orddict:find(Name, Connected0) of
         {ok, _} ->
             {ok, Connected0};
         error ->
-            case ldb_static_peer_service_client:start_link(NodeInfo) of
-                {ok, Pid} ->
+            case gen_tcp:connect(Ip, Port, ?TCP_OPTIONS) of
+                {ok, Socket} ->
+                    {ok, Pid} = ldb_static_peer_service_client:start_link(Socket),
+                    gen_tcp:controlling_process(Socket, Pid),
                     {ok, orddict:store(Name, Pid, Connected0)};
                 Error ->
                     ldb_log:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),

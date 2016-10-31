@@ -38,20 +38,11 @@
 
 -record(state, {socket :: gen_tcp:socket()}).
 
--spec start_link(term()) -> {ok, pid()} | ignore | {error, term()}.
-start_link(NodeInfoOrSocket) ->
-    gen_server:start_link(?MODULE, [NodeInfoOrSocket], []).
+-spec start_link(gen_tcp:socket()) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Socket) ->
+    gen_server:start_link(?MODULE, [Socket], []).
 
 %% gen_server callbacks
-init([{_Name, IpAddress, Port}=Info]) ->
-    case gen_tcp:connect(IpAddress, Port, ?TCP_OPTIONS) of
-        {ok, Socket} ->
-            ldb_log:info("ldb_static_peer_service_client initialized! Node ~p to node ~p", [node(), Info], extended),
-            {ok, #state{socket=Socket}};
-        Error ->
-            {stop, Error}
-    end;
-
 init([Socket]) ->
     ldb_log:info("ldb_static_peer_service_client initialized! Node ~p listening to socket ~p", [node(), Socket], extended),
     {ok, #state{socket=Socket}}.
@@ -79,7 +70,8 @@ handle_info({tcp, _Socket, Data}, State) ->
     handle_message(decode(Data)),
     {noreply, State};
 
-handle_info({tcp_closed, _Socket}, State) ->
+handle_info({tcp_closed, Socket}, State) ->
+    ldb_log:info("TCP closed ~p", [Socket]),
     {stop, normal, State};
 
 handle_info(Msg, State) ->

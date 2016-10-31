@@ -78,12 +78,13 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% @private
 encode(Message) ->
-    JSONBinary = jiffy:encode(Message),
+    JSONBinary = jsx:encode(Message),
     iolist_to_binary([JSONBinary, <<"\n">>]).
 
 %% @private
 decode(Message) ->
-    jiffy:decode(Message).
+    Binary = list_to_binary(Message),
+    jsx:decode(Binary).
 
 %% @private
 send(Reply, Socket) ->
@@ -95,11 +96,7 @@ send(Reply, Socket) ->
     end.
 
 %% @private
-binary_to_atom(B) ->
-    binary_to_atom(B, utf8).
-
-%% @private
-handle_message({Message}, Socket) ->
+handle_message(Message, Socket) ->
     %%lager:info("Message received ~p", [Message]),
 
     {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Message),
@@ -108,8 +105,8 @@ handle_message({Message}, Socket) ->
 
     %% @todo check if the request really has these defined
     Key = binary_to_list(Key0),
-    Method = binary_to_atom(Method0),
-    Type = binary_to_atom(Type0),
+    Method = ldb_util:binary_to_atom(Method0),
+    Type = ldb_util:binary_to_atom(Type0),
 
     LDBResult = case Method of
         create ->
@@ -135,20 +132,20 @@ handle_message({Message}, Socket) ->
 
 %% @private
 create_reply(_Type, ok) ->
-    {[{code, ?OK}]};
+    [{code, ?OK}];
 create_reply(Type, {ok, QueryResult0}) ->
     QueryResult = prepare_query_result(Type, QueryResult0),
-    {[{code, ?OK}, {value, QueryResult}]};
+    [{code, ?OK}, {value, QueryResult}];
 create_reply(_Type, {error, not_found}) ->
-    {[{code, ?KEY_NOT_FOUND}]};
+    [{code, ?KEY_NOT_FOUND}];
 create_reply(_Type, Error) ->
     ldb_log:info("Update request from client produced the following error ~p", [Error]),
-    {[{code, ?UNKNOWN}]}.
+    [{code, ?UNKNOWN}].
 
 %% @private
-parse_operation(Type, {Operation0}) ->
+parse_operation(Type, Operation0) ->
     {value, {_, OperationName0}} = lists:keysearch(<<"name">>, 1, Operation0),
-    OperationName = binary_to_atom(OperationName0),
+    OperationName = ldb_util:binary_to_atom(OperationName0),
 
     case Type of
         gset ->
@@ -172,7 +169,7 @@ prepare_query_result(Type, QueryResult) ->
         mvmap ->
             lists:map(
                 fun({Key, Value}) ->
-                    {[{key, Key}, {values, sets:to_list(Value)}]}
+                    [{key, Key}, {values, sets:to_list(Value)}]
                 end,
                 QueryResult
            )
