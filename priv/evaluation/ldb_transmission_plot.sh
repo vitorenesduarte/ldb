@@ -765,10 +765,7 @@ get_titles(Types) ->
 %% @private
 get_title(state_send) -> "State Based";
 get_title(delta_send) -> "Delta Send";
-get_title(delta_ack) -> "Delta Ack";
-get_title(tcbcast) -> "TCB Cast";
-get_title(tcbcast_ack) -> "TCB Cast Ack";
-get_title(tcbdeliever) -> "TCB Deliever";
+get_title(pure_send) -> "Pure Send";
 get_title(pure_op_based_line) -> "Pure - Line";
 get_title(delta_based_line) -> "Delta - Line";
 get_title(join_decompositions_line) -> "Decompositions - Line";
