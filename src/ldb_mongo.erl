@@ -53,7 +53,7 @@ push_logs() ->
 
             EvaluationTimestamp = ldb_util:atom_to_binary(EvaluationTimestamp0),
             Filename = list_to_binary(Filename0),
-            Logs = list_to_binary(Logs),
+            Logs = list_to_binary(Logs0),
 
             ?MONGO:insert(Connection,
                           ?COLLECTION,
@@ -86,7 +86,7 @@ get_connection() ->
 %% @private
 get_logs(Filename) ->
     Lines = ldb_util:read_lines(Filename),
-    Logs = lists:foldl(
+    lists:foldl(
         fun(Line, Acc) ->
             Acc ++ Line
         end,
