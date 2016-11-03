@@ -37,7 +37,6 @@ cat <<EOF > ldbs.json
   ],
   "id": "ldbs",
   "dependencies": [],
-  "constraints": [["hostname", "UNIQUE", ""]],
   "cpus": $CPU,
   "mem": $MEMORY,
   "instances": $LDB_NODE_NUMBER,
