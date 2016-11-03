@@ -84,11 +84,6 @@ create_overlay(OverlayName) ->
             NodeNumber = ldb_config:node_number(),
             Overlay = ldb_overlay:get(OverlayName, NodeNumber),
 
-            lager:info("\n\n\nNodeNumber : ~p\n\n\n", [NodeNumber]),
-            lager:info("\n\n\nNames : ~p\n\n\n", [Names]),
-            lager:info("\n\n\nNameToNodeInfo : ~p\n\n\n", [NameToNodeInfo]),
-            lager:info("\n\n\nIdToName : ~p\n\n\n", [IdToName]),
-
             case length(Names) == NodeNumber of
                 true ->
                     %% All are connected
