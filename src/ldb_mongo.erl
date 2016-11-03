@@ -29,7 +29,8 @@
 
 %% ldb_mongo callbacks
 -export([log_number/0,
-         push_logs/0]).
+         push_logs/0,
+         pull_logs/0]).
 
 -spec log_number() -> non_neg_integer().
 log_number() ->
@@ -61,6 +62,17 @@ push_logs() ->
                            <<"id">>, Id,
                            <<"logs">>, Logs}),
             ok;
+        _ ->
+            ldb_log:info("Couldn't push the logs to ldb-mongo. Will try again in 5 seconds"),
+            timer:sleep(5),
+            push_logs()
+    end.
+
+-spec pull_logs() -> ok | error.
+pull_logs() ->
+    case get_connection() of
+        {ok, Connection} ->
+            ?MONGO:find(Connection, ?COLLECTION, {});
         _ ->
             error
     end.
