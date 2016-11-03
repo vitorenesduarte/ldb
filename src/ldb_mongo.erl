@@ -48,17 +48,17 @@ push_logs() ->
     case get_connection() of
         {ok, Connection} ->
             EvaluationTimestamp0 = ldb_config:evaluation_timestamp(),
-            Filename0 = ldb_instrumentation:log_file(),
-            Logs0 = get_logs(Filename0),
+            {Id0, Filename} = ldb_instrumentation:log_id_and_file(),
+            Logs0 = get_logs(Filename),
 
             EvaluationTimestamp = ldb_util:atom_to_binary(EvaluationTimestamp0),
-            Filename = list_to_binary(Filename0),
+            Id = list_to_binary(Id0),
             Logs = list_to_binary(Logs0),
 
             ?MONGO:insert(Connection,
                           ?COLLECTION,
                           {<<"timestamp">>, EvaluationTimestamp,
-                           <<"filename">>, Filename,
+                           <<"id">>, Id,
                            <<"logs">>, Logs}),
             ok;
         _ ->
