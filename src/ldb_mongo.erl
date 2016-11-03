@@ -47,11 +47,19 @@ log_number() ->
 push_logs() ->
     case get_connection() of
         {ok, Connection} ->
-            EvaluationTimestamp = ldb_config:evaluation_timestamp(),
+            EvaluationTimestamp0 = ldb_config:evaluation_timestamp(),
+            Filename0 = ldb_instrumentation:log_file(),
+            Logs0 = get_logs(Filename0),
+
+            EvaluationTimestamp = ldb_util:atom_to_binary(EvaluationTimestamp0),
+            Filename = list_to_binary(Filename0),
+            Logs = list_to_binary(Logs),
+
             ?MONGO:insert(Connection,
                           ?COLLECTION,
-                          [{<<"timestamp">>, ldb_util:atom_to_binary(EvaluationTimestamp)},
-                           {<<"logs">>, get_logs()}]),
+                          {<<"timestamp">>, EvaluationTimestamp,
+                           <<"filename">>, Filename,
+                           <<"logs">>, Logs}),
             ok;
         _ ->
             error
@@ -76,8 +84,7 @@ get_connection() ->
     end.
 
 %% @private
-get_logs() ->
-    Filename = ldb_instrumentation:log_file(),
+get_logs(Filename) ->
     Lines = ldb_util:read_lines(Filename),
     Logs = lists:foldl(
         fun(Line, Acc) ->
@@ -85,6 +92,4 @@ get_logs() ->
         end,
         "",
         Lines
-    ),
-    BinaryLogs = list_to_binary(Logs),
-    BinaryLogs.
+    ).
