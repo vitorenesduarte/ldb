@@ -33,7 +33,10 @@
          evaluation_identifier/0,
          evaluation_timestamp/0,
          instrumentation/0,
-         extended_logging/0]).
+         extended_logging/0,
+         dcos/0,
+         dcos_url/0,
+         dcos_token/0]).
 
 %% @doc Returns the enabled mode.
 %%      The result can be:
@@ -112,3 +115,22 @@ extended_logging() ->
     {ok, ExtendedLogging} =
         application:get_env(?APP, ldb_extended_logging),
     ExtendedLogging.
+
+%% @doc Returns true if running in DCOS.
+-spec dcos() -> boolean().
+dcos() ->
+    dcos_url() /= "undefined".
+
+%% @doc Returns the DCOS Url.
+-spec dcos_url() -> atom().
+dcos_url() ->
+    {ok, DCOSUrl} =
+        application:get_env(?APP, ldb_dcos_url),
+    DCOSUrl.
+
+%% @doc Returns the DCOS Authentication Token.
+-spec dcos_token() -> atom().
+dcos_token() ->
+    {ok, DCOSToken} =
+        application:get_env(?APP, ldb_dcos_token),
+    DCOSToken.

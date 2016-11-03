@@ -178,20 +178,13 @@ stop_ldb() ->
 
 %% @private
 headers() ->
-    [{"Authorization", "token=" ++ token()}].
-
-%% @private
-dcos() ->
-    os:getenv("DCOS", "undefined").
-
-%% @private
-token() ->
-    os:getenv("TOKEN", "undefined").
+    Token = ldb_config:dcos_token(),
+    [{"Authorization", "token=" ++ Token}].
 
 %% @private
 app_url(App) ->
-    dcos() ++ "/service/marathon/v2/apps/" ++ App.
+    ldb_config:dcos_url() ++ "/service/marathon/v2/apps/" ++ App.
 
 %% @private
 tasks_url(App) ->
-    dcos() ++ "/service/marathon/v2/apps/" ++ App ++ "/tasks".
+    ldb_config:dcos_url() ++ "/service/marathon/v2/apps/" ++ App ++ "/tasks".

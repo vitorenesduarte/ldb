@@ -155,11 +155,11 @@ log_dir() ->
 %% @private
 simulation_id() ->
     Simulation = ldb_config:simulation(),
-    LocalOrDCOS = case os:getenv("DCOS", "undefined") of
-        "undefined" ->
-            "local";
-        _ ->
-            "dcos"
+    LocalOrDCOS = case ldb_config:dcos() of
+        true ->
+            "dcos";
+        false ->
+            "local"
     end,
     EvalIdentifier = ldb_config:evaluation_identifier(),
     EvalTimestamp = ldb_config:evaluation_timestamp(),
