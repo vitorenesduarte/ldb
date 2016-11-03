@@ -41,17 +41,7 @@
          handle_info/2,
          terminate/2,
          code_change/3,
-         increment_vclock/2,
-         update_rtm/3,
-         update_stablevv/1,
-         get_counter/2,
-         equals_vclock/2,
-         happened_before/2,
-         already_seen_message/3,
-         in_to_be_delivered_queue/2,
-         causal_delivery/3,
-         try_to_deliever/2,
-         can_be_delivered/3]).
+         update_stablevv/1]).
 
 -record(state, {actor :: non_neg_integer(),
                 vc :: vclock(),
