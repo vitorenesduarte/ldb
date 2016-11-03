@@ -47,7 +47,7 @@
                 vc :: vclock(),
                 svc :: vclock(),
                 rtm :: mclock(),
-                to_be_delivered_queue :: [{non_neg_integer(), message(), integer()}],
+                to_be_delivered_queue :: [{non_neg_integer(), message(), vclock()}],
                 to_be_ack_queue :: [{{non_neg_integer(), vclock()}, message(), non_neg_integer(), integer(), [non_neg_integer()]}]}).
 
 -define(WAIT_TIME_BEFORE_RESEND, 5).
