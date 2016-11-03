@@ -157,7 +157,7 @@ handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, v
     ToBeAckQueue1 = ToBeAckQueue0 ++ [{{Actor, VC1}, MessageBody, Actor, Now, ToMembers}],
 
     %% Generate message.
-    Msg1 = {tcbcast, {Key, get_operation_code(Operation)}, Actor, VC1, Actor},
+    Msg1 = {tcbcast, {Key, encode_op(Operation)}, Actor, VC1, Actor},
 
     %% Send Message.
     [ldb_whisperer:send(Peer, Msg1) || Peer <- ToMembers],
@@ -175,7 +175,7 @@ handle_call(Msg, _From, State) ->
 
 handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
     #state{vc=VC0, to_be_ack_queue=ToBeAckQueue0, to_be_delivered_queue=ToBeDeliveredQueue0} = State) ->
-        MessageBody = {Key, get_operation_name(OperationCode)},
+        MessageBody = {Key, decode_op(OperationCode)},
         case already_seen_message(MessageVC, VC0, ToBeDeliveredQueue0) of
             true ->
                 %% Already seen, do nothing.
@@ -190,7 +190,7 @@ handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
                 ldb_log:info("Broadcasting message to peers: ~p", [ToMembers]),
 
                 %% Generate message.
-                Msg = {tcbcast, MessageBody, MessageActor, MessageVC, ldb_config:id()},
+                Msg = {tcbcast, {Key, OperationCode}, MessageActor, MessageVC, ldb_config:id()},
 
                 %% Send Message.
                 [ldb_whisperer:send(Peer, Msg) || Peer <- ToMembers],
@@ -407,10 +407,8 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-get_operation_code({add, E}) ->
-    {add, E}.
+encode_op({add, E}) ->
+    {1, E}.
 
-get_operation_name({1, E}) ->
-    {add, E};
-get_operation_name({add, E}) ->
+decode_op({1, E}) ->
     {add, E}.
