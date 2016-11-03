@@ -57,8 +57,8 @@
                 vc :: vclock(),
                 svc :: vclock(),
                 rtm :: mclock(),
-                to_be_delivered_queue :: [{atom(), message(), integer()}],
-                to_be_ack_queue :: [{{atom(), vclock()}, message(), atom(), integer(), [atom()]}]}).
+                to_be_delivered_queue :: [{non_neg_integer(), message(), integer()}],
+                to_be_ack_queue :: [{{non_neg_integer(), vclock()}, message(), non_neg_integer(), integer(), [non_neg_integer()]}]}).
 
 -define(WAIT_TIME_BEFORE_RESEND, 5).
 
@@ -157,7 +157,7 @@ handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, v
     ToBeAckQueue1 = ToBeAckQueue0 ++ [{{Actor, VC1}, MessageBody, Actor, Now, ToMembers}],
 
     %% Generate message.
-    Msg1 = {tcbcast, {Key, Operation}, Actor, VC1, Actor},
+    Msg1 = {tcbcast, {Key, get_operation_code(Operation)}, Actor, VC1, Actor},
 
     %% Send Message.
     [ldb_whisperer:send(Peer, Msg1) || Peer <- ToMembers],
@@ -173,8 +173,9 @@ handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({tcbcast, {Key, Operation} = MessageBody, MessageActor, MessageVC, Sender},
+handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
     #state{vc=VC0, to_be_ack_queue=ToBeAckQueue0, to_be_delivered_queue=ToBeDeliveredQueue0} = State) ->
+        MessageBody = {Key, get_operation_name(OperationCode)},
         case already_seen_message(MessageVC, VC0, ToBeDeliveredQueue0) of
             true ->
                 %% Already seen, do nothing.
@@ -204,7 +205,7 @@ handle_cast({tcbcast, {Key, Operation} = MessageBody, MessageActor, MessageVC, S
                 ldb_whisperer:send(Sender, MessageAck),
 
                 %% Attempt to deliver locally if we received it on the wire.
-                tcbdeliver(MessageActor, {Key, Operation}, MessageVC),
+                tcbdeliver(MessageActor, MessageBody, MessageVC),
 
                 %% Add members to the queue of not ack messages and increment the vector clock.
                 ToBeAckQueue1 = ToBeAckQueue0 ++ [{{MessageActor, MessageVC}, MessageBody, Sender, Now, ToMembers}],
@@ -406,8 +407,10 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%encode_op({add, E}) ->
-%    {1, E}.
+get_operation_code({add, E}) ->
+    {add, E}.
 
-%decode_op({1, E}) ->
-%    {add, E}.
+get_operation_name({1, E}) ->
+    {add, E};
+get_operation_name({add, E}) ->
+    {add, E}.
