@@ -66,18 +66,7 @@ cat <<EOF > ldbs.json
     "LDB_INSTRUMENTATION": "$LDB_INSTRUMENTATION",
     "LDB_EXTENDED_LOGGING": "$LDB_EXTENDED_LOGGING"
   },
-  "healthChecks": [
-    {
-      "path": "/api/health",
-      "portIndex": 0,
-      "protocol": "HTTP",
-      "gracePeriodSeconds": 300,
-      "intervalSeconds": 60,
-      "timeoutSeconds": 20,
-      "maxConsecutiveFailures": 3,
-      "ignoreHttp1xx": false
-    }
-  ]
+  "healthChecks": []
 }
 EOF
 
