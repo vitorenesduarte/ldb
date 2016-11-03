@@ -61,6 +61,7 @@
                 to_be_ack_queue :: [{{non_neg_integer(), vclock()}, message(), non_neg_integer(), integer(), [non_neg_integer()]}]}).
 
 -define(WAIT_TIME_BEFORE_RESEND, 5).
+-define(CHECK_RESEND_INTERVAL, 5000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -114,6 +115,9 @@ init([]) ->
 
     %% Generate local to be delivered messages queue.
     ToBeAckQueue = [],
+
+    %% Start check resend timer.
+    schedule_check_resend(),
 
     ldb_log:info("ldb_pure_op_based_backend initialized!", extended),
 
@@ -255,10 +259,10 @@ handle_cast({tcbdeliver, MessageActor, MessageBody, MessageVC},
 handle_cast(check_resend, #state{to_be_ack_queue=ToBeAckQueue0} = State) ->
     Now = ldb_util:timestamp(),
     ToBeAckQueue1 = lists:foldl(
-        fun({{MessageActor, VClock}, MessageBody, Sender, Timestamp, MembersList}, ToBeAckQueue) ->
+        fun({{MessageActor, VClock}, {Key, Op} = MessageBody, Sender, Timestamp, MembersList}, ToBeAckQueue) ->
             case MembersList =/= [] andalso (Now - Timestamp > ?WAIT_TIME_BEFORE_RESEND) of
                 true ->
-                    Message1 = {tcbcast, MessageBody, MessageActor, VClock, Sender},
+                    Message1 = {tcbcast, {Key, encode_op(Op)}, MessageActor, VClock, Sender},
                     [ldb_whisperer:send(Peer, Message1) || Peer <- MembersList],
                     lists:keyreplace({MessageActor, VClock}, 1, ToBeAckQueue, {{MessageActor, VClock}, MessageBody, Sender, ldb_util:timestamp(), MembersList});
                 false ->
@@ -269,7 +273,7 @@ handle_cast(check_resend, #state{to_be_ack_queue=ToBeAckQueue0} = State) ->
     ToBeAckQueue0,
     ToBeAckQueue0),
 
-    % ldb_whisperer:schedule_check_resend(),
+    schedule_check_resend(),
 
     {noreply, State#state{to_be_ack_queue=ToBeAckQueue1}};
 
@@ -281,6 +285,7 @@ handle_info(Msg, State) ->
     ldb_log:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
+%% @private
 increment_vclock(Node, VClock) ->
     Ctr = case orddict:find(Node, VClock) of
         {ok, Ctr0} ->
@@ -290,9 +295,11 @@ increment_vclock(Node, VClock) ->
     end,
     orddict:store(Node, Ctr, VClock).
 
+%% @private
 update_rtm(RTM, MsgActor, MsgVV) ->
     orddict:store(MsgActor, MsgVV, RTM).
 
+%% @private
 update_stablevv(RTM0) ->
     [{_, Min0} | RTM1] = RTM0,
 
@@ -315,6 +322,7 @@ update_stablevv(RTM0) ->
         RTM1
     ).
 
+%% @private
 get_counter(Node, VClock) ->
     case lists:keyfind(Node, 1, VClock) of
         {_, Ctr} ->
@@ -323,13 +331,16 @@ get_counter(Node, VClock) ->
             0
     end.
 
+%% @private
 equals_vclock(VClock1, VClock2) ->
     Fun = fun(Value1, Value2) -> Value1 == Value2 end,
     orddict_ext:equal(VClock1, VClock2, Fun).
 
+%% @private
 happened_before(VClock1, VClock2) ->
     pure_trcb:happened_before(VClock1, VClock2).
 
+%% @private
 can_be_delivered(MsgVClock, NodeVClock, Origin) ->
     orddict:fold(
         fun(Key, Value, Acc) ->
@@ -349,6 +360,7 @@ can_be_delivered(MsgVClock, NodeVClock, Origin) ->
         MsgVClock
     ).
 
+%% @private
 already_seen_message(MessageVC, NodeVC, ToBeDeliveredQueue) ->
     case happened_before(MessageVC, NodeVC) orelse
         equals_vclock(MessageVC, NodeVC) orelse
@@ -359,6 +371,7 @@ already_seen_message(MessageVC, NodeVC, ToBeDeliveredQueue) ->
                             false
     end.
 
+%% @private
 in_to_be_delivered_queue(MsgVC, ToBeDeliveredQueue) ->
     lists:keymember(MsgVC, 3, ToBeDeliveredQueue).
 
@@ -407,8 +420,14 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
+%% @private
 encode_op({add, E}) ->
     {1, E}.
 
+%% @private
 decode_op({1, E}) ->
     {add, E}.
+
+%% @private
+schedule_check_resend() ->
+    timer:send_after(?CHECK_RESEND_INTERVAL, check_resend).
