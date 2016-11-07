@@ -27,8 +27,8 @@ done
 echo ">>> Configuring LDBs"
 cd /tmp
 
-MEMORY=1024.0
-CPU=1
+MEMORY=512.0
+CPU=0.6
 
 cat <<EOF > ldbs.json
 {
