@@ -41,7 +41,7 @@ eunit:
 	${REBAR} as test eunit
 
 ct:
-	pkill -9 beam.smp; TRAVIS=true ${REBAR} as test ct --readable=false
+	pkill -9 beam.smp; TRAVIS=true ${REBAR} as test
 
 cover:
 	pkill -9 beam.smp; TRAVIS=true ${REBAR} as test ct --cover ; \

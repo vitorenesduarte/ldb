@@ -135,11 +135,4 @@ topologies() ->
 
 %% @private
 travis() ->
-    RunningOnTravis = os:getenv("TRAVIS", "false") == "true",
-    case RunningOnTravis of
-        true ->
-            ct:pal("Running on travis");
-        false ->
-            ct:pal("Not Running on travis")
-    end,
-    RunningOnTravis.
+    os:getenv("TRAVIS", "false") == "true".
