@@ -17,3 +17,22 @@ To push it to [Docker Hub](https://hub.docker.com/):
 $ docker push vitorenesduarte/ldb
 ```
 
+
+
+#### Pull logs from Mongo instance running in Marathon
+
+- Find Mongo and __private host__ and __port__ with
+
+```bash
+$ bin/get-mongo-config.sh
+```
+
+- Find the respective __public host__ and
+
+```bash
+$ make shell
+1> PublicHost = "192.168.116.148".
+2> Port = 1789.
+3> ldb_pull_logs:go(PublicHost, Port).
+```
+

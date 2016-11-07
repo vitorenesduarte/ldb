@@ -61,16 +61,26 @@ init([]) ->
     %% Start peer service
     {ok, _} = ldb_peer_service:start_link(),
 
+    %% Configure DCOS url
+    configure_str(ldb_dcos_url,
+                  "DCOS",
+                  "undefined"),
+
     %% If running in DCOS, create overlay
-    ok = case os:getenv("DCOS", "undefined") of
-        "undefined" ->
-            ok;
-        _ ->
+    ok = case ldb_config:dcos() of
+        true ->
+            %% Configure DCOS token
+            configure_str(ldb_dcos_token,
+                          "TOKEN",
+                          "undefined"),
+
             %% Configure DCOS overlay
             Overlay = configure_var(ldb_dcos_overlay,
                                     "LDB_DCOS_OVERLAY",
                                     "undefined"),
-            ldb_dcos:create_overlay(Overlay)
+            ldb_dcos:create_overlay(Overlay);
+        false ->
+            ok
     end,
 
     %% Configure mode
@@ -151,5 +161,7 @@ configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, ParseFun) ->
     Value.
 configure_var(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
     configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_atom(V) end).
+configure_str(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
+    configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> V end).
 configure_int(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
     configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_integer(V) end).

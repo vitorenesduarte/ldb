@@ -27,8 +27,8 @@ done
 echo ">>> Configuring LDBs"
 cd /tmp
 
-MEMORY=1024.0
-CPU=1
+MEMORY=512.0
+CPU=0.6
 
 cat <<EOF > ldbs.json
 {
@@ -37,7 +37,6 @@ cat <<EOF > ldbs.json
   ],
   "id": "ldbs",
   "dependencies": [],
-  "constraints": [["hostname", "UNIQUE", ""]],
   "cpus": $CPU,
   "mem": $MEMORY,
   "instances": $LDB_NODE_NUMBER,
@@ -67,18 +66,7 @@ cat <<EOF > ldbs.json
     "LDB_INSTRUMENTATION": "$LDB_INSTRUMENTATION",
     "LDB_EXTENDED_LOGGING": "$LDB_EXTENDED_LOGGING"
   },
-  "healthChecks": [
-    {
-      "path": "/api/health",
-      "portIndex": 0,
-      "protocol": "HTTP",
-      "gracePeriodSeconds": 300,
-      "intervalSeconds": 60,
-      "timeoutSeconds": 20,
-      "maxConsecutiveFailures": 3,
-      "ignoreHttp1xx": false
-    }
-  ]
+  "healthChecks": []
 }
 EOF
 

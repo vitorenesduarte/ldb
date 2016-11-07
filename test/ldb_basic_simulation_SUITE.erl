@@ -40,6 +40,9 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("kernel/include/inet.hrl").
 
+-define(TRAVIS_NODE_NUMBER, 3).
+-define(NODE_NUMBER, 13).
+
 %% ===================================================================
 %% common_test callbacks
 %% ===================================================================
@@ -118,20 +121,24 @@ get_mode_and_join_decompositions(pure_op_based) ->
 
 %% @private
 node_names() ->
-    case os:getenv("TRAVIS", "false") of
-        "false" ->
-            lists:seq(0, 12);
-        "true" ->
-            lists:seq(0, 2)
+    case travis() of
+        true ->
+            lists:seq(0, ?TRAVIS_NODE_NUMBER - 1);
+        false ->
+            lists:seq(0, ?NODE_NUMBER - 1)
     end.
 
 %% @private
 topologies() ->
-    case os:getenv("TRAVIS", "false") of
-        "false" ->
-            [{ring, ldb_overlay:get(ring, 13)},
-             {hyparview, ldb_overlay:get(hyparview, 13)},
-             {erdos_renyi, ldb_overlay:get(erdos_renyi, 13)}];
-        "true" ->
-            [{line, ldb_overlay:get(line, 3)}]
+    case travis() of
+        true ->
+            [{line, ldb_overlay:get(line, ?TRAVIS_NODE_NUMBER)}];
+        false ->
+            [{ring, ldb_overlay:get(ring, ?NODE_NUMBER)},
+             {hyparview, ldb_overlay:get(hyparview, ?NODE_NUMBER)},
+             {erdos_renyi, ldb_overlay:get(erdos_renyi, ?NODE_NUMBER)}]
     end.
+
+%% @private
+travis() ->
+    os:getenv("TRAVIS", "false") == "true".

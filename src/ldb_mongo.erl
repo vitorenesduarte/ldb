@@ -29,7 +29,8 @@
 
 %% ldb_mongo callbacks
 -export([log_number/0,
-         push_logs/0]).
+         push_logs/0,
+         pull_logs/2]).
 
 -spec log_number() -> non_neg_integer().
 log_number() ->
@@ -47,15 +48,35 @@ log_number() ->
 push_logs() ->
     case get_connection() of
         {ok, Connection} ->
-            EvaluationTimestamp = ldb_config:evaluation_timestamp(),
+            EvaluationTimestamp0 = ldb_config:evaluation_timestamp(),
+            {Id0, Filename} = ldb_instrumentation:log_id_and_file(),
+            Logs0 = get_logs(Filename),
+
+            EvaluationTimestamp = ldb_util:atom_to_binary(EvaluationTimestamp0),
+            Id = list_to_binary(Id0),
+            Logs = list_to_binary(Logs0),
+
             ?MONGO:insert(Connection,
                           ?COLLECTION,
-                          [{<<"timestamp">>, ldb_util:atom_to_binary(EvaluationTimestamp)},
-                           {<<"logs">>, get_logs()}]),
+                          {<<"timestamp">>, EvaluationTimestamp,
+                           <<"id">>, Id,
+                           <<"logs">>, Logs}),
             ok;
         _ ->
-            error
+            ldb_log:info("Couldn't push the logs to ldb-mongo. Will try again in 5 seconds"),
+            timer:sleep(5),
+            push_logs()
     end.
+
+-spec pull_logs(string(), non_neg_integer()) -> term().
+pull_logs(Host, Port) ->
+    {ok, Connection} = ?MONGO:connect([{database, ?DATABASE},
+                                       {host, Host},
+                                       {port, Port}]),
+    Cursor = ?MONGO:find(Connection, ?COLLECTION, #{}, #{skip =>0, batchsize => 0}),
+    Logs = mc_cursor:rest(Cursor),
+    mc_cursor:close(Cursor),
+    Logs.
 
 %% @private
 get_connection() ->
@@ -76,15 +97,12 @@ get_connection() ->
     end.
 
 %% @private
-get_logs() ->
-    Filename = ldb_instrumentation:log_file(),
+get_logs(Filename) ->
     Lines = ldb_util:read_lines(Filename),
-    Logs = lists:foldl(
+    lists:foldl(
         fun(Line, Acc) ->
             Acc ++ Line
         end,
         "",
         Lines
-    ),
-    BinaryLogs = list_to_binary(Logs),
-    BinaryLogs.
+    ).

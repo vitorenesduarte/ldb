@@ -91,7 +91,12 @@ handle_info(simulation_end, State) ->
         true ->
             ldb_log:info("All events have been observed", extended),
             convergence(),
-            ldb_mongo:push_logs(),
+            case ldb_config:dcos() of
+                true ->
+                    ldb_mongo:push_logs();
+                false ->
+                    ok
+            end,
             application:set_env(?APP, simulation_end, true);
         false ->
             schedule_simulation_end()

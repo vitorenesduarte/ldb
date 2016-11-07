@@ -30,7 +30,7 @@
          transmission/2,
          convergence/0,
          stop/0,
-         log_file/0]).
+         log_id_and_file/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -62,9 +62,9 @@ convergence() ->
 stop() ->
     gen_server:call(?MODULE, stop, infinity).
 
--spec log_file() -> string().
-log_file() ->
-    gen_server:call(?MODULE, log_file, infinity).
+-spec log_id_and_file() -> {string(), string()}.
+log_id_and_file() ->
+    gen_server:call(?MODULE, log_id_and_file, infinity).
 
 %% gen_server callbacks
 init([]) ->
@@ -91,8 +91,9 @@ handle_call(stop, _From, #state{tref=TRef}=State) ->
     ldb_log:info("Instrumentation timer disabled!", extended),
     {reply, ok, State#state{tref=undefined}};
 
-handle_call(log_file, _From, #state{filename=Filename}=State) ->
-    {reply, Filename, State};
+handle_call(log_id_and_file, _From, #state{filename=Filename}=State) ->
+    Id = simulation_id(),
+    {reply, {Id, Filename}, State};
 
 handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
@@ -154,11 +155,11 @@ log_dir() ->
 %% @private
 simulation_id() ->
     Simulation = ldb_config:simulation(),
-    LocalOrDCOS = case os:getenv("DCOS", "undefined") of
-        "undefined" ->
-            "local";
-        _ ->
-            "dcos"
+    LocalOrDCOS = case ldb_config:dcos() of
+        true ->
+            "dcos";
+        false ->
+            "local"
     end,
     EvalIdentifier = ldb_config:evaluation_identifier(),
     EvalTimestamp = ldb_config:evaluation_timestamp(),

@@ -31,6 +31,7 @@
          get_app_tasks/1]).
 
 %% @docs
+-spec create_overlay(atom()) -> ok.
 create_overlay(OverlayName) ->
     ldb_log:info("Will create the overlay ~p in ~p", [OverlayName, ?CREATE_OVERLAY_TIME]),
     timer:sleep(?CREATE_OVERLAY_TIME),
@@ -98,6 +99,7 @@ create_overlay(OverlayName) ->
     end.
 
 %% @doc
+-spec get_app_tasks(string()) -> term().
 get_app_tasks(App) ->
     Url = tasks_url(App),
     get_request(Url).
@@ -117,6 +119,7 @@ connect([Id|Ids]=All, IdToName, NameToNodeInfo) ->
     end.
 
 %% @private
+-spec schedule_simulation_end(non_neg_integer()) -> ok.
 schedule_simulation_end(MyId) ->
     case MyId == 0 of
         true ->
@@ -131,6 +134,7 @@ schedule_simulation_end(MyId) ->
     ok.
 
 %% @private
+-spec check_dcos_experiment_end() -> ok.
 check_dcos_experiment_end() ->
     LogNumber = ldb_mongo:log_number(),
     NodeNumber = ldb_config:node_number(),
@@ -146,6 +150,7 @@ check_dcos_experiment_end() ->
     end.
 
 %% @private
+-spec request(get | delete, string()) -> term().
 request(Method, Url) ->
     Headers = headers(),
 
@@ -159,14 +164,17 @@ request(Method, Url) ->
     end.
 
 %% @private
+-spec get_request(string()) -> term().
 get_request(Url) ->
     request(get, Url).
 
 %% @private
+-spec delete_request(string()) -> term().
 delete_request(Url) ->
     request(delete, Url).
 
 %% @private
+-spec stop_ldb() -> ok.
 stop_ldb() ->
     Url = app_url("ldbs"),
     case delete_request(Url) of
@@ -177,21 +185,17 @@ stop_ldb() ->
     end.
 
 %% @private
+-spec headers() -> [{string(), string()}].
 headers() ->
-    [{"Authorization", "token=" ++ token()}].
+    Token = ldb_config:dcos_token(),
+    [{"Authorization", "token=" ++ Token}].
 
 %% @private
-dcos() ->
-    os:getenv("DCOS", "undefined").
-
-%% @private
-token() ->
-    os:getenv("TOKEN", "undefined").
-
-%% @private
+-spec app_url(string()) -> string().
 app_url(App) ->
-    dcos() ++ "/service/marathon/v2/apps/" ++ App.
+    ldb_config:dcos_url() ++ "/service/marathon/v2/apps/" ++ App.
 
 %% @private
+-spec tasks_url(string()) -> string().
 tasks_url(App) ->
-    dcos() ++ "/service/marathon/v2/apps/" ++ App ++ "/tasks".
+    ldb_config:dcos_url() ++ "/service/marathon/v2/apps/" ++ App ++ "/tasks".
