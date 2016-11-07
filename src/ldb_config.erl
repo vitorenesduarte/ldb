@@ -122,14 +122,14 @@ dcos() ->
     dcos_url() /= "undefined".
 
 %% @doc Returns the DCOS Url.
--spec dcos_url() -> atom().
+-spec dcos_url() -> string().
 dcos_url() ->
     {ok, DCOSUrl} =
         application:get_env(?APP, ldb_dcos_url),
     DCOSUrl.
 
 %% @doc Returns the DCOS Authentication Token.
--spec dcos_token() -> atom().
+-spec dcos_token() -> string().
 dcos_token() ->
     {ok, DCOSToken} =
         application:get_env(?APP, ldb_dcos_token),

@@ -73,7 +73,7 @@ pull_logs(Host, Port) ->
     {ok, Connection} = ?MONGO:connect([{database, ?DATABASE},
                                        {host, Host},
                                        {port, Port}]),
-    Cursor = ?MONGO:find(Connection, ?COLLECTION, {}, #{skip =>0, batchsize => 0}),
+    Cursor = ?MONGO:find(Connection, ?COLLECTION, #{}, #{skip =>0, batchsize => 0}),
     Logs = mc_cursor:rest(Cursor),
     mc_cursor:close(Cursor),
     Logs.

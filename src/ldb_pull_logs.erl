@@ -51,7 +51,8 @@ go(Host, Port) ->
         end,
         0,
         Logs
-    ).
+    ),
+    ok.
 
 %% @private
 root_eval_dir() ->
