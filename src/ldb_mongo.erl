@@ -30,7 +30,7 @@
 %% ldb_mongo callbacks
 -export([log_number/0,
          push_logs/0,
-         pull_logs/0]).
+         pull_logs/2]).
 
 -spec log_number() -> non_neg_integer().
 log_number() ->
@@ -68,14 +68,15 @@ push_logs() ->
             push_logs()
     end.
 
--spec pull_logs() -> ok | error.
-pull_logs() ->
-    case get_connection() of
-        {ok, Connection} ->
-            ?MONGO:find(Connection, ?COLLECTION, {});
-        _ ->
-            error
-    end.
+-spec pull_logs(string(), non_neg_integer()) -> term().
+pull_logs(Host, Port) ->
+    {ok, Connection} = ?MONGO:connect([{database, ?DATABASE},
+                                       {host, Host},
+                                       {port, Port}]),
+    Cursor = ?MONGO:find(Connection, ?COLLECTION, {}, #{skip =>0, batchsize => 0}),
+    Logs = mc_cursor:rest(Cursor),
+    mc_cursor:close(Cursor),
+    Logs.
 
 %% @private
 get_connection() ->
