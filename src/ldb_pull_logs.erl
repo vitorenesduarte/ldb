@@ -46,7 +46,7 @@ go(Host, Port) ->
             filelib:ensure_dir(LogDir),
 
             ok = file:write_file(LogFile, NodeLogs, [write]),
-            
+
             NodeNumber0 + 1
         end,
         0,
