@@ -26,22 +26,21 @@ $ docker push vitorenesduarte/ldb
 ```
 
 ## Remote experiments in DCOS
-First authenticate to the DCOS cluster with
+First authenticate to the DCOS cluster with:
 
 ```bash
 $ dcos auth login
 ```
 
-
-1. Launch the Mongo instance (this is where LDBs instance will push
-their logs)
+Once authenticated, launch the Mongo instance
+(this is where LDBs instance will push their logs).
 
 ```bash
 $ cd bin/
 $ ./mongo-deploy.sh
 ```
 
-2. Launch LDBs instances
+Last but not least, launch LDBs instances.
 ```bash
 $ cd bin/
 $ ./ldb-deploy.sh
@@ -82,7 +81,8 @@ be pushed to the Mongo instance
 - __LDB_EXTENDED_LOGGING__: _true_/_false_
 
 
-3. Pull logs from Mongo instance
+To see the results of the experiments, firstly you need to pull logs
+from Mongo instance.
 
 - Find Mongo and __private host__ and __port__ with
 
