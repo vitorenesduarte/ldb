@@ -65,8 +65,8 @@ have an effect if __LBD_MODE=delta_based__)
 - __LDB_SIMULATION__:
   - basic
 - __LDB_NODE_NUMBER__: number of LDBs nodes. Since the overlays are
-not yet created in runtime, only __3__ and __13__ nodes are supported
-for now
+not yet created in runtime, only __3__ and __13__ nodes for some of
+the overlays. Check [src/ldb_overlay.erl](https://github.com/vitorenesduarte/ldb/blob/master/src/ldb_overlay.erl)
 - __LDB_EVALUATION_IDENTIFIER__: set this with one of the following
 values, depending on which evaluation you are running. This id will
 be later used to generate the graphs with proper labels.
