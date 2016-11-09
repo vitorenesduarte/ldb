@@ -25,9 +25,64 @@ To push it to [Docker Hub](https://hub.docker.com/):
 $ docker push vitorenesduarte/ldb
 ```
 
+## Remote experiments in DCOS
+First authenticate to the DCOS cluster with:
+
+```bash
+$ dcos auth login
+```
+
+Once authenticated, launch the Mongo instance
+(this is where LDBs instance will push their logs).
+
+```bash
+$ cd bin/
+$ ./mongo-deploy.sh
+```
+
+Last but not least, launch LDBs instances.
+```bash
+$ cd bin/
+$ ./ldb-deploy.sh
+```
+
+In order to execute this last script, a set of environment variables
+have to be defined:
+
+- __BRANCH__: which ldb branch should LDBs instances run
+- __LDB_MODE__:
+  - state_based
+  - delta_based
+  - pure_op_based
+- __LDB_JOIN_DECOMPOSITIONS__: when set to _true_, applies
+join-decompositions to the received delta buffers (this will only
+have an effect if __LBD_MODE=delta_based__)
+- __LDB_DCOS_OVERLAY__:
+  - line
+  - ring
+  - hyparview
+  - erdos_renyi
+- __LDB_SIMULATION__:
+  - basic
+- __LDB_NODE_NUMBER__: number of LDBs nodes. Since the overlays are
+not yet created in runtime, only __3__ and __13__ nodes are supported
+for now
+- __LDB_EVALUATION_IDENTIFIER__: set this with one of the following
+values, depending on which evaluation you are running. This id will
+be later used to generate the graphs with proper labels.
+  - state_based_$LDB_DCOS_OVERLAY
+  - delta_based_$LDB_DCOS_OVERLAY
+  - pure_op_based_$LDB_DCOS_OVERLAY
+  - join_decompositions_$LDB_DCOS_OVERLAY
+- __LDB_EVALUATION_TIMESTAMP__: When running concurrent experiments
+in the cluster, this timestamp should be unique.
+- __LDB_INSTRUMENTATION__: this should be set to _true_ if logs are to
+be pushed to the Mongo instance
+- __LDB_EXTENDED_LOGGING__: _true_/_false_
 
 
-#### Pull logs from Mongo instance running in Marathon
+To see the results of the experiments, firstly you need to pull logs
+from Mongo instance.
 
 - Find Mongo and __private host__ and __port__ with
 
