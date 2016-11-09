@@ -25,9 +25,60 @@ To push it to [Docker Hub](https://hub.docker.com/):
 $ docker push vitorenesduarte/ldb
 ```
 
+## Remote experiments in DCOS
+First authenticate to the DCOS cluster with
+
+```bash
+$ dcos auth login
+```
 
 
-#### Pull logs from Mongo instance running in Marathon
+1. Launch the Mongo instance (this is where LDBs instance will push
+their logs)
+
+```bash
+$ cd bin/
+$ ./mongo-deploy.sh
+```
+
+2. Launch LDBs instances
+```bash
+$ cd bin/
+$ ./ldb-deploy.sh
+```
+
+In order to execute this last script, a set of environment variables
+have to be defined:
+
+- __BRANCH__: which ldb branch should LDBs instances run
+- __LDB_MODE__: 
+  - state_based
+  - delta_based
+  - pure_op_based
+- __LDB_JOIN_DECOMPOSITIONS__: when set to _true_, applies
+join-decompositions to the received delta buffers (this will only
+have an effect if __LBD_MODE=state_based__
+- __LDB_DCOS_OVERLAY__:
+  - line
+  - ring
+  - hyparview
+  - erdos_renyi
+- __LDB_SIMULATION__:
+  - basic
+- __LDB_NODE_NUMBER__: number of LDBs nodes. Since the overlays are not yet created in runtime, only __3__ and __13__ nodes are supported for
+now
+- __LDB_EVALUATION_IDENTIFIER__:
+  - state_based_$LDB_DCOS_OVERLAY
+  - delta_based_$LDB_DCOS_OVERLAY
+  - pure_op_based_$LDB_DCOS_OVERLAY
+  - join_decompositions_$LDB_DCOS_OVERLAY
+- __LDB_EVALUATION_TIMESTAMP__: some unique id
+- __LDB_INSTRUMENTATION__: this should be set to _true_ if logs are to
+be pushed to the Mongo instance
+- __LDB_EXTENDED_LOGGING __: _true_/_false_
+
+
+3. Pull logs from Mongo instance
 
 - Find Mongo and __private host__ and __port__ with
 
