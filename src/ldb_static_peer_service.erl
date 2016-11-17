@@ -41,7 +41,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {node_info :: node_info(),
+-record(state, {ip :: node_ip(),
+                port :: node_port(),
                 connected :: orddict:orddict()}).
 
 -define(LOG_INTERVAL, 10000).
@@ -69,12 +70,12 @@ get_node_info() ->
 
 %% gen_server callbacks
 init([]) ->
-    NodeInfo = init_node_info(),
-    {ok, _} = ldb_static_peer_service_server:start_link(NodeInfo),
+    {Ip, Port} = get_ip_and_port(),
+    {ok, _} = ldb_static_peer_service_server:start_link(Port),
     schedule_log(),
 
     ldb_log:info("ldb_static_peer_service initialized!", extended),
-    {ok, #state{node_info=NodeInfo, connected=orddict:new()}}.
+    {ok, #state{ip=Ip, port=Port, connected=orddict:new()}}.
 
 handle_call(members, _From, #state{connected=Connected}=State) ->
     Result = {ok, orddict:fetch_keys(Connected)},
@@ -109,7 +110,9 @@ handle_call({forward_message, LDBId, Handler, Message}, _From, #state{connected=
 
     {reply, Result, State};
 
-handle_call(get_node_info, _From, #state{node_info=NodeInfo}=State) ->
+handle_call(get_node_info, _From, #state{ip=Ip, port=Port}=State) ->
+    Id = ldb_config:id(),
+    NodeInfo = {Id, Ip, Port},
     Result = {ok, NodeInfo},
     {reply, Result, State};
 
@@ -138,8 +141,7 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-init_node_info() ->
-    LDBId = ldb_config:id(),
+get_ip_and_port() ->
     IP = case os:getenv("PEER_IP", "undefined") of
         "undefined" ->
             {127, 0, 0, 1};
@@ -154,7 +156,7 @@ init_node_info() ->
             list_to_integer(PeerPort)
     end,
 
-    {LDBId, IP, Port}.
+    {IP, Port}.
 
 random_port() ->
     rand_compat:seed(erlang:phash2([node()]),

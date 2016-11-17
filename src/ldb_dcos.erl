@@ -31,7 +31,7 @@
          get_app_tasks/1]).
 
 %% @docs
--spec create_overlay(atom()) -> ok.
+-spec create_overlay(atom()) -> ldb_node_id().
 create_overlay(OverlayName) ->
     ldb_log:info("Will create the overlay ~p in ~p", [OverlayName, ?CREATE_OVERLAY_TIME]),
     timer:sleep(?CREATE_OVERLAY_TIME),
@@ -90,7 +90,9 @@ create_overlay(OverlayName) ->
                     %% All are connected
                     ToConnectIds = orddict:fetch(MyId, Overlay),
                     connect(ToConnectIds, IdToName, NameToNodeInfo),
-                    schedule_simulation_end(MyId);
+                    ok = schedule_simulation_end(MyId),
+                    %% Return ldb node id
+                    MyId;
                 false ->
                     create_overlay(OverlayName)
             end;
