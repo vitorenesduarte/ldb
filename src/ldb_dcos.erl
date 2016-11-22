@@ -111,11 +111,12 @@ connect([], _, _) -> ok;
 connect([Id|Ids]=All, IdToName, NameToNodeInfo) ->
     Name = orddict:fetch(Id, IdToName),
     {Name, Ip, Port} = orddict:fetch(Name, NameToNodeInfo),
-    case ldb_peer_service:join({Id, Ip, Port}) of
+    RealNodeInfo = {Id, Ip, Port}, 
+    case ldb_peer_service:join(RealNodeInfo) of
         ok ->
             connect(Ids, IdToName, NameToNodeInfo);
         Error ->
-            ldb_log:info("Couldn't connect to ~p. Error ~p. Will try again in 5 seconds", [NodeInfo, Error]),
+            ldb_log:info("Couldn't connect to ~p. Error ~p. Will try again in 5 seconds", [RealNodeInfo, Error]),
             timer:sleep(5000),
             connect(All, IdToName, NameToNodeInfo)
     end.
