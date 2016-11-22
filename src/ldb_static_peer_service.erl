@@ -126,7 +126,7 @@ handle_cast(Msg, State) ->
 
 handle_info(log, #state{connected=Connected}=State) ->
     LDBIds = orddict:fetch_keys(Connected),
-    ldb_log:info("Current connected nodes ~p | Node ~p", [LDBIds, ldb_config:id()], extended),
+    ldb_log:info("Current connected nodes ~p", [LDBIds], extended),
     schedule_log(),
     {noreply, State};
 
