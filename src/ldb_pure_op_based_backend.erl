@@ -141,7 +141,7 @@ handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, v
     %% Get neighbours
     {ok, Members} = ldb_peer_service:members(),
 
-    %% Generate list of peers that need the message (neighbours minus message sender, self and message creator).
+    %% Generate list of peers that need the message (neighbours minus self)
     ToMembers = Members -- [Actor],
 
     %% Get current time.
@@ -168,7 +168,7 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
-    #state{vc=VC0, to_be_ack_queue=ToBeAckQueue0, to_be_delivered_queue=ToBeDeliveredQueue0} = State) ->
+    #state{actor=Actor, vc=VC0, to_be_ack_queue=ToBeAckQueue0, to_be_delivered_queue=ToBeDeliveredQueue0} = State) ->
         MessageBody = {Key, decode_op(OperationCode)},
         case already_seen_message(MessageVC, VC0, ToBeDeliveredQueue0) of
             true ->
@@ -180,11 +180,11 @@ handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
                 {ok, Members} = ldb_peer_service:members(),
 
                 %% Generate list of peers that need the message (neighbours minus message sender, self and message creator).
-                ToMembers = Members -- [Sender, ldb_config:id(), MessageActor],
+                ToMembers = Members -- [Sender, Actor, MessageActor],
                 ldb_log:info("Broadcasting message to peers: ~p", [ToMembers]),
 
                 %% Generate message.
-                Msg = {tcbcast, {Key, OperationCode}, MessageActor, MessageVC, ldb_config:id()},
+                Msg = {tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Actor},
 
                 %% Send Message.
                 [ldb_whisperer:send(Peer, Msg) || Peer <- ToMembers],
@@ -193,7 +193,7 @@ handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
                 Now = ldb_util:timestamp(),
 
                 %% Generate message.
-                MessageAck = {tcbcast_ack, MessageActor, MessageVC, ldb_config:id()},
+                MessageAck = {tcbcast_ack, MessageActor, MessageVC, Actor},
 
                 %% Send ack back to message sender.
                 ldb_whisperer:send(Sender, MessageAck),
