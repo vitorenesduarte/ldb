@@ -181,6 +181,10 @@ handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
 
                 %% Generate list of peers that need the message (neighbours minus message sender, self and message creator).
                 ToMembers = Members -- [Sender, Actor, MessageActor],
+                lager:info("Members ~p", [Members]),
+                lager:info("Sender ~p", [Sender]),
+                lager:info("Actor~p", [Actor]),
+                lager:info("MessageActor~p", [MessageActor]),
                 ldb_log:info("Broadcasting message to peers: ~p", [ToMembers]),
 
                 %% Generate message.
