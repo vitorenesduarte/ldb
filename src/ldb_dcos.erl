@@ -110,8 +110,8 @@ get_app_tasks(App) ->
 connect([], _, _) -> ok;
 connect([Id|Ids]=All, IdToName, NameToNodeInfo) ->
     Name = orddict:fetch(Id, IdToName),
-    NodeInfo = orddict:fetch(Name, NameToNodeInfo),
-    case ldb_peer_service:join(NodeInfo) of
+    {Name, Ip, Port} = orddict:fetch(Name, NameToNodeInfo),
+    case ldb_peer_service:join({Id, Ip, Port}) of
         ok ->
             connect(Ids, IdToName, NameToNodeInfo);
         Error ->
