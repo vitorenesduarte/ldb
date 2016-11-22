@@ -111,7 +111,7 @@ connect([], _, _) -> ok;
 connect([Id|Ids]=All, IdToName, NameToNodeInfo) ->
     Name = orddict:fetch(Id, IdToName),
     {Name, Ip, Port} = orddict:fetch(Name, NameToNodeInfo),
-    RealNodeInfo = {Id, Ip, Port}, 
+    RealNodeInfo = {Id, Ip, Port},
     case ldb_peer_service:join(RealNodeInfo) of
         ok ->
             connect(Ids, IdToName, NameToNodeInfo);
