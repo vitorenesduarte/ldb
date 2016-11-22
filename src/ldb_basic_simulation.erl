@@ -67,6 +67,10 @@ handle_info(event, #state{local_events=LocalEvents0}=State) ->
     Element = atom_to_list(node()) ++ integer_to_list(LocalEvents1),
     ldb:update("SET", {add, Element}),
 
+    {ok, Value} = ldb:query("SET"),
+    Events = sets:size(Value),
+    ldb_log:info("Events observed ~p | Node ~p", [Events, node()], extended),
+
     case LocalEvents1 == ?EVENT_NUMBER of
         true ->
             schedule_simulation_end();

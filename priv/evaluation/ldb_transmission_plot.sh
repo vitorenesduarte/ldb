@@ -73,51 +73,62 @@ generate_plots(Simulation, EvalIds) ->
         TitlesToInputFiles
     ),
 
-    {DeltaTitles, JoinTitles, StateTitles} = lists:foldl(
-        fun(Title, {DeltaTitles0, JoinTitles0, StateTitles0}) ->
+    {StateTitles, DeltaTitles, JoinTitles, PureTitles} = lists:foldl(
+        fun(Title, {StateTitles0, DeltaTitles0, JoinTitles0, PureTitles0}) ->
             case re:run(Title, ".*Delta.*") of
                 {match, _} ->
-                    {[Title | DeltaTitles0], JoinTitles0, StateTitles0};
+                    {StateTitles0, [Title | DeltaTitles0], JoinTitles0, PureTitles0};
                 nomatch ->
                     case re:run(Title, ".*Decompositions.*") of
                         {match, _} ->
-                            {DeltaTitles0, [Title | JoinTitles0], StateTitles0};
+                            {StateTitles0, DeltaTitles0, [Title | JoinTitles0], PureTitles0};
                         nomatch ->
-                            {DeltaTitles0, JoinTitles0, [Title | StateTitles0]}
+                            case re:run(Title, ".*Pure.*") of
+                                {match, _} ->
+                                    {StateTitles0, DeltaTitles0, JoinTitles0, [Title | PureTitles0]};
+                                nomatch ->
+                                    {[Title | StateTitles0], DeltaTitles0, JoinTitles0, PureTitles0}
+                            end
                     end
             end
         end,
-        {[], [], []},
+        {[], [], [], []},
         Titles
     ),
 
-    {DeltaFiles, JoinFiles, StateFiles} = lists:foldl(
-        fun(File, {DeltaFiles0, JoinFiles0, StateFiles0}) ->
+    {StateFiles, DeltaFiles, JoinFiles, PureFiles} = lists:foldl(
+        fun(File, {StateFiles0, DeltaFiles0, JoinFiles0, PureFiles0}) ->
             case re:run(File, ".*delta_based.*") of
                 {match, _} ->
-                    {[File | DeltaFiles0], JoinFiles0, StateFiles0};
+                    {StateFiles0, [File | DeltaFiles0], JoinFiles0, PureFiles0};
                 nomatch ->
                     case re:run(File, ".*join_decompositions.*") of
                         {match, _} ->
-                            {DeltaFiles0, [File | JoinFiles0], StateFiles0};
+                            {StateFiles0, DeltaFiles0, [File | JoinFiles0], PureFiles0};
                         nomatch ->
-                            {DeltaFiles0, JoinFiles0, [File | StateFiles0]}
+                            case re:run(File, ".*pure.*") of
+                                {match, _} ->
+                                    {StateFiles0, DeltaFiles0, JoinFiles0, [File | PureFiles0]};
+                                nomatch ->
+                                    {[File | StateFiles0], DeltaFiles0, JoinFiles0, PureFiles0}
+                            end
                     end
             end
         end,
-        {[], [], []},
+        {[], [], [], []},
         Files
     ),
 
-    io:format("Delta ~p ~p", [DeltaTitles, DeltaFiles]),
-    io:format("Join ~p ~p", [JoinTitles, JoinFiles]),
-    io:format("State ~p ~p", [StateTitles, StateFiles]),
+    io:format("State ~p ~p~n", [StateTitles, StateFiles]),
+    io:format("Delta ~p ~p~n", [DeltaTitles, DeltaFiles]),
+    io:format("Join ~p ~p~n", [JoinTitles, JoinFiles]),
+    io:format("Pure ~p ~p~n", [PureTitles, PureFiles]),
 
     PlotDir = root_plot_dir() ++ "/" ++ Simulation ++ "/",
 
     OutputFile = output_file(PlotDir, "multi_mode"),
     %% Convergence time not supported yet on multi-mode plot
-    Result = run_gnuplot_multi_mode(DeltaTitles, DeltaFiles, JoinTitles, JoinFiles, StateTitles, StateFiles, OutputFile),
+    Result = run_gnuplot_multi_mode(StateTitles, StateFiles, DeltaTitles, DeltaFiles, JoinTitles, JoinFiles, PureTitles, PureFiles, OutputFile),
     io:format("Generating multi-mode plot ~p. Output: ~p~n~n", [OutputFile, Result]),
 
     %% Remove input files
@@ -699,8 +710,9 @@ generate_executions_average_plot({Types, Times, ToAverage}, Simulation, EvalId) 
     lists:foldl(
         fun(N, TitlesToInputFiles) ->
             %Type = lists:nth(N, Types),
-            InputFile = lists:nth(N, InputFiles),
+            %Title = get_title(Type),
             Title = get_title(list_to_atom(EvalId)),
+            InputFile = lists:nth(N, InputFiles),
             orddict:store(Title, InputFile, TitlesToInputFiles)
         end,
         orddict:new(),
@@ -758,7 +770,12 @@ get_titles(Types) ->
 
 %% @private
 get_title(state_send) -> "State Based";
-get_title(delta_send) -> "Delta Based";
+get_title(delta_send) -> "Delta Send";
+get_title(pure_send) -> "Pure Send";
+get_title(state_based_line) -> "State - Line";
+get_title(delta_based_line) -> "Delta - Line";
+get_title(join_decompositions_line) -> "Decompositions - Line";
+get_title(pure_op_based_line) -> "Pure - Line";
 get_title(state_based_erdos_renyi) -> "State - Erdos Renyi";
 get_title(delta_based_erdos_renyi) -> "Deltas - Erdos Renyi";
 get_title(join_decompositions_erdos_renyi) -> "Decompositions - Erdos Renyi";
@@ -780,15 +797,17 @@ run_gnuplot(InputFiles, Titles, OutputFile, ConvergenceTime) ->
     os:cmd(Command).
 
 %% @private
-run_gnuplot_multi_mode(DeltaTitles, DeltaFiles, JoinTitles, JoinFiles, StateTitles, StateFiles, OutputFile) ->
+run_gnuplot_multi_mode(StateTitles, StateFiles, DeltaTitles, DeltaFiles, JoinTitles, JoinFiles, PureTitles, PureFiles, OutputFile) ->
     Command = "gnuplot -e \""
                 ++ "outputname='" ++ OutputFile ++ "'; "
+                ++ "statetitles='" ++ join_titles(StateTitles) ++ "'; "
+                ++ "statefiles='" ++ join_filenames(StateFiles) ++ "'; "
                 ++ "deltatitles='" ++ join_titles(DeltaTitles) ++ "'; "
                 ++ "deltafiles='" ++ join_filenames(DeltaFiles) ++ "'; "
                 ++ "jointitles='" ++ join_titles(JoinTitles) ++ "'; "
                 ++ "joinfiles='" ++ join_filenames(JoinFiles) ++ "'; "
-                ++ "statetitles='" ++ join_titles(StateTitles) ++ "'; "
-                ++ "statefiles='" ++ join_filenames(StateFiles) ++ "'\" " ++ gnuplot_multi_mode_file(),
+                ++ "puretitles='" ++ join_titles(PureTitles) ++ "'; "
+                ++ "purefiles='" ++ join_filenames(PureFiles) ++ "'\" " ++ gnuplot_multi_mode_file(),
     io:format("~p~n~n", [Command]),
     os:cmd(Command).
 
@@ -826,4 +845,3 @@ delete_files(Files) ->
       end,
       Files
     ).
-

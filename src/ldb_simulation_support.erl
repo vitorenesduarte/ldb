@@ -72,7 +72,7 @@ start(Options) ->
     end,
     lists:foreach(LoaderFun, Nodes),
 
-    ConfigureFun = fun(Node) ->
+    ConfigureFun = fun({Id, Node}) ->
         ct:pal("Configuring node: ~p", [Node]),
 
         %% Set mode
@@ -128,10 +128,16 @@ start(Options) ->
         ok = rpc:call(Node,
                       application,
                       set_env,
-                      [?APP, ldb_evaluation_timestamp, EvaluationTimestamp])
+                      [?APP, ldb_evaluation_timestamp, EvaluationTimestamp]),
+
+        %% Set id
+        ok = rpc:call(Node,
+                      application,
+                      set_env,
+                      [?APP, ldb_id, Id])
 
     end,
-    lists:foreach(ConfigureFun, Nodes),
+    lists:foreach(ConfigureFun, IdToNode),
 
     StartFun = fun(Node) ->
         {ok, _} = rpc:call(Node,

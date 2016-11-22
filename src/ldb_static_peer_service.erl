@@ -41,7 +41,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {node_info :: node_info(),
+-record(state, {ip :: node_ip(),
+                port :: node_port(),
                 connected :: orddict:orddict()}).
 
 -define(LOG_INTERVAL, 10000).
@@ -50,7 +51,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec members() -> {ok, [node_name()]}.
+-spec members() -> {ok, [ldb_node_id()]}.
 members() ->
     gen_server:call(?MODULE, members, infinity).
 
@@ -58,10 +59,10 @@ members() ->
 join(NodeInfo) ->
     gen_server:call(?MODULE, {join, NodeInfo}, infinity).
 
--spec forward_message(node_name(), handler(), message()) ->
+-spec forward_message(ldb_node_id(), handler(), message()) ->
     ok | error().
-forward_message(Name, Handler, Message) ->
-    gen_server:call(?MODULE, {forward_message, Name, Handler, Message}, infinity).
+forward_message(LDBId, Handler, Message) ->
+    gen_server:call(?MODULE, {forward_message, LDBId, Handler, Message}, infinity).
 
 -spec get_node_info() -> {ok, node_info()}.
 get_node_info() ->
@@ -69,20 +70,20 @@ get_node_info() ->
 
 %% gen_server callbacks
 init([]) ->
-    NodeInfo = init_node_info(),
-    {ok, _} = ldb_static_peer_service_server:start_link(NodeInfo),
+    {Ip, Port} = get_ip_and_port(),
+    {ok, _} = ldb_static_peer_service_server:start_link(Port),
     schedule_log(),
 
     ldb_log:info("ldb_static_peer_service initialized!", extended),
-    {ok, #state{node_info=NodeInfo, connected=orddict:new()}}.
+    {ok, #state{ip=Ip, port=Port, connected=orddict:new()}}.
 
 handle_call(members, _From, #state{connected=Connected}=State) ->
     Result = {ok, orddict:fetch_keys(Connected)},
     {reply, Result, State};
 
-handle_call({join, {Name, {_, _, _, _}=Ip, Port}=NodeInfo}, _From,
+handle_call({join, {LDBId, {_, _, _, _}=Ip, Port}=NodeInfo}, _From,
             #state{connected=Connected0}=State) ->
-    {Result, Connected1} = case orddict:find(Name, Connected0) of
+    {Result, Connected1} = case orddict:find(LDBId, Connected0) of
         {ok, _} ->
             {ok, Connected0};
         error ->
@@ -90,7 +91,7 @@ handle_call({join, {Name, {_, _, _, _}=Ip, Port}=NodeInfo}, _From,
                 {ok, Socket} ->
                     {ok, Pid} = ldb_static_peer_service_client:start_link(Socket),
                     gen_tcp:controlling_process(Socket, Pid),
-                    {ok, orddict:store(Name, Pid, Connected0)};
+                    {ok, orddict:store(LDBId, Pid, Connected0)};
                 Error ->
                     ldb_log:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),
                     {Error, Connected0}
@@ -98,8 +99,8 @@ handle_call({join, {Name, {_, _, _, _}=Ip, Port}=NodeInfo}, _From,
     end,
     {reply, Result, State#state{connected=Connected1}};
 
-handle_call({forward_message, Name, Handler, Message}, _From, #state{connected=Connected}=State) ->
-    Result = case orddict:find(Name, Connected) of
+handle_call({forward_message, LDBId, Handler, Message}, _From, #state{connected=Connected}=State) ->
+    Result = case orddict:find(LDBId, Connected) of
         {ok, Pid} ->
             Pid ! {forward_message, Handler, Message},
             ok;
@@ -109,7 +110,9 @@ handle_call({forward_message, Name, Handler, Message}, _From, #state{connected=C
 
     {reply, Result, State};
 
-handle_call(get_node_info, _From, #state{node_info=NodeInfo}=State) ->
+handle_call(get_node_info, _From, #state{ip=Ip, port=Port}=State) ->
+    Id = ldb_config:id(),
+    NodeInfo = {Id, Ip, Port},
     Result = {ok, NodeInfo},
     {reply, Result, State};
 
@@ -122,8 +125,8 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(log, #state{connected=Connected}=State) ->
-    NodeNames = orddict:fetch_keys(Connected),
-    ldb_log:info("Current connected nodes ~p | Node ~p", [NodeNames, node()], extended),
+    LDBIds = orddict:fetch_keys(Connected),
+    ldb_log:info("Current connected nodes ~p | Node ~p", [LDBIds, ldb_config:id()], extended),
     schedule_log(),
     {noreply, State};
 
@@ -138,8 +141,7 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-init_node_info() ->
-    Name = node(),
+get_ip_and_port() ->
     IP = case os:getenv("PEER_IP", "undefined") of
         "undefined" ->
             {127, 0, 0, 1};
@@ -154,7 +156,7 @@ init_node_info() ->
             list_to_integer(PeerPort)
     end,
 
-    {Name, IP, Port}.
+    {IP, Port}.
 
 random_port() ->
     rand_compat:seed(erlang:phash2([node()]),

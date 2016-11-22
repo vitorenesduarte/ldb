@@ -62,7 +62,7 @@ init([]) ->
                   "undefined"),
 
     %% If running in DCOS, create overlay
-    ok = case ldb_config:dcos() of
+    LDBId = case ldb_config:dcos() of
         true ->
             %% Configure DCOS token
             configure_str(ldb_dcos_token,
@@ -75,8 +75,13 @@ init([]) ->
                                     "undefined"),
             ldb_dcos:create_overlay(Overlay);
         false ->
-            ok
+            0
     end,
+
+    %% Configure ldb id
+    configure_int(ldb_id,
+                  "LDB_ID",
+                  integer_to_list(LDBId)),
 
     %% Configure mode
     configure_var(ldb_mode,

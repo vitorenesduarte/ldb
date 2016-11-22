@@ -66,8 +66,9 @@ stage:
 
 basic:
 	pkill -9 beam.smp; \
-		rm priv/evaluation/logs -rf; \
-		rm priv/evaluation/plots -rf; \
+ 		rm -rf priv/lager; \
+		rm -rf priv/evaluation/logs; \
+		rm -rf priv/evaluation/plots; \
 		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
 
 graph:

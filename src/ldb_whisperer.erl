@@ -39,19 +39,26 @@
 
 -record(state, {}).
 
--define(SYNC_INTERVAL, 5000).
+-define(STATE_SYNC_INTERVAL, 5000).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec send(node_name(), term()) -> ok.
-send(NodeName, Message) ->
-    gen_server:cast(?MODULE, {send, NodeName, Message}).
+-spec send(ldb_node_id(), term()) -> ok.
+send(LDBId, Message) ->
+    gen_server:cast(?MODULE, {send, LDBId, Message}).
 
 %% gen_server callbacks
 init([]) ->
-    schedule_sync(),
+    case ldb_config:mode() of
+        state_based ->
+            schedule_state_sync();
+        delta_based ->
+            schedule_state_sync();
+        pure_op_based ->
+            ok
+    end,
 
     ldb_log:info("ldb_whisperer initialized!", extended),
     {ok, #state{}}.
@@ -60,34 +67,34 @@ handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({send, NodeName, Message}, State) ->
-    do_send(NodeName, Message),
+handle_cast({send, LDBId, Message}, State) ->
+    do_send(LDBId, Message),
     {noreply, State};
 
 handle_cast(Msg, State) ->
     ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(sync, State) ->
-    {ok, NodeNames} = ldb_peer_service:members(),
+handle_info(state_sync, State) ->
+    {ok, LDBIds} = ldb_peer_service:members(),
 
     FoldFunction = fun({Key, Value}, _Acc) ->
         lists:foreach(
-            fun(NodeName) ->
+            fun(LDBId) ->
                 MessageMakerFun = ldb_backend:message_maker(),
-                case MessageMakerFun(Key, Value, NodeName) of
+                case MessageMakerFun(Key, Value, LDBId) of
                     {ok, Message} ->
-                        do_send(NodeName, Message);
+                        do_send(LDBId, Message);
                     nothing ->
                         ok
                 end
             end,
-            NodeNames
+            LDBIds
         )
     end,
 
     ldb_store:fold(FoldFunction, undefined),
-    schedule_sync(),
+    schedule_state_sync(),
     {noreply, State};
 
 handle_info(Msg, State) ->
@@ -101,14 +108,15 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-schedule_sync() ->
-    timer:send_after(?SYNC_INTERVAL, sync).
+schedule_state_sync() ->
+    timer:send_after(?STATE_SYNC_INTERVAL, state_sync).
 
 %% @private
-do_send(NodeName, Message) ->
+-spec do_send(ldb_node_id(), term()) -> ok.
+do_send(LDBId, Message) ->
     log_transmission(Message),
     Result = ldb_peer_service:forward_message(
-        NodeName,
+        LDBId,
         {ldb_listener, handle_message},
         Message
     ),
@@ -117,15 +125,20 @@ do_send(NodeName, Message) ->
         ok ->
             ok;
         Error ->
-            ldb_log:info("Error trying to send message ~p to node ~p. Reason ~p", [Message, NodeName, Error])
-    end.
+            ldb_log:info("Error trying to send message ~p to node ~p. Reason ~p", [Message, LDBId, Error])
+    end,
+    ok.
 
 %% @private
-log_transmission({_Key, state_send, CRDT}) ->
-    log_transmission(state_send, CRDT);
-log_transmission({_Key, delta_send, From, Sequence, Delta}) ->
-    log_transmission(delta_send, {From, Sequence, Delta});
-log_transmission({_Key, delta_ack, From, Sequence}) ->
-    log_transmission(delta_ack, {From, Sequence}).
+log_transmission({Key, state_send, CRDT}) ->
+    log_transmission(state_send, {Key, CRDT});
+log_transmission({Key, delta_send, From, Sequence, Delta}) ->
+    log_transmission(delta_send, {Key, From, Sequence, Delta});
+log_transmission({Key, delta_ack, From, Sequence}) ->
+    log_transmission(delta_ack, {Key, From, Sequence});
+log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) ->
+    log_transmission(tcbcast, {Op, MessageActor, MessageVC, From});
+log_transmission({tcbcast_ack, MessageActor, MessageVC, From}) ->
+    log_transmission(tcbcast_ack, {MessageActor, MessageVC, From}).
 log_transmission(Type, Payload) ->
     ldb_instrumentation:transmission(Type, Payload).

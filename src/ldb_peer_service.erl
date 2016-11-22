@@ -30,13 +30,13 @@
          get_node_info/0]).
 
 %% @doc Return a list of neighbors
--callback members() -> {ok, [node_name()]}.
+-callback members() -> {ok, [ldb_node_id()]}.
 
 %% @doc Attempt to join node.
 -callback join(node_info()) -> ok | error().
 
 %% @doc Send a message to a node.
--callback forward_message(node_name(), handler(), message()) ->
+-callback forward_message(ldb_node_id(), handler(), message()) ->
     ok | error().
 
 %% @doc Retrieves the node info: {name, ip, port}
@@ -46,7 +46,7 @@
 start_link() ->
     do(start_link, []).
 
--spec members() -> {ok, [node_name()]}.
+-spec members() -> {ok, [ldb_node_id()]}.
 members() ->
     do(members, []).
 
@@ -54,10 +54,10 @@ members() ->
 join(NodeSpec) ->
     do(join, [NodeSpec]).
 
--spec forward_message(node_name(), handler(), message()) ->
+-spec forward_message(ldb_node_id(), handler(), message()) ->
     ok | error().
-forward_message(Name, Handler, Message) ->
-    do(forward_message, [Name, Handler, Message]).
+forward_message(LDBId, Handler, Message) ->
+    do(forward_message, [LDBId, Handler, Message]).
 
 -spec get_node_info() -> {ok, node_info()}.
 get_node_info() ->

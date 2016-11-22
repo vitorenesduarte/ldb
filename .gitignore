@@ -5,4 +5,7 @@ log/
 src/*.swp
 priv/evaluation/logs/
 priv/evaluation/plots/
+.DS_Store
+priv/.DS_Store
+priv/evaluation/.DS_Store
 ldb-java-client/

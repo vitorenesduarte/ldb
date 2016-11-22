@@ -42,7 +42,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: atom()}).
+-record(state, {actor :: non_neg_integer()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -85,7 +85,7 @@ message_handler(_Message) ->
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
-    Actor = node(),
+    Actor = ldb_config:id(),
 
     ldb_log:info("ldb_state_based_backend initialized!", extended),
     {ok, #state{actor=Actor}}.

@@ -23,7 +23,8 @@
 
 -include("ldb.hrl").
 
--export([mode/0,
+-export([id/0,
+         mode/0,
          join_decompositions/0,
          backend/0,
          store/0,
@@ -61,7 +62,9 @@ backend() ->
         state_based ->
             ldb_state_based_backend;
         delta_based ->
-            ldb_delta_based_backend
+            ldb_delta_based_backend;
+        pure_op_based ->
+            ldb_pure_op_based_backend
     end.
 
 %% @doc Returns the enabled store.
@@ -75,6 +78,12 @@ store() ->
 peer_service() ->
     {ok, PeerService} = application:get_env(?APP, ldb_peer_service),
     PeerService.
+
+%% @doc Returns the ldb node id.
+-spec id() -> non_neg_integer().
+id() ->
+    {ok, Id} = application:get_env(?APP, ldb_id),
+    Id.
 
 %% @doc Returns the node number.
 -spec node_number() -> non_neg_integer().

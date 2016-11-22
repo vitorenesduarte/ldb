@@ -40,12 +40,12 @@
 
 -define(LOG_INTERVAL, 5000).
 
--spec start_link(node_info()) -> {ok, pid()} | ignore | {error, term()}.
-start_link(NodeInfo) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [NodeInfo], []).
+-spec start_link(node_port()) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Port) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Port], []).
 
 %% gen_server callbacks
-init([{_Name, _IpAddress, Port}]) ->
+init([Port]) ->
     {ok, Listener} = gen_tcp:listen(Port, ?TCP_OPTIONS),
 
     prepare_accept(),
