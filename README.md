@@ -5,7 +5,7 @@
 LDB supports different CRDT replication models:
 - state-based
 - delta-state-based
-- pure-op-based (to be merged [#6](https://github.com/vitorenesduarte/ldb/pull/6))
+- pure-op-based
 
 Next features:
 - implement Delta-state-based replication (as in [http://novasys.di.fct.unl.pt/~alinde/publications/a12-van_der_linde.pdf](http://novasys.di.fct.unl.pt/~alinde/publications/a12-van_der_linde.pdf))
