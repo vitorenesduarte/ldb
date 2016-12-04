@@ -33,6 +33,11 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
+    %% Configure ldb id
+    configure_var(ldb_id,
+                  "LDB_ID",
+                  "undefined"),
+
     %% Configure peer service
     configure_var(ldb_peer_service,
                   "LDB_PEER_SERVICE",
@@ -106,6 +111,8 @@ configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, ParseFun) ->
                         LDBVariable,
                         Value),
     Value.
+
+%% @private
 configure_var(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
     configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_atom(V) end).
 configure_int(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
