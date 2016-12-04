@@ -140,5 +140,8 @@ log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) ->
     log_transmission(tcbcast, {Op, MessageActor, MessageVC, From});
 log_transmission({tcbcast_ack, MessageActor, MessageVC, From}) ->
     log_transmission(tcbcast_ack, {MessageActor, MessageVC, From}).
-log_transmission(Type, Payload) ->
-    ldb_instrumentation:transmission(Type, Payload).
+%% @todo
+log_transmission(_, _) ->
+    ok.
+%%log_transmission(Type, Payload) ->
+%%    ldb_instrumentation:transmission(Type, Payload).

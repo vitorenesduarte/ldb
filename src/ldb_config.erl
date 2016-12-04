@@ -31,13 +31,12 @@
          peer_service/0,
          node_number/0,
          simulation/0,
-         evaluation_identifier/0,
-         evaluation_timestamp/0,
-         instrumentation/0,
-         extended_logging/0,
-         dcos/0,
-         dcos_url/0,
-         dcos_token/0]).
+         extended_logging/0]).
+
+%% @doc Returns the ldb node id.
+-spec id() -> ldb_node_id().
+id() ->
+    node().
 
 %% @doc Returns the enabled mode.
 %%      The result can be:
@@ -79,12 +78,6 @@ peer_service() ->
     {ok, PeerService} = application:get_env(?APP, ldb_peer_service),
     PeerService.
 
-%% @doc Returns the ldb node id.
--spec id() -> non_neg_integer().
-id() ->
-    {ok, Id} = application:get_env(?APP, ldb_id),
-    Id.
-
 %% @doc Returns the node number.
 -spec node_number() -> non_neg_integer().
 node_number() ->
@@ -97,49 +90,9 @@ simulation() ->
     {ok, Simulation} = application:get_env(?APP, ldb_simulation),
     Simulation.
 
-%% @doc Returns the evaluation identifier.
--spec evaluation_identifier() -> atom().
-evaluation_identifier() ->
-    {ok, EvaluationIdentifier} =
-        application:get_env(?APP, ldb_evaluation_identifier),
-    EvaluationIdentifier.
-
-%% @doc Returns the evaluation timestamp.
--spec evaluation_timestamp() -> atom().
-evaluation_timestamp() ->
-    {ok, EvaluationTimestamp} =
-        application:get_env(?APP, ldb_evaluation_timestamp),
-    EvaluationTimestamp.
-
-%% @doc Returns true if instrumentation is enabled.
--spec instrumentation() -> atom().
-instrumentation() ->
-    {ok, Instrumentation} =
-        application:get_env(?APP, ldb_instrumentation),
-    Instrumentation.
-
 %% @doc Returns true if extended logging is enabled.
 -spec extended_logging() -> atom().
 extended_logging() ->
     {ok, ExtendedLogging} =
         application:get_env(?APP, ldb_extended_logging),
     ExtendedLogging.
-
-%% @doc Returns true if running in DCOS.
--spec dcos() -> boolean().
-dcos() ->
-    dcos_url() /= "undefined".
-
-%% @doc Returns the DCOS Url.
--spec dcos_url() -> string().
-dcos_url() ->
-    {ok, DCOSUrl} =
-        application:get_env(?APP, ldb_dcos_url),
-    DCOSUrl.
-
-%% @doc Returns the DCOS Authentication Token.
--spec dcos_token() -> string().
-dcos_token() ->
-    {ok, DCOSToken} =
-        application:get_env(?APP, ldb_dcos_token),
-    DCOSToken.

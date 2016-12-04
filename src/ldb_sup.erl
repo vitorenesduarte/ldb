@@ -56,33 +56,6 @@ init([]) ->
     %% Start peer service
     {ok, _} = ldb_peer_service:start_link(),
 
-    %% Configure DCOS url
-    configure_str(ldb_dcos_url,
-                  "DCOS",
-                  "undefined"),
-
-    %% If running in DCOS, create overlay
-    LDBId = case ldb_config:dcos() of
-        true ->
-            %% Configure DCOS token
-            configure_str(ldb_dcos_token,
-                          "TOKEN",
-                          "undefined"),
-
-            %% Configure DCOS overlay
-            Overlay = configure_var(ldb_dcos_overlay,
-                                    "LDB_DCOS_OVERLAY",
-                                    "undefined"),
-            ldb_dcos:create_overlay(Overlay);
-        false ->
-            0
-    end,
-
-    %% Configure ldb id
-    configure_int(ldb_id,
-                  "LDB_ID",
-                  integer_to_list(LDBId)),
-
     %% Configure mode
     configure_var(ldb_mode,
                   "LDB_MODE",
@@ -111,34 +84,13 @@ init([]) ->
     end,
 
     %% Configure simulation
-    Simulation = configure_var(ldb_simulation,
-                               "LDB_SIMULATION",
-                               "undefined"),
+    Simulation = application:get_env(?APP,
+                                     ldb_simulation,
+                                     undefined),
     case Simulation of
         basic ->
             {ok, _} = ldb_basic_simulation:start_link();
         undefined ->
-            ok
-    end,
-
-    %% Configure evaluation identifier
-    configure_var(ldb_evaluation_identifier,
-                  "LDB_EVALUATION_IDENTIFIER",
-                  "undefined"),
-
-    %% Configure evaluation timestamp
-    configure_var(ldb_evaluation_timestamp,
-                  "LDB_EVALUATION_TIMESTAMP",
-                  "undefined"),
-
-    %% Configure instrumentation
-    Instrumentation = configure_var(ldb_instrumentation,
-                                    "LDB_INSTRUMENTATION",
-                                    "false"),
-    case Instrumentation of
-        true ->
-            {ok, _} = ldb_instrumentation:start_link();
-        false ->
             ok
     end,
 
@@ -161,7 +113,5 @@ configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, ParseFun) ->
     Value.
 configure_var(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
     configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_atom(V) end).
-configure_str(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
-    configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> V end).
 configure_int(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
     configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_integer(V) end).

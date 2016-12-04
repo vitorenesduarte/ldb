@@ -90,13 +90,6 @@ handle_info(simulation_end, State) ->
     case Events == NodeNumber * ?EVENT_NUMBER of
         true ->
             ldb_log:info("All events have been observed", extended),
-            convergence(),
-            case ldb_config:dcos() of
-                true ->
-                    ldb_mongo:push_logs();
-                false ->
-                    ok
-            end,
             application:set_env(?APP, simulation_end, true);
         false ->
             schedule_simulation_end()
@@ -121,12 +114,3 @@ schedule_event() ->
 %% @private
 schedule_simulation_end() ->
     timer:send_after(?SIMULATION_END_INTERVAL, simulation_end).
-
-%% @private
-convergence() ->
-    case ldb_config:instrumentation() of
-        true ->
-            ldb_instrumentation:convergence();
-        false ->
-            ok
-    end.

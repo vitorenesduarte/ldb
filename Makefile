@@ -41,10 +41,10 @@ eunit:
 	${REBAR} as test eunit
 
 ct:
-	pkill -9 beam.smp; TRAVIS=true ${REBAR} as test ct --readable=false
+	pkill -9 beam.smp; ${REBAR} as test ct --readable=false
 
 cover:
-	pkill -9 beam.smp; TRAVIS=true ${REBAR} as test ct --cover ; \
+	pkill -9 beam.smp; ${REBAR} as test ct --cover ; \
 		${REBAR} cover
 
 shell:
@@ -63,18 +63,6 @@ stage:
 ##
 ## Evaluation targets
 ##
-
-basic:
-	pkill -9 beam.smp; \
- 		rm -rf priv/lager; \
-		rm -rf priv/evaluation/logs; \
-		rm -rf priv/evaluation/plots; \
-		${REBAR} as test ct --readable=false --suite=test/ldb_basic_simulation_SUITE
-
-graph:
-	cd priv/evaluation/; \
-		ldb_transmission_plot.sh; \
-		google-chrome plots/basic/local/multi_mode.pdf
 
 logs:
 	  tail -F priv/lager/*/log/*.log

@@ -9,7 +9,7 @@
 -type operation() :: term().
 
 %% peer service
--type ldb_node_id() :: non_neg_integer().
+-type ldb_node_id() :: node().
 -type node_ip() :: inet:ip_address().
 -type node_port() :: non_neg_integer().
 -type node_info() :: {ldb_node_id(), node_ip(), node_port()}.

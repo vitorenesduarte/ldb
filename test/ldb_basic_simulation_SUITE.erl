@@ -40,9 +40,6 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("kernel/include/inet.hrl").
 
--define(TRAVIS_NODE_NUMBER, 3).
--define(NODE_NUMBER, 13).
-
 %% ===================================================================
 %% common_test callbacks
 %% ===================================================================
@@ -88,26 +85,15 @@ pure_op_based_test(_Config) ->
 %% @private
 run(Evaluation) ->
     Nodes = node_names(),
-    lists:foreach(
-        fun({Topology, Graph}) ->
-            {Mode, JoinDecompositions} =
-                get_mode_and_join_decompositions(Evaluation),
+    Graph = line(),
+    {Mode, JoinDecompositions} = get_mode_and_join_decompositions(Evaluation),
 
-            Identifier = list_to_atom(
-                atom_to_list(Evaluation)
-                ++ "_"
-                ++ atom_to_list(Topology)
-            ),
-            Options = [{nodes, Nodes},
-                       {graph, Graph},
-                       {ldb_mode, Mode},
-                       {ldb_join_decompositions, JoinDecompositions},
-                       {ldb_simulation, basic},
-                       {ldb_evaluation_identifier, Identifier}],
-            ldb_simulation_support:run(Options)
-        end,
-        topologies()
-    ).
+    Options = [{nodes, Nodes},
+               {graph, Graph},
+               {ldb_mode, Mode},
+               {ldb_join_decompositions, JoinDecompositions},
+               {ldb_simulation, basic}],
+    ldb_simulation_support:run(Options).
 
 %% @private
 get_mode_and_join_decompositions(state_based) ->
@@ -121,24 +107,10 @@ get_mode_and_join_decompositions(pure_op_based) ->
 
 %% @private
 node_names() ->
-    case travis() of
-        true ->
-            lists:seq(0, ?TRAVIS_NODE_NUMBER - 1);
-        false ->
-            lists:seq(0, ?NODE_NUMBER - 1)
-    end.
+    [n0, n1, n2].
 
 %% @private
-topologies() ->
-    case travis() of
-        true ->
-            [{line, ldb_overlay:get(line, ?TRAVIS_NODE_NUMBER)}];
-        false ->
-            [{ring, ldb_overlay:get(ring, ?NODE_NUMBER)},
-             {hyparview, ldb_overlay:get(hyparview, ?NODE_NUMBER)},
-             {erdos_renyi, ldb_overlay:get(erdos_renyi, ?NODE_NUMBER)}]
-    end.
-
-%% @private
-travis() ->
-    os:getenv("TRAVIS", "false") == "true".
+line() ->
+    [{n0, [n1]},
+     {n1, [n0, n2]},
+     {n2, [n1]}].

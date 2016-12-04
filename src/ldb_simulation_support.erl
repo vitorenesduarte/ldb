@@ -26,20 +26,17 @@
 -export([run/1]).
 
 run(Options) ->
-    IdToNode = start(
-        [{ldb_evaluation_timestamp, timestamp()} | Options]
-    ),
-    construct_overlay(Options, IdToNode),
-    wait_for_completion(IdToNode),
-    stop(IdToNode).
+    NameToNode = start(Options),
+    construct_overlay(Options, NameToNode),
+    wait_for_completion(NameToNode),
+    stop(NameToNode).
 
 %% @private Start nodes.
 start(Options) ->
     ok = start_erlang_distribution(),
-    Ids = proplists:get_value(nodes, Options),
+    Names = proplists:get_value(nodes, Options),
 
-    InitializerFun = fun(Id, Acc) ->
-        Name = get_name_from_id(Id),
+    InitializerFun = fun(Name, Acc) ->
         ct:pal("Starting node: ~p", [Name]),
 
         %% Start node
@@ -48,13 +45,13 @@ start(Options) ->
 
         case ct_slave:start(Name, Config) of
             {ok, Node} ->
-                orddict:store(Id, Node, Acc);
+                orddict:store(Name, Node, Acc);
             Error ->
                 ct:fail(Error)
         end
     end,
-    IdToNode = lists:foldl(InitializerFun, orddict:new(), Ids),
-    Nodes = [Node || {_Id, Node} <- orddict:to_list(IdToNode)],
+    NameToNode = lists:foldl(InitializerFun, orddict:new(), Names),
+    Nodes = [Node || {_Name, Node} <- NameToNode],
 
     LoaderFun = fun(Node) ->
         ct:pal("Loading ldb on node: ~p", [Node]),
@@ -72,7 +69,7 @@ start(Options) ->
     end,
     lists:foreach(LoaderFun, Nodes),
 
-    ConfigureFun = fun({Id, Node}) ->
+    ConfigureFun = fun(Node) ->
         ct:pal("Configuring node: ~p", [Node]),
 
         %% Set mode
@@ -96,13 +93,6 @@ start(Options) ->
                       set_env,
                       [?APP, ldb_simulation, Simulation]),
 
-        %% Set instrumentation
-        Instrumentation = true,
-        ok = rpc:call(Node,
-                      application,
-                      set_env,
-                      [?APP, ldb_instrumentation, Instrumentation]),
-
         %% Set extended logging
         ExtendedLogging = true,
         ok = rpc:call(Node,
@@ -111,33 +101,13 @@ start(Options) ->
                       [?APP, ldb_extended_logging, ExtendedLogging]),
 
         %% Set node number
-        NodeNumber = length(Ids),
+        NodeNumber = length(Nodes),
         ok = rpc:call(Node,
                       application, set_env,
-                      [?APP, ldb_node_number, NodeNumber]),
-
-        %% Set evaluation identifier
-        EvaluationIdentifier = proplists:get_value(ldb_evaluation_identifier, Options),
-        ok = rpc:call(Node,
-                      application,
-                      set_env,
-                      [?APP, ldb_evaluation_identifier, EvaluationIdentifier]),
-
-        %% Set evaluation timestamp
-        EvaluationTimestamp = proplists:get_value(ldb_evaluation_timestamp, Options),
-        ok = rpc:call(Node,
-                      application,
-                      set_env,
-                      [?APP, ldb_evaluation_timestamp, EvaluationTimestamp]),
-
-        %% Set id
-        ok = rpc:call(Node,
-                      application,
-                      set_env,
-                      [?APP, ldb_id, Id])
+                      [?APP, ldb_node_number, NodeNumber])
 
     end,
-    lists:foreach(ConfigureFun, IdToNode),
+    lists:foreach(ConfigureFun, Nodes),
 
     StartFun = fun(Node) ->
         {ok, _} = rpc:call(Node,
@@ -147,32 +117,32 @@ start(Options) ->
     end,
     lists:foreach(StartFun, Nodes),
 
-    IdToNode.
+    NameToNode.
 
 %% @private Connect each node to its peers.
-construct_overlay(Options, IdToNode) ->
+construct_overlay(Options, NameToNode) ->
     Graph = proplists:get_value(graph, Options),
 
-    IdToNodeSpec = lists:map(
-        fun({Id, Node}) ->
+    NameToNodeSpec = lists:map(
+        fun({Name, Node}) ->
             {ok, Info} = rpc:call(Node, ldb_peer_service, get_node_info, []),
-            {Id, Info}
+            {Name, Info}
         end,
-        IdToNode
+        NameToNode
     ),
 
     ct:pal("Graph ~n~p~n", [Graph]),
-    ct:pal("Nodes ~n~p~n", [IdToNode]),
-    ct:pal("Nodes Info ~n~p~n", [IdToNodeSpec]),
+    ct:pal("Nodes ~n~p~n", [NameToNode]),
+    ct:pal("Nodes Info ~n~p~n", [NameToNodeSpec]),
 
     lists:foreach(
-        fun({Id, PeersId}) ->
-            Node = orddict:fetch(Id, IdToNode),
+        fun({Name, PeersName}) ->
+            Node = orddict:fetch(Name, NameToNode),
             ct:pal("Node ~p~n~n", [Node]),
 
             lists:foreach(
-                fun(PeerId) ->
-                    PeerSpec = orddict:fetch(PeerId, IdToNodeSpec),
+                fun(PeerName) ->
+                    PeerSpec = orddict:fetch(PeerName, NameToNodeSpec),
 
                     ct:pal("PeerSpec ~p~n~n", [PeerSpec]),
 
@@ -181,20 +151,20 @@ construct_overlay(Options, IdToNode) ->
                                   join,
                                   [PeerSpec])
                 end,
-                PeersId
+                PeersName
             )
         end,
         Graph
     ).
 
 %% @private Poll nodes to see if simulation is ended.
-wait_for_completion(IdToNode) ->
+wait_for_completion(NameToNode) ->
     ct:pal("Waiting for simulation to end"),
 
     Result = ldb_util:wait_until(
         fun() ->
             lists:foldl(
-                fun({_Id, Node}, Acc) ->
+                fun({_Name, Node}, Acc) ->
                     SimulationEnd = rpc:call(Node,
                                              application,
                                              get_env,
@@ -203,7 +173,7 @@ wait_for_completion(IdToNode) ->
                     Acc andalso SimulationEnd
                 end,
                 true,
-                IdToNode
+                NameToNode
              )
         end,
         100,      %% 100 retries
@@ -218,9 +188,8 @@ wait_for_completion(IdToNode) ->
     end.
 
 %% @private Stop nodes.
-stop(IdToNode) ->
-    StopFun = fun({Id, _Node}) ->
-        Name = get_name_from_id(Id),
+stop(NameToNode) ->
+    StopFun = fun({Name, _Node}) ->
         case ct_slave:stop(Name) of
             {ok, _} ->
                 ok;
@@ -228,7 +197,7 @@ stop(IdToNode) ->
                 ct:fail(Error)
         end
     end,
-    lists:foreach(StopFun, IdToNode).
+    lists:foreach(StopFun, NameToNode).
 
 %% @private Start erlang distribution.
 start_erlang_distribution() ->
@@ -244,14 +213,3 @@ start_erlang_distribution() ->
 %% @private
 codepath() ->
     lists:filter(fun filelib:is_dir/1, code:get_path()).
-
-%% @private
-timestamp() ->
-    {Mega, Sec, _Micro} = erlang:timestamp(),
-    Timestamp = Mega * 1000000 + Sec,
-    TaskId = "local",
-    list_to_atom(TaskId ++ "_" ++ integer_to_list(Timestamp)).
-
-%% @private
-get_name_from_id(Id) ->
-    list_to_atom("n" ++ integer_to_list(Id)).
