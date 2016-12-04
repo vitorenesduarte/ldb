@@ -43,6 +43,11 @@ init([]) ->
                   "LDB_STORE",
                   ?DEFAULT_STORE),
 
+    %% Configure extended logging
+    configure_var(ldb_extended_logging,
+                  "LDB_EXTENDED_LOGGING",
+                  "false"),
+
     %% Start peer service
     {ok, _} = ldb_peer_service:start_link(),
 
@@ -54,11 +59,6 @@ init([]) ->
     %% Configure join decompositions
     configure_var(ldb_join_decompositions,
                   "LDB_JOIN_DECOMPOSITIONS",
-                  "false"),
-
-    %% Configure extended logging
-    configure_var(ldb_extended_logging,
-                  "LDB_EXTENDED_LOGGING",
                   "false"),
 
     {ok, _} = ldb_backend:start_link(),
