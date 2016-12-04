@@ -36,7 +36,7 @@
 %% @doc Returns the ldb node id.
 -spec id() -> ldb_node_id().
 id() ->
-    node().
+    application:get_env(?APP, ldb_id, node()).
 
 %% @doc Returns the enabled mode.
 %%      The result can be:
