@@ -34,9 +34,7 @@ start_link() ->
 
 init([]) ->
     %% Configure ldb id
-    configure_var(ldb_id,
-                  "LDB_ID",
-                  "undefined"),
+    configure_id(),
 
     %% Configure peer service
     configure_var(ldb_peer_service,
@@ -117,3 +115,19 @@ configure_var(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
     configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_atom(V) end).
 configure_int(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
     configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_integer(V) end).
+
+%% @private
+configure_id() ->
+    Default = list_to_atom(os:getenv("LDB_ID", "undefined")),
+    Id = application:get_env(?APP,
+                             ldb_id,
+                             Default),
+
+    case Id /= undefined of
+        true ->
+            application:set_env(?APP,
+                                ldb_id,
+                                Id);
+        false ->
+            ok
+    end.
