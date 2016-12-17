@@ -70,7 +70,7 @@ configure() ->
     end,
 
     %% Configure space server
-		case list_to_integer(os:getenv("LDB_SPACE_PORT", "-1")) of
+    case list_to_integer(os:getenv("LDB_SPACE_PORT", "-1")) of
         -1 ->
             ok;
         SpacePort ->
