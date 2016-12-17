@@ -93,5 +93,5 @@ decode(Message) ->
     binary_to_term(Message).
 
 %% @private
-handle_message({forward_message, {Module, Function}, Message}) ->
-    erlang:apply(Module, Function, [Message]).
+handle_message({forward_message, Handler, Message}) ->
+    gen_server:cast(Handler, Message).

@@ -9,11 +9,11 @@
 -type operation() :: term().
 
 %% peer service
--type ldb_node_id() :: node() | atom(). %% default | or you can set the id (global unique)
+-type ldb_node_id() :: atom(). %% default | or you can set the id (global unique)
 -type node_ip() :: inet:ip_address().
 -type node_port() :: non_neg_integer().
--type node_info() :: {ldb_node_id(), node_ip(), node_port()}.
--type handler() :: {term(), term()}. %% {module, function}
+-type node_spec() :: {ldb_node_id(), node_ip(), node_port()}.
+-type handler() :: term(). %% module
 -type message() :: term().
 -define(TCP_OPTIONS, [binary, {active, true}, {packet, 4}, {keepalive, true}]).
 -define(SPACE_TCP_OPTIONS, [list, {packet, line}]).

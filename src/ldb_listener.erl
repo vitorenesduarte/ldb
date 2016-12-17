@@ -56,13 +56,9 @@ handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({handle_message, Message}, State) ->
+handle_cast(Message, State) ->
     MessageHandler = ldb_backend:message_handler(Message),
     MessageHandler(Message),
-    {noreply, State};
-
-handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->

@@ -117,7 +117,7 @@ do_send(LDBId, Message) ->
     log_transmission(Message),
     Result = ldb_peer_service:forward_message(
         LDBId,
-        {ldb_listener, handle_message},
+        ldb_listener,
         Message
     ),
 

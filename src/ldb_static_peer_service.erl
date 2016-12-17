@@ -31,7 +31,7 @@
          members/0,
          join/1,
          forward_message/3,
-         get_node_info/0]).
+         get_node_spec/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -55,18 +55,18 @@ start_link() ->
 members() ->
     gen_server:call(?MODULE, members, infinity).
 
--spec join(node_info()) -> ok | error().
-join(NodeInfo) ->
-    gen_server:call(?MODULE, {join, NodeInfo}, infinity).
+-spec join(node_spec()) -> ok | error().
+join(NodeSpec) ->
+    gen_server:call(?MODULE, {join, NodeSpec}, infinity).
 
 -spec forward_message(ldb_node_id(), handler(), message()) ->
     ok | error().
 forward_message(LDBId, Handler, Message) ->
     gen_server:call(?MODULE, {forward_message, LDBId, Handler, Message}, infinity).
 
--spec get_node_info() -> {ok, node_info()}.
-get_node_info() ->
-    gen_server:call(?MODULE, get_node_info, infinity).
+-spec get_node_spec() -> {ok, node_spec()}.
+get_node_spec() ->
+    gen_server:call(?MODULE, get_node_spec, infinity).
 
 %% gen_server callbacks
 init([]) ->
@@ -81,7 +81,7 @@ handle_call(members, _From, #state{connected=Connected}=State) ->
     Result = {ok, orddict:fetch_keys(Connected)},
     {reply, Result, State};
 
-handle_call({join, {LDBId, {_, _, _, _}=Ip, Port}=NodeInfo}, _From,
+handle_call({join, {LDBId, {_, _, _, _}=Ip, Port}=NodeSpec}, _From,
             #state{connected=Connected0}=State) ->
     {Result, Connected1} = case orddict:find(LDBId, Connected0) of
         {ok, _} ->
@@ -93,7 +93,7 @@ handle_call({join, {LDBId, {_, _, _, _}=Ip, Port}=NodeInfo}, _From,
                     gen_tcp:controlling_process(Socket, Pid),
                     {ok, orddict:store(LDBId, Pid, Connected0)};
                 Error ->
-                    ldb_log:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeInfo, Error]),
+                    ldb_log:info("Error handling join call on node ~p to node ~p. Reason ~p", [node(), NodeSpec, Error]),
                     {Error, Connected0}
             end
     end,
@@ -110,10 +110,10 @@ handle_call({forward_message, LDBId, Handler, Message}, _From, #state{connected=
 
     {reply, Result, State};
 
-handle_call(get_node_info, _From, #state{ip=Ip, port=Port}=State) ->
+handle_call(get_node_spec, _From, #state{ip=Ip, port=Port}=State) ->
     Id = ldb_config:id(),
-    NodeInfo = {Id, Ip, Port},
-    Result = {ok, NodeInfo},
+    NodeSpec = {Id, Ip, Port},
+    Result = {ok, NodeSpec},
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
@@ -158,6 +158,7 @@ get_ip_and_port() ->
 
     {IP, Port}.
 
+%% @private
 random_port() ->
     rand_compat:seed(erlang:phash2([node()]),
                      erlang:monotonic_time(),
