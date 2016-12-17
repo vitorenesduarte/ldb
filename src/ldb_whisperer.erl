@@ -60,7 +60,7 @@ init([]) ->
             ok
     end,
 
-    ldb_log:info("ldb_whisperer initialized!", extended),
+    ldb_log:info("ldb_whisperer initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->

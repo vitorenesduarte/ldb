@@ -68,7 +68,7 @@ fold(Function, Acc) ->
 init([]) ->
     ETS = ets:new(node(), [ordered_set, private]),
 
-    ldb_log:info("ldb_ets_store initialized!", extended),
+    ldb_log:info("ldb_ets_store initialized!"),
     {ok, #state{ets_id=ETS}}.
 
 handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->

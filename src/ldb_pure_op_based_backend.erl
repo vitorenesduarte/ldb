@@ -109,7 +109,7 @@ init([]) ->
     %% Start check resend timer.
     schedule_check_resend(),
 
-    ldb_log:info("ldb_pure_op_based_backend initialized!", extended),
+    ldb_log:info("ldb_pure_op_based_backend initialized!"),
 
     {ok, #state{actor=Actor,
                 vc=VClock,

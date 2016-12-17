@@ -25,3 +25,4 @@
 %% defaults
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_STORE, ldb_ets_store).
+-define(DEFAULT_SPACE_PORT, 6717).

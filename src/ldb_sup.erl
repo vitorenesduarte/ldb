@@ -32,10 +32,12 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
+    configure(),
+
     Backend = {ldb_backend,
                {ldb_backend, start_link, []},
                permanent, 5000, worker, [ldb_backend]},
-    
+
     Whisperer = {ldb_whisperer,
                  {ldb_whisperer, start_link, []},
                  permanent, 5000, worker, [ldb_whisperer]},
@@ -44,28 +46,33 @@ init([]) ->
                 {ldb_listener, start_link, []},
                 permanent, 5000, worker, [ldb_listener]},
 
-    BaseSpecs = [Backend,
-                 Whisperer,
-                 Listener],
+    SpaceServer = {ldb_space_server,
+                   {ldb_space_server, start_link, []},
+                   permanent, 5000, worker, [ldb_space_server]},
 
-    SpaceSpecs = space_specs(),
-
-    Children = BaseSpecs ++ SpaceSpecs,
+    Children = [Backend,
+                Whisperer,
+                Listener,
+                SpaceServer],
 
     ldb_log:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
     {ok, {RestartStrategy, Children}}.
 
 %% @private
-space_specs() ->
-    %% Configure space server
-    SpaceServerPort = list_to_integer(os:getenv("LDB_PORT", "-1")),
+configure() ->
+    %% Configure mode
+    case list_to_atom(os:getenv("LDB_MODE", "undefined")) of
+        undefined ->
+            ok;
+        Mode ->
+            ldb_config:set(ldb_mode, Mode)
+    end,
 
-    case SpaceServerPort of
+    %% Configure space server
+		case list_to_integer(os:getenv("LDB_SPACE_PORT", "-1")) of
         -1 ->
-            [];
-        _ ->
-            [{ldb_space_server,
-              {ldb_space_server, start_link, [SpaceServerPort]},
-              permanent, 5000, worker, [ldb_space_server]}]
+            ok;
+        SpacePort ->
+            ldb_config:set(ldb_space_port, SpacePort)
     end.

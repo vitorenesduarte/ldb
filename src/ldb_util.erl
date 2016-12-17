@@ -52,7 +52,7 @@ get_backend() ->
             ldb_state_based_backend;
         delta_based ->
             ldb_delta_based_backend;
-        pure_op_backed ->
+        pure_op_based ->
             ldb_pure_op_based_backend
     end.
 

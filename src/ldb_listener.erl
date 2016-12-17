@@ -49,7 +49,7 @@ handle_message(Message) ->
 
 %% gen_server callbacks
 init([]) ->
-    ldb_log:info("ldb_listener initialized!", extended),
+    ldb_log:info("ldb_listener initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
