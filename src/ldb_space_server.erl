@@ -25,7 +25,7 @@
 -behaviour(gen_server).
 
 %% ldb_space_server callbacks
--export([start_link/0]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -37,13 +37,12 @@
 
 -record(state, {listener :: gen_tcp:socket()}).
 
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+-spec start_link(node_port()) -> {ok, pid()} | ignore | {error, term()}.
+start_link(Port) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Port], []).
 
 %% gen_server callbacks
-init([]) ->
-    Port = ldb_config:get(ldb_space_port, ?DEFAULT_SPACE_PORT),
+init([Port]) ->
     {ok, Listener} = gen_tcp:listen(Port, ?SPACE_TCP_OPTIONS),
 
     prepare_accept(),

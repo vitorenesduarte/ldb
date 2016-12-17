@@ -46,14 +46,11 @@ init([]) ->
                 {ldb_listener, start_link, []},
                 permanent, 5000, worker, [ldb_listener]},
 
-    SpaceServer = {ldb_space_server,
-                   {ldb_space_server, start_link, []},
-                   permanent, 5000, worker, [ldb_space_server]},
-
-    Children = [Backend,
-                Whisperer,
-                Listener,
-                SpaceServer],
+    BaseSpecs = [Backend,
+                 Whisperer,
+                 Listener],
+    SpaceSpecs = space_specs(),
+    Children = BaseSpecs ++ SpaceSpecs,
 
     ldb_log:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
@@ -67,12 +64,16 @@ configure() ->
             ok;
         Mode ->
             ldb_config:set(ldb_mode, Mode)
-    end,
+    end.
 
-    %% Configure space server
+%% @private
+space_specs() ->
+    %% the space server is only started if LDB_SPACE_PORT is defined
     case list_to_integer(os:getenv("LDB_SPACE_PORT", "-1")) of
         -1 ->
-            ok;
+            [];
         SpacePort ->
-            ldb_config:set(ldb_space_port, SpacePort)
+            [{ldb_space_server,
+              {ldb_space_server, start_link, [SpacePort]},
+              permanent, 5000, worker, [ldb_space_server]}]
     end.
