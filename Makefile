@@ -29,7 +29,7 @@ packageclean:
 
 check: test xref dialyzer lint
 
-test: ct eunit
+test: eunit
 
 lint:
 	${REBAR} as lint lint
@@ -39,13 +39,6 @@ eqc:
 
 eunit:
 	${REBAR} as test eunit
-
-ct:
-	pkill -9 beam.smp; ${REBAR} as test ct --readable=false
-
-cover:
-	pkill -9 beam.smp; ${REBAR} as test ct --cover ; \
-		${REBAR} cover
 
 shell:
 	${REBAR} shell --apps ldb

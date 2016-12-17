@@ -23,6 +23,5 @@
 -type mclock() :: orddict:orddict().
 
 %% defaults
--define(DEFAULT_MODE, "state_based").
--define(DEFAULT_STORE, "ldb_ets_store").
--define(DEFAULT_PEER_SERVICE, "ldb_static_peer_service").
+-define(DEFAULT_MODE, state_based).
+-define(DEFAULT_STORE, ldb_ets_store).

@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -23,8 +22,9 @@
 
 -include("ldb.hrl").
 
--export([start_link/0,
-         create/2,
+-export([start_link/0]).
+
+-export([create/2,
          query/1,
          update/2,
          message_maker/0,
@@ -79,5 +79,5 @@ message_handler(Message) ->
 
 %% @private Execute call to the proper backend.
 do(Function, Args) ->
-    Backend = ldb_config:backend(),
+    Backend = ldb_util:get_backend(),
     erlang:apply(Backend, Function, Args).

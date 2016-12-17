@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -25,11 +24,10 @@
 
 %% ldb_util callbacks
 -export([get_type/1,
-         wait_until/3,
+         get_backend/0,
          timestamp/0,
          atom_to_binary/1,
-         binary_to_atom/1,
-         read_lines/1]).
+         binary_to_atom/1]).
 
 %% @doc Returns the actual type in types repository
 %%      (https://github.com/lasp-lang/types)
@@ -37,7 +35,7 @@
 get_type(Type) ->
     Map = types_map(),
     {State, Op} = orddict:fetch(Type, Map),
-    case ldb_config:mode() of
+    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
         state_based ->
             State;
         delta_based ->
@@ -46,17 +44,16 @@ get_type(Type) ->
             Op
     end.
 
-%% @todo add spec
-%% @doc Wait until `Fun' returns true or `Retry' reaches 0.
-%%      The sleep time between retries is `Delay'.
-wait_until(_Fun, 0, _Delay) -> fail;
-wait_until(Fun, Retry, Delay) when Retry > 0 ->
-    case Fun() of
-        true ->
-            ok;
-        _ ->
-            timer:sleep(Delay),
-            wait_until(Fun, Retry - 1, Delay)
+%% @doc Returns the proper backend.
+-spec get_backend() -> atom().
+get_backend() ->
+    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
+        state_based ->
+            ldb_state_based_backend;
+        delta_based ->
+            ldb_delta_based_backend;
+        pure_op_backed ->
+            ldb_pure_op_based_backend
     end.
 
 %% @doc Returns unix timestamp
@@ -74,25 +71,6 @@ atom_to_binary(Atom) ->
 -spec binary_to_atom(binary()) -> atom().
 binary_to_atom(Binary) ->
     erlang:binary_to_atom(Binary, utf8).
-
-%% @doc
--spec read_lines(string()) -> [string()].
-read_lines(FilePath) ->
-    {ok, FileDescriptor} = file:open(FilePath, [read]),
-    Lines = get_lines(FilePath, FileDescriptor),
-    Lines.
-
-%% @private
-get_lines(FilePath, FileDescriptor) ->
-    case io:get_line(FileDescriptor, '') of
-        eof ->
-            [];
-        {error, Error} ->
-            ldb_log:warning("Error while reading line from file ~p. Error: ~p", [FilePath, Error]),
-            [];
-        Line ->
-            [Line | get_lines(FilePath, FileDescriptor)]
-    end.
 
 %% @private
 types_map() ->

@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -33,101 +32,40 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    %% Configure ldb id
-    configure_id(),
+    Backend = {ldb_backend,
+               {ldb_backend, start_link, []},
+               permanent, 5000, worker, [ldb_backend]},
+    
+    Whisperer = {ldb_whisperer,
+                 {ldb_whisperer, start_link, []},
+                 permanent, 5000, worker, [ldb_whisperer]},
 
-    %% Configure peer service
-    configure_var(ldb_peer_service,
-                  "LDB_PEER_SERVICE",
-                  ?DEFAULT_PEER_SERVICE),
+    Listener = {ldb_listener,
+                {ldb_listener, start_link, []},
+                permanent, 5000, worker, [ldb_listener]},
 
-    %% Configure store
-    configure_var(ldb_store,
-                  "LDB_STORE",
-                  ?DEFAULT_STORE),
+    BaseSpecs = [Backend,
+                 Whisperer,
+                 Listener],
 
-    %% Configure extended logging
-    configure_var(ldb_extended_logging,
-                  "LDB_EXTENDED_LOGGING",
-                  "false"),
+    SpaceSpecs = space_specs(),
 
-    %% Start peer service
-    {ok, _} = ldb_peer_service:start_link(),
+    Children = BaseSpecs ++ SpaceSpecs,
 
-    %% Configure mode
-    configure_var(ldb_mode,
-                  "LDB_MODE",
-                  ?DEFAULT_MODE),
+    ldb_log:info("ldb_sup initialized!"),
+    RestartStrategy = {one_for_one, 5, 10},
+    {ok, {RestartStrategy, Children}}.
 
-    %% Configure join decompositions
-    configure_var(ldb_join_decompositions,
-                  "LDB_JOIN_DECOMPOSITIONS",
-                  "false"),
-
-    {ok, _} = ldb_backend:start_link(),
-    {ok, _} = ldb_whisperer:start_link(),
-    {ok, _} = ldb_listener:start_link(),
-
+%% @private
+space_specs() ->
     %% Configure space server
-    SpaceServerPort = configure_int(ldb_port,
-                                    "LDB_PORT",
-                                    "-1"),
+    SpaceServerPort = list_to_integer(os:getenv("LDB_PORT", "-1")),
 
     case SpaceServerPort of
         -1 ->
-            %% don't start the space server
-            ok;
+            [];
         _ ->
-            {ok, _} = ldb_space_server:start_link(SpaceServerPort)
-    end,
-
-    %% Configure simulation
-    Simulation = application:get_env(?APP,
-                                     ldb_simulation,
-                                     undefined),
-    case Simulation of
-        basic ->
-            {ok, _} = ldb_basic_simulation:start_link();
-        undefined ->
-            ok
-    end,
-
-    ldb_log:info("ldb_sup initialized!"),
-    RestartStrategy = {one_for_one, 10, 10},
-    {ok, {RestartStrategy, []}}.
-
-
-%% @private
-configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, ParseFun) ->
-    Default = ParseFun(
-        os:getenv(EnvironmentVariable, EnvironmentDefault)
-    ),
-    Value = application:get_env(?APP,
-                                LDBVariable,
-                                Default),
-    application:set_env(?APP,
-                        LDBVariable,
-                        Value),
-    Value.
-
-%% @private
-configure_var(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
-    configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_atom(V) end).
-configure_int(LDBVariable, EnvironmentVariable, EnvironmentDefault) ->
-    configure(LDBVariable, EnvironmentVariable, EnvironmentDefault, fun(V) -> list_to_integer(V) end).
-
-%% @private
-configure_id() ->
-    Default = list_to_atom(os:getenv("LDB_ID", "undefined")),
-    Id = application:get_env(?APP,
-                             ldb_id,
-                             Default),
-
-    case Id /= undefined of
-        true ->
-            application:set_env(?APP,
-                                ldb_id,
-                                Id);
-        false ->
-            ok
+            [{ldb_space_server,
+              {ldb_space_server, start_link, [SpaceServerPort]},
+              permanent, 5000, worker, [ldb_space_server]}]
     end.

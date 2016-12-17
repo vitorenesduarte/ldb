@@ -51,7 +51,7 @@ send(LDBId, Message) ->
 
 %% gen_server callbacks
 init([]) ->
-    case ldb_config:mode() of
+    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
         state_based ->
             schedule_state_sync();
         delta_based ->

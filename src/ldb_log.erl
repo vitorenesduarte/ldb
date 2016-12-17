@@ -43,7 +43,7 @@ info(S, Args) ->
 
 -spec info(string(), list(), extended) -> ok.
 info(S, Args, extended) ->
-    case ldb_config:extended_logging() of
+    case ldb_config:get(extended_logging, false) of
         true ->
             handle(lager:info(S, Args));
         false ->

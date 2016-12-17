@@ -67,5 +67,5 @@ fold(Function, Acc) ->
 
 %% @private Execute call to the proper store.
 do(Function, Args) ->
-    Store = ldb_config:store(),
+    Store = ldb_config:get(ldb_store, ?DEFAULT_STORE),
     erlang:apply(Store, Function, Args).

@@ -106,7 +106,7 @@ message_handler({_, delta_send, _, _, _}) ->
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
-                {Sequence, DeltaBuffer} = case ldb_config:join_decompositions() of
+                {Sequence, DeltaBuffer} = case ldb_config:get(join_decompositions, false) of
                     true ->
                         Delta = Type:delta(state_driven, RemoteCRDT, LocalCRDT),
 

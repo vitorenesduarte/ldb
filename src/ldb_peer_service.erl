@@ -23,8 +23,7 @@
 
 -include("ldb.hrl").
 
--export([start_link/0,
-         members/0,
+-export([members/0,
          join/1,
          forward_message/3,
          get_node_spec/0]).
@@ -42,13 +41,14 @@
 %% @doc Retrieves the node spec: {name, ip, port}
 -callback get_node_spec() -> {ok, node_spec()}.
 
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    do(start_link, []).
-
 -spec members() -> {ok, [ldb_node_id()]}.
 members() ->
-    do(members, []).
+    case peer_service_defined() of
+        true ->
+            do(members, []);
+        false ->
+            {ok, []}
+    end.
 
 -spec join(node_spec()) -> ok | error().
 join(NodeSpec) ->
@@ -65,5 +65,9 @@ get_node_spec() ->
 
 %% @private Execute call to the proper peer service.
 do(Function, Args) ->
-    Store = ldb_config:peer_service(),
-    erlang:apply(Store, Function, Args).
+    PeerService = ldb_config:get(ldb_peer_service),
+    erlang:apply(PeerService, Function, Args).
+
+%% @private check if we have a peer service defined.
+peer_service_defined() ->
+    ldb_config:get(ldb_peer_service, undefined) /= undefined.
