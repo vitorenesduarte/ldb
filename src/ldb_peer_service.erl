@@ -46,7 +46,7 @@ members() ->
     case peer_service_defined() of
         true ->
             {ok, Members} = do(members, []),
-            {ok, Members -- ldb_config:id()};
+            {ok, Members -- [ldb_config:id()]};
         false ->
             {ok, []}
     end.
