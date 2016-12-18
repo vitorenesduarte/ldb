@@ -39,7 +39,7 @@
     ok | error().
 
 %% @doc Retrieves the node spec: {name, ip, port}
--callback myself() -> {ok, node_spec()}.
+-callback myself() -> node_spec().
 
 -spec members() -> {ok, [ldb_node_id()]}.
 members() ->
@@ -59,7 +59,7 @@ join(NodeSpec) ->
 forward_message(LDBId, Handler, Message) ->
     do(forward_message, [LDBId, Handler, Message]).
 
--spec myself() -> {ok, node_spec()}.
+-spec myself() -> node_spec().
 myself() ->
     do(myself, []).
 
