@@ -26,7 +26,7 @@
 -export([members/0,
          join/1,
          forward_message/3,
-         get_node_spec/0]).
+         myself/0]).
 
 %% @doc Return a list of neighbors
 -callback members() -> {ok, [ldb_node_id()]}.
@@ -39,7 +39,7 @@
     ok | error().
 
 %% @doc Retrieves the node spec: {name, ip, port}
--callback get_node_spec() -> {ok, node_spec()}.
+-callback myself() -> {ok, node_spec()}.
 
 -spec members() -> {ok, [ldb_node_id()]}.
 members() ->
@@ -59,9 +59,9 @@ join(NodeSpec) ->
 forward_message(LDBId, Handler, Message) ->
     do(forward_message, [LDBId, Handler, Message]).
 
--spec get_node_spec() -> {ok, node_spec()}.
-get_node_spec() ->
-    do(get_node_spec, []).
+-spec myself() -> {ok, node_spec()}.
+myself() ->
+    do(myself, []).
 
 %% @private Execute call to the proper peer service.
 do(Function, Args) ->
