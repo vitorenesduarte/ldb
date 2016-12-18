@@ -25,8 +25,7 @@
 -behaviour(gen_server).
 
 %% ldb_listener callbacks
--export([start_link/0,
-         handle_message/1]).
+-export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -41,10 +40,6 @@
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
--spec handle_message(term()) -> ok.
-handle_message(Message) ->
-    gen_server:cast(?MODULE, {handle_message, Message}).
 
 %% gen_server callbacks
 init([]) ->
