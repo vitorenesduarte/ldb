@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -26,8 +25,7 @@
 -behaviour(gen_server).
 
 %% ldb_space_server callbacks
--export([start_link/0,
-         start_link/1]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -38,12 +36,6 @@
          code_change/3]).
 
 -record(state, {listener :: gen_tcp:socket()}).
-
--define(SPACE_PORT, 6717).
-
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    start_link(?SPACE_PORT).
 
 -spec start_link(node_port()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(Port) ->

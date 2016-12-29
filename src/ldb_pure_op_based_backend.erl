@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -109,7 +108,7 @@ init([]) ->
     %% Start check resend timer.
     schedule_check_resend(),
 
-    ldb_log:info("ldb_pure_op_based_backend initialized!", extended),
+    ldb_log:info("ldb_pure_op_based_backend initialized!"),
 
     {ok, #state{actor=Actor,
                 vc=VClock,

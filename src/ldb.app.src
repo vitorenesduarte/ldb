@@ -7,8 +7,6 @@
                   kernel,
                   stdlib,
                   crypto,
-                  bson,
-                  mongodb,
                   jsx,
                   inets,
                   lager,

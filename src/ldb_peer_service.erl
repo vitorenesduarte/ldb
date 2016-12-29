@@ -23,34 +23,35 @@
 
 -include("ldb.hrl").
 
--export([start_link/0,
-         members/0,
+-export([members/0,
          join/1,
          forward_message/3,
-         get_node_info/0]).
+         myself/0]).
 
 %% @doc Return a list of neighbors
 -callback members() -> {ok, [ldb_node_id()]}.
 
 %% @doc Attempt to join node.
--callback join(node_info()) -> ok | error().
+-callback join(node_spec()) -> ok | error().
 
 %% @doc Send a message to a node.
 -callback forward_message(ldb_node_id(), handler(), message()) ->
     ok | error().
 
-%% @doc Retrieves the node info: {name, ip, port}
--callback get_node_info() -> {ok, node_info()}.
-
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    do(start_link, []).
+%% @doc Retrieves the node spec: {name, ip, port}
+-callback myself() -> node_spec().
 
 -spec members() -> {ok, [ldb_node_id()]}.
 members() ->
-    do(members, []).
+    case peer_service_defined() of
+        true ->
+            {ok, Members} = do(members, []),
+            {ok, Members -- [ldb_config:id()]};
+        false ->
+            {ok, []}
+    end.
 
--spec join(node_info()) -> ok | error().
+-spec join(node_spec()) -> ok | error().
 join(NodeSpec) ->
     do(join, [NodeSpec]).
 
@@ -59,11 +60,15 @@ join(NodeSpec) ->
 forward_message(LDBId, Handler, Message) ->
     do(forward_message, [LDBId, Handler, Message]).
 
--spec get_node_info() -> {ok, node_info()}.
-get_node_info() ->
-    do(get_node_info, []).
+-spec myself() -> node_spec().
+myself() ->
+    do(myself, []).
 
 %% @private Execute call to the proper peer service.
 do(Function, Args) ->
-    Store = ldb_config:peer_service(),
-    erlang:apply(Store, Function, Args).
+    PeerService = ldb_config:get(ldb_peer_service),
+    erlang:apply(PeerService, Function, Args).
+
+%% @private check if we have a peer service defined.
+peer_service_defined() ->
+    ldb_config:get(ldb_peer_service, undefined) /= undefined.

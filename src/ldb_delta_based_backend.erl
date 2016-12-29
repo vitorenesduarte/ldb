@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -106,7 +105,7 @@ message_handler({_, delta_send, _, _, _}) ->
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
-                {Sequence, DeltaBuffer} = case ldb_config:join_decompositions() of
+                {Sequence, DeltaBuffer} = case ldb_config:get(ldb_join_decompositions, false) of
                     true ->
                         Delta = Type:delta(state_driven, RemoteCRDT, LocalCRDT),
 
@@ -180,7 +179,7 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    ldb_log:info("ldb_delta_based_backend initialized!", extended),
+    ldb_log:info("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->

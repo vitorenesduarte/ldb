@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -26,8 +25,7 @@
 -behaviour(gen_server).
 
 %% ldb_listener callbacks
--export([start_link/0,
-         handle_message/1]).
+-export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -43,26 +41,18 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec handle_message(term()) -> ok.
-handle_message(Message) ->
-    gen_server:cast(?MODULE, {handle_message, Message}).
-
 %% gen_server callbacks
 init([]) ->
-    ldb_log:info("ldb_listener initialized!", extended),
+    ldb_log:info("ldb_listener initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
     ldb_log:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({handle_message, Message}, State) ->
+handle_cast(Message, State) ->
     MessageHandler = ldb_backend:message_handler(Message),
     MessageHandler(Message),
-    {noreply, State};
-
-handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->

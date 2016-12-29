@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -43,7 +42,7 @@ info(S, Args) ->
 
 -spec info(string(), list(), extended) -> ok.
 info(S, Args, extended) ->
-    case ldb_config:extended_logging() of
+    case ldb_config:get(ldb_extended_logging, false) of
         true ->
             handle(lager:info(S, Args));
         false ->

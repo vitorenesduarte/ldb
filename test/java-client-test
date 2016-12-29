@@ -1,8 +1,19 @@
 #!/bin/bash
-# To be ran from repo root folder
-make
-pkill -9 beam.smp; LDB_PORT=6717 make shell &
+
+# Build ldb
+make stage
+
+# Clone the java client
 rm -rf ldb-java-client/
 git clone https://github.com/vitorenesduarte/ldb-java-client
-cd ldb-java-client
-mvn -q test
+
+# For each mode
+for MODE in state_based delta_based; do
+  # Stop any running processes
+  pkill -9 beam.smp
+  # Start ldb
+  LDB_MODE=$MODE LDB_SPACE_PORT=6717 _build/default/rel/ldb/bin/ldb start
+  # Run the java client
+  sleep 10
+  (cd ldb-java-client; mvn -q test)
+done

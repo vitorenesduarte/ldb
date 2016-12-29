@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -51,7 +50,7 @@ send(LDBId, Message) ->
 
 %% gen_server callbacks
 init([]) ->
-    case ldb_config:mode() of
+    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
         state_based ->
             schedule_state_sync();
         delta_based ->
@@ -60,7 +59,7 @@ init([]) ->
             ok
     end,
 
-    ldb_log:info("ldb_whisperer initialized!", extended),
+    ldb_log:info("ldb_whisperer initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
@@ -117,7 +116,7 @@ do_send(LDBId, Message) ->
     log_transmission(Message),
     Result = ldb_peer_service:forward_message(
         LDBId,
-        {ldb_listener, handle_message},
+        ldb_listener,
         Message
     ),
 
@@ -140,5 +139,8 @@ log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) ->
     log_transmission(tcbcast, {Op, MessageActor, MessageVC, From});
 log_transmission({tcbcast_ack, MessageActor, MessageVC, From}) ->
     log_transmission(tcbcast_ack, {MessageActor, MessageVC, From}).
-log_transmission(Type, Payload) ->
-    ldb_instrumentation:transmission(Type, Payload).
+%% @todo
+log_transmission(_, _) ->
+    ok.
+%%log_transmission(Type, Payload) ->
+%%    ldb_instrumentation:transmission(Type, Payload).
