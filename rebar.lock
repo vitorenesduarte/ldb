@@ -16,5 +16,5 @@
   0},
  {<<"types">>,
   {git,"https://github.com/lasp-lang/types",
-       {ref,"6f5d08879b4489893f3928e809357d3661782e36"}},
+       {ref,"ccd8967b74314bc1ffb98a868b3a59aee678b821"}},
   0}].
