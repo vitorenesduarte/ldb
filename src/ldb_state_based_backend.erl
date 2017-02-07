@@ -29,7 +29,8 @@
 -export([start_link/0,
          create/2,
          query/1,
-         update/2,
+%% @todo TUTORIAL HACK
+         update/3,
          message_maker/0,
          message_handler/1]).
 
@@ -55,9 +56,10 @@ create(Key, Type) ->
 query(Key) ->
     gen_server:call(?MODULE, {query, Key}, infinity).
 
--spec update(key(), operation()) -> ok | not_found() | error().
-update(Key, Operation) ->
-    gen_server:call(?MODULE, {update, Key, Operation}, infinity).
+%% @todo TUTORIAL HACK
+-spec update(term(), key(), operation()) -> ok | not_found() | error().
+update(Actor, Key, Operation) ->
+    gen_server:call(?MODULE, {update, Actor, Key, Operation}, infinity).
 
 -spec message_maker() -> function().
 message_maker() ->
@@ -105,7 +107,8 @@ handle_call({query, Key}, _From, State) ->
 
     {reply, Result, State};
 
-handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
+%% @todo TUTORIAL HACK
+handle_call({update, Actor, Key, Operation}, _From, #state{actor=_Actor}=State) ->
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, Actor, CRDT)
     end,
