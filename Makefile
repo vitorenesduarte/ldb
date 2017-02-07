@@ -46,6 +46,9 @@ shell:
 java-client-test:
 	./test/java-client-test
 
+tutorial:
+	TUTORIAL=true make shell
+
 ##
 ## Release targets
 ##
