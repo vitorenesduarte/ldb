@@ -36,7 +36,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {nodes :: ordsets::ordset(any())}).
+-record(state, {nodes}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
