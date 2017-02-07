@@ -3,7 +3,7 @@
 -type error() :: {error, atom()}.
 
 %% ldb
--type key() :: string().
+-type key() :: term().
 -type type() :: term().
 -type value() :: term().
 -type operation() :: term().
