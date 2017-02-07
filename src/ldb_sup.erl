@@ -50,7 +50,8 @@ init([]) ->
                  Whisperer,
                  Listener],
     SpaceSpecs = space_specs(),
-    Children = BaseSpecs ++ SpaceSpecs,
+    TutorialSpecs = tutorial_specs(),
+    Children = BaseSpecs ++ SpaceSpecs ++ TutorialSpecs,
 
     ldb_log:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
@@ -76,4 +77,16 @@ space_specs() ->
             [{ldb_space_server,
               {ldb_space_server, start_link, [SpacePort]},
               permanent, 5000, worker, [ldb_space_server]}]
+    end.
+
+%% @private
+tutorial_specs() ->
+    %% the sim actor is only started if TUTORIAL is "true"
+    case list_to_atom(os:getenv("TUTORIAL", "false")) of
+        true ->
+            [{sim,
+              {sim, start_link, []},
+              permanent, 5000, worker, [sim]}];
+        false ->
+            []
     end.
