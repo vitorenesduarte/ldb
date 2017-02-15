@@ -130,10 +130,16 @@ handle_show(Nodes, Key, ShowCRDT, #state{nodes=Connected}=State) ->
             case ordsets:is_element(Node, Connected) of
                 true ->
                     case ldb:query({Node, Key}) of
-                        {ok, Value} ->
+                        {ok, Value0} ->
+                            {ok, {Type, CRDT}} = ldb_store:get({Node, Key}),
+                            Value = case Type == state_mvregister orelse Type == state_awset of
+                                true ->
+                                    sets:to_list(Value0);
+                                false ->
+                                    Value0
+                            end,
                             case ShowCRDT of
                                 true ->
-                                    {ok, {_Type, CRDT}} = ldb_store:get({Node, Key}),
                                     io:format("~p:~nValue: ~p~nState: ~p~n", [Node, Value, CRDT]);
                                 false ->
                                     io:format("~p:~nValue: ~p~n", [Node, Value])
