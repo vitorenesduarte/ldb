@@ -63,7 +63,7 @@ show(Nodes, Key, ShowCRDT) ->
 
 -spec update(sim_nodes(), key(), operation()) -> ok.
 update(Nodes, Key, Op) ->
-    gen_server:call(?MODULE, {update, Nodes, Key, Op}).
+    gen_server:call(?MODULE, {update, Nodes, Key, parse_op(Op)}).
 
 -spec sync(sim_nodes(), key()) -> ok.
 sync(Nodes, Key) ->
@@ -212,3 +212,9 @@ handle_sync(Nodes, Key, #state{nodes=Connected}=State) ->
     ),
 
     {reply, ok, State}.
+
+%% @private
+parse_op({set, V}) ->
+    {set, undefined, V};
+parse_op(Op) ->
+    Op.
