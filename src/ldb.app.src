@@ -10,7 +10,6 @@
                   jsx,
                   inets,
                   lager,
-                  rand_compat,
                   types
                  ]},
   {mod, {ldb_app, []}},
