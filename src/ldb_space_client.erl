@@ -47,15 +47,15 @@ start_link(Socket) ->
     gen_server:start_link(?MODULE, [Socket], []).
 
 init([Socket]) ->
-    ldb_log:info("ldb_space_client initialized! Node ~p listening to new client ~p", [node(), Socket]),
+    ?LOG("ldb_space_client initialized! Node ~p listening to new client ~p", [node(), Socket]),
     {ok, #state{socket=Socket}}.
 
 handle_call(Msg, _From, State) ->
-    ldb_log:warning("Unhandled call message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info({tcp, _, Data}, #state{socket=Socket}=State) ->
@@ -66,7 +66,7 @@ handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
 
 handle_info(Msg, State) ->
-    ldb_log:warning("Unhandled info message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -91,7 +91,7 @@ send(Reply, Socket) ->
         ok ->
             ok;
         Error ->
-            ldb_log:info("Failed to send message: ~p", [Error])
+            ?LOG("Failed to send message: ~p", [Error])
     end.
 
 %% @private
@@ -138,7 +138,7 @@ create_reply(Type, {ok, QueryResult0}) ->
 create_reply(_Type, {error, not_found}) ->
     [{code, ?KEY_NOT_FOUND}];
 create_reply(_Type, Error) ->
-    ldb_log:info("Update request from client produced the following error ~p", [Error]),
+    ?LOG("Update request from client produced the following error ~p", [Error]),
     [{code, ?UNKNOWN}].
 
 %% @private

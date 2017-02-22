@@ -59,11 +59,11 @@ init([]) ->
             ok
     end,
 
-    ldb_log:info("ldb_whisperer initialized!"),
+    ?LOG("ldb_whisperer initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->
-    ldb_log:warning("Unhandled call message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast({send, LDBId, Message}, State) ->
@@ -71,7 +71,7 @@ handle_cast({send, LDBId, Message}, State) ->
     {noreply, State};
 
 handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(state_sync, State) ->
@@ -97,7 +97,7 @@ handle_info(state_sync, State) ->
     {noreply, State};
 
 handle_info(Msg, State) ->
-    ldb_log:warning("Unhandled info message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -124,7 +124,7 @@ do_send(LDBId, Message) ->
         ok ->
             ok;
         Error ->
-            ldb_log:info("Error trying to send message ~p to node ~p. Reason ~p", [Message, LDBId, Error])
+            ?LOG("Error trying to send message ~p to node ~p. Reason ~p", [Message, LDBId, Error])
     end,
     ok.
 

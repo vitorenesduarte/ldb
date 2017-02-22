@@ -86,7 +86,7 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    ldb_log:info("ldb_state_based_backend initialized!"),
+    ?LOG("ldb_state_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
@@ -114,15 +114,15 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
-    ldb_log:warning("Unhandled call message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    ldb_log:warning("Unhandled info message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

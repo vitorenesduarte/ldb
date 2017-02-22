@@ -76,7 +76,7 @@ tcbdeliver(MessageActor, MessageBody, MessageVClock) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(_, _, _) ->
-        ldb_log:warning("message_maker called and it was not supposed to")
+        lager:warning("message_maker called and it was not supposed to")
     end.
 
 -spec message_handler(term()) -> function().
@@ -108,7 +108,7 @@ init([]) ->
     %% Start check resend timer.
     schedule_check_resend(),
 
-    ldb_log:info("ldb_pure_op_based_backend initialized!"),
+    ?LOG("ldb_pure_op_based_backend initialized!"),
 
     {ok, #state{actor=Actor,
                 vc=VClock,
@@ -163,7 +163,7 @@ handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, v
     {reply, Result, State#state{vc=VC1, to_be_ack_queue=ToBeAckQueue1}};
 
 handle_call(Msg, _From, State) ->
-    ldb_log:warning("Unhandled call message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
@@ -172,7 +172,7 @@ handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
         case already_seen_message(MessageVC, VC0, ToBeDeliveredQueue0) of
             true ->
                 %% Already seen, do nothing.
-                ldb_log:info("Ignoring duplicate message from cycle."),
+                ?LOG("Ignoring duplicate message from cycle."),
                 {noreply, State};
             false ->
                 %% Get neighbours
@@ -181,7 +181,7 @@ handle_cast({tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Sender},
                 %% Generate list of peers that need the message (neighbours minus message sender, self and message creator).
                 ToMembers = Members -- [Sender, Actor, MessageActor],
 
-                ldb_log:info("Broadcasting message to peers: ~p", [ToMembers]),
+                ?LOG("Broadcasting message to peers: ~p", [ToMembers]),
 
                 %% Generate message.
                 Msg = {tcbcast, {Key, OperationCode}, MessageActor, MessageVC, Actor},
@@ -268,11 +268,11 @@ handle_cast(check_resend, #state{to_be_ack_queue=ToBeAckQueue0} = State) ->
     {noreply, State#state{to_be_ack_queue=ToBeAckQueue1}};
 
 handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    ldb_log:warning("Unhandled info message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 %% @private

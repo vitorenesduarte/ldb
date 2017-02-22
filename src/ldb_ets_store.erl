@@ -68,7 +68,7 @@ fold(Function, Acc) ->
 init([]) ->
     ETS = ets:new(node(), [ordered_set, private]),
 
-    ldb_log:info("ldb_ets_store initialized!"),
+    ?LOG("ldb_ets_store initialized!"),
     {ok, #state{ets_id=ETS}}.
 
 handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->
@@ -106,15 +106,15 @@ handle_call({fold, Function, Acc}, _From, #state{ets_id=ETS}=State) ->
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
-    ldb_log:warning("Unhandled call message: ~p", [Msg]),
+    lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
 handle_cast(Msg, State) ->
-    ldb_log:warning("Unhandled cast message: ~p", [Msg]),
+    lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    ldb_log:warning("Unhandled info message: ~p", [Msg]),
+    lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

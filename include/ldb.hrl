@@ -26,3 +26,17 @@
 %% defaults
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_STORE, ldb_ets_store).
+
+%% logging
+-define(LOGGING, true).
+-define(LOG(S),
+        ?LOG(S, [])
+       ).
+-define(LOG(S, Args),
+        case ?LOGGING of
+            true ->
+                lager:info(S, Args);
+            false ->
+                ok
+        end
+       ).

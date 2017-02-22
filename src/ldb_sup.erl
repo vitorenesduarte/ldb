@@ -52,7 +52,7 @@ init([]) ->
     SpaceSpecs = space_specs(),
     Children = BaseSpecs ++ SpaceSpecs,
 
-    ldb_log:info("ldb_sup initialized!"),
+    ?LOG("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
     {ok, {RestartStrategy, Children}}.
 
