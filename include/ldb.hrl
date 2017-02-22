@@ -28,7 +28,7 @@
 -define(DEFAULT_STORE, ldb_ets_store).
 
 %% logging
--define(LOGGING, true).
+-define(LOGGING, list_to_atom("true")). %% dialyzer
 -define(LOG(S),
         ?LOG(S, [])
        ).
