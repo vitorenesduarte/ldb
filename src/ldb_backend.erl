@@ -26,7 +26,8 @@
 
 -export([create/2,
          query/1,
-         update/2,
+%% @todo TUTORIAL HACK
+         update/3,
          message_maker/0,
          message_handler/1]).
 
@@ -37,9 +38,10 @@
 -callback query(key()) ->
     {ok, value()} | not_found().
 
+%% @todo TUTORIAL HACK
 %% @doc Update the value associated with a given `key()',
 %%      applying a given `operation()'.
--callback update(key(), operation()) ->
+-callback update(term(), key(), operation()) ->
     ok | not_found() | error().
 
 %% @doc Returns a function that will, given what's in the store,
@@ -64,10 +66,11 @@ create(Key, Type) ->
 query(Key) ->
     do(query, [Key]).
 
--spec update(key(), operation()) ->
+%% @todo TUTORIAL HACK
+-spec update(term(), key(), operation()) ->
     ok | not_found() | error().
-update(Key, Operation) ->
-    do(update, [Key, Operation]).
+update(Actor, Key, Operation) ->
+    do(update, [Actor, Key, Operation]).
 
 -spec message_maker() -> function().
 message_maker() ->

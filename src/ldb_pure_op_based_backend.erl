@@ -29,7 +29,8 @@
 -export([start_link/0,
          create/2,
          query/1,
-         update/2,
+%% @todo TUTORIAL HACK
+         update/3,
          message_maker/0,
          message_handler/1]).
 
@@ -64,9 +65,10 @@ create(Key, Type) ->
 query(Key) ->
     gen_server:call(?MODULE, {query, Key}, infinity).
 
--spec update(key(), operation()) -> ok | not_found() | error().
-update(Key, Operation) ->
-    gen_server:call(?MODULE, {update, Key, Operation}, infinity).
+%% @todo TUTORIAL HACK
+-spec update(term(), key(), operation()) -> ok | not_found() | error().
+update(Actor, Key, Operation) ->
+    gen_server:call(?MODULE, {update, Actor, Key, Operation}, infinity).
 
 %% Deliver a message.
 -spec tcbdeliver(atom(), message(), vclock()) -> ok.
@@ -132,7 +134,8 @@ handle_call({query, Key}, _From, State) ->
     end,
     {reply, Result, State};
 
-handle_call({update, Key, Operation} = MessageBody, _From, #state{actor=Actor, vc=VC0, to_be_ack_queue=ToBeAckQueue0}=State) ->
+%% @todo TUTORIAL HACK
+handle_call({update, Actor, Key, Operation} = MessageBody, _From, #state{actor=_Actor, vc=VC0, to_be_ack_queue=ToBeAckQueue0}=State) ->
 
     %% Increment vclock.
     VC1 = increment_vclock(Actor, VC0),

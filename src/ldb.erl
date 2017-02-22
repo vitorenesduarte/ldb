@@ -24,7 +24,8 @@
 
 -export([create/2,
          query/1,
-         update/2]).
+         update/2,
+         update/3]).
 
 %% @doc Create a `Key' in the store with a given `Type'.
 -spec create(key(), type()) -> ok.
@@ -40,4 +41,8 @@ query(Key) ->
 %%      applying a given `Operation'.
 -spec update(key(), operation()) -> ok | not_found() | error().
 update(Key, Operation) ->
-    ldb_backend:update(Key, Operation).
+    update(node(), Key, Operation).
+
+%% @todo TUTORIAL HACK
+update(Actor, Key, Operation) ->
+    ldb_backend:update(Actor, Key, Operation).
