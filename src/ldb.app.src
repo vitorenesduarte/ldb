@@ -10,7 +10,8 @@
                   jsx,
                   inets,
                   lager,
-                  types
+                  types,
+                  ishikawa
                  ]},
   {mod, {ldb_app, []}},
   {modules, []}
