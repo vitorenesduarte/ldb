@@ -42,7 +42,7 @@
          code_change/3,
          update_stablevv/1]).
 
--record(state, {actor :: non_neg_integer(),
+-record(state, {actor :: ldb_node_id(),
                 vc :: vclock(),
                 svc :: vclock(),
                 rtm :: mclock(),

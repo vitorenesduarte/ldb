@@ -41,7 +41,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: non_neg_integer()}).
+-record(state, {actor :: ldb_node_id()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
