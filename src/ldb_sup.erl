@@ -34,6 +34,8 @@ start_link() ->
 init([]) ->
     configure(),
 
+    Ishikawa = ishikawa_specs(),
+
     Backend = {ldb_backend,
                {ldb_backend, start_link, []},
                permanent, 5000, worker, [ldb_backend]},
@@ -46,9 +48,9 @@ init([]) ->
                 {ldb_listener, start_link, []},
                 permanent, 5000, worker, [ldb_listener]},
 
-    BaseSpecs = [Backend,
-                 Whisperer,
-                 Listener],
+    BaseSpecs = Ishikawa ++ [Backend,
+                             Whisperer,
+                             Listener],
     SpaceSpecs = space_specs(),
     Children = BaseSpecs ++ SpaceSpecs,
 
@@ -64,6 +66,17 @@ configure() ->
             ok;
         Mode ->
             ldb_config:set(ldb_mode, Mode)
+    end.
+
+%% @private
+ishikawa_specs() ->
+    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
+        pure_op_based ->
+            [{ishikawa_sup,
+              {ishikawa_sup, start_link, []},
+              permanent, infinity, supervisor, [ishikawa_sup]}];
+        _ ->
+            []
     end.
 
 %% @private
