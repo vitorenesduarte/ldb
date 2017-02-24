@@ -4,7 +4,7 @@
   1},
  {<<"ishikawa">>,
   {git,"https://github.com/lasp-lang/ishikawa",
-       {ref,"431f1308284e495ffe0ab5bea034c4760528be31"}},
+       {ref,"1403d88aeccf1b8c5fdbdb746b734725928004a9"}},
   0},
  {<<"jsx">>,
   {git,"https://github.com/talentdeficit/jsx",
