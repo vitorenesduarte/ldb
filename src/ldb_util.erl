@@ -71,4 +71,8 @@ types_map() ->
     Map1 = orddict:store(gcounter, {state_gcounter, pure_gcounter}, Map0),
     Map2 = orddict:store(gset, {state_gset, pure_gset}, Map1),
     Map3 = orddict:store(mvmap, {state_mvmap, undefined}, Map2),
-    Map3.
+    Map4 = orddict:store(mvregister, {state_mvregister, pure_mvregister}, Map3),
+    Map5 = orddict:store(awset, {state_awset, pure_awset}, Map4),
+    Map6 = orddict:store(pncounter, {state_pncounter, pure_pncounter}, Map5),
+    Map7 = orddict:store(lwwregister, {state_lwwregister, undefined}, Map6),
+    Map7.
