@@ -25,7 +25,6 @@
 %% ldb_util callbacks
 -export([get_type/1,
          get_backend/0,
-         timestamp/0,
          atom_to_binary/1,
          binary_to_atom/1]).
 
@@ -55,12 +54,6 @@ get_backend() ->
         pure_op_based ->
             ldb_pure_op_based_backend
     end.
-
-%% @doc Returns unix timestamp
--spec timestamp() -> non_neg_integer().
-timestamp() ->
-    {Mega, Sec, _Micro} = erlang:timestamp(),
-    Mega * 1000000 + Sec.
 
 %% @doc
 -spec atom_to_binary(atom()) -> binary().
