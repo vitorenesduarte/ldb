@@ -2,7 +2,7 @@
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"ishikawa">>,
   {git,"https://github.com/lasp-lang/ishikawa",
-       {ref,"407e49f9e9b17890df4dc2dbbe50bd5f13c9994b"}},
+       {ref,"dd77c385ce072eb860d6c26bcdea152e7b2b1dc7"}},
   0},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},0},
