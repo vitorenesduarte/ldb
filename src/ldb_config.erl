@@ -42,6 +42,6 @@ get(Property, Default) ->
 set(Property, Value) ->
     application:set_env(?APP, Property, Value).
 
--spec id() -> atom().
+-spec id() -> ldb_node_id().
 id() ->
     node().
