@@ -1,18 +1,11 @@
-{application, ldb,
- [
-  {description, "Conflict-free Replicated Data Types Database"},
-  {vsn, "0.0.1"},
-  {registered, []},
-  {applications, [
-                  kernel,
-                  stdlib,
-                  crypto,
-                  jsx,
-                  inets,
-                  lager,
-                  types,
-                  ishikawa
-                 ]},
-  {mod, {ldb_app, []}},
-  {modules, []}
- ]}.
+{application,ldb,
+             [{description,"Conflict-free Replicated Data Types Database"},
+              {vsn,"0.0.0"},
+              {registered,[]},
+              {maintainers,["Vitor Enes Duarte","Georges Younes"]},
+              {applications,[kernel,stdlib,crypto,jsx,inets,lager,types,
+                             ishikawa]},
+              {mod,{ldb_app,[]}},
+              {modules,[]},
+              {licenses,["Apache 2.0"]},
+              {links,[{"Github","https://github.com/vitorenesduarte/ldb"}]}]}.

@@ -1,12 +1,22 @@
+{"1.1.0",
 [{<<"acceptor_pool">>,{pkg,<<"acceptor_pool">>,<<"1.0.0-rc.0">>},0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
- {<<"ishikawa">>,
-  {git,"https://github.com/lasp-lang/ishikawa",
-       {ref,"0095b9be8ea3086dc21cdc69581b383c8730daef"}},
-  0},
+ {<<"ishikawa">>,{pkg,<<"ishikawa">>,<<"0.0.1">>},0},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},0},
  {<<"partisan">>,{pkg,<<"partisan">>,<<"0.2.0">>},0},
  {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
- {<<"types">>,{pkg,<<"types">>,<<"0.0.4">>},0}].
+ {<<"types">>,{pkg,<<"types">>,<<"0.0.4">>},0}]}.
+[
+{pkg_hash,[
+ {<<"acceptor_pool">>, <<"679D741DF87FC13599B1AEF2DF8F78F1F880449A6BEFAB7C44FB6FAE0E92A2DE">>},
+ {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
+ {<<"ishikawa">>, <<"EEE932C35F04E201F6019EE4F38EB47E4BC785E47EDD89875106C6D8E95A6D64">>},
+ {<<"jsx">>, <<"749BEC6D205C694AE1786D62CEA6CC45A390437E24835FD16D12D74F07097727">>},
+ {<<"lager">>, <<"A6DEB74DAE7927F46BD13255268308EF03EB206EC784A94EAF7C1C0F3B811615">>},
+ {<<"partisan">>, <<"8E44E20FD2E904D53D8FF2287C1397F71BC9BFF36B4DB6996C207AAFEFBE3ED1">>},
+ {<<"rand_compat">>, <<"624B590931D27252D0BCF710211699DB3695540706F57D2E91B918A17AB58839">>},
+ {<<"time_compat">>, <<"23FE0AD1FDF3B5B88821B2D04B4B5E865BF587AE66056D671FE0F53514ED8139">>},
+ {<<"types">>, <<"B2BC2D58F12D85EFD06BC3A28B3DDE3C5AEF29EFB0FEE71FC2F1B6968C5E0DC1">>}]}
+].
