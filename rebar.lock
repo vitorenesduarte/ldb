@@ -1,4 +1,4 @@
-[{<<"acceptor_pool">>,{pkg,<<"acceptor_pool">>,<<"1.0.0-rc.0">>},2},
+[{<<"acceptor_pool">>,{pkg,<<"acceptor_pool">>,<<"1.0.0-rc.0">>},0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"ishikawa">>,
   {git,"https://github.com/lasp-lang/ishikawa",
@@ -6,13 +6,7 @@
   0},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},0},
- {<<"partisan">>,
-  {git,"https://github.com/lasp-lang/partisan",
-       {ref,"09b2b3f6990056c7513ce582bbbaee3ec1286f45"}},
-  1},
- {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},1},
- {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},1},
- {<<"types">>,
-  {git,"https://github.com/lasp-lang/types",
-       {ref,"a5ebab16eb63e185d7b2fb6a55073e0b4976d599"}},
-  0}].
+ {<<"partisan">>,{pkg,<<"partisan">>,<<"0.2.0">>},0},
+ {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
+ {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
+ {<<"types">>,{pkg,<<"types">>,<<"0.0.4">>},0}].
