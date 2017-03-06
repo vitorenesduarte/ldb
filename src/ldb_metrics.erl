@@ -93,6 +93,9 @@ handle_info(time_series, #state{message_type_to_size=MessageMap,
             Metric = {Timestamp, MetricType, MessageMap},
             lists:append(TimeSeries0, [Metric])
     end,
+
+    schedule_time_series(),
+
     {noreply, State#state{time_series=TimeSeries1}};
 
 handle_info(Msg, State) ->
