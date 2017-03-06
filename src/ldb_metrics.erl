@@ -26,7 +26,7 @@
 
 %% ldb_metrics callbacks
 -export([start_link/0,
-         record_message/1]).
+         record_message/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -42,10 +42,10 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec record_message(message()) -> ok.
-record_message(Message) ->
+-spec record_message(term(), message()) -> ok.
+record_message(Type, Message) ->
     Metrics = get_metrics(Message),
-    gen_server:cast(?MODULE, {metrics, Metrics}).
+    gen_server:cast(?MODULE, {metrics, Type, Metrics}).
 
 %% gen_server callbacks
 init([]) ->
@@ -56,7 +56,7 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({metrics, _Metrics}, State) ->
+handle_cast({metrics, _Type, _Metrics}, State) ->
     {noreply, State}.
 
 handle_info(Msg, State) ->
