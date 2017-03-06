@@ -15,6 +15,7 @@
 -type node_spec() :: {ldb_node_id(), node_ip(), node_port()}.
 -type handler() :: term(). %% module
 -type message() :: term().
+-type timestamp() :: non_neg_integer().
 
 %% space server
 -define(SPACE_TCP_OPTIONS, [list, {packet, line}]).

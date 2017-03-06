@@ -26,7 +26,8 @@
 -export([get_type/1,
          get_backend/0,
          atom_to_binary/1,
-         binary_to_atom/1]).
+         binary_to_atom/1,
+         unix_timestamp/0]).
 
 %% @doc Returns the actual type in types repository
 %%      (https://github.com/lasp-lang/types)
@@ -64,6 +65,12 @@ atom_to_binary(Atom) ->
 -spec binary_to_atom(binary()) -> atom().
 binary_to_atom(Binary) ->
     erlang:binary_to_atom(Binary, utf8).
+
+%% @doc
+-spec unix_timestamp() -> timestamp().
+unix_timestamp() ->
+    {Mega, Sec, _Micro} = erlang:timestamp(),
+    Mega * 1000000 + Sec.
 
 %% @private
 types_map() ->

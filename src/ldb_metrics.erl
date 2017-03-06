@@ -37,7 +37,6 @@
          terminate/2,
          code_change/3]).
 
--type timestamp() :: non_neg_integer().
 -type metric_type() :: message.
 -type metric() :: term().
 -type time_series() :: list({timestamp(), metric_type(), metric()}).
@@ -88,7 +87,7 @@ handle_info(time_series, #state{message_type_to_size=MessageMap,
         true ->
             TimeSeries0;
         false ->
-            Timestamp = unix_timestamp(),
+            Timestamp = ldb_util:unix_timestamp(),
             MetricType = message,
             Metric = {Timestamp, MetricType, MessageMap},
             lists:append(TimeSeries0, [Metric])
@@ -120,8 +119,3 @@ message_metrics(Message) ->
 %% @private
 term_size(T) ->
     byte_size(term_to_binary(T)).
-
-%% @private
-unix_timestamp() ->
-    {Mega, Sec, _Micro} = erlang:timestamp(),
-    Mega * 1000000 + Sec.
