@@ -77,7 +77,6 @@ handle_call(Msg, _From, State) ->
 
 handle_cast({message, Type, Metrics},
             #state{message_type_to_size=Map0}=State) ->
-    lager:info("MESSAGE ~p ~p~n", [Type, Metrics]),
     Size = orddict:fetch(size, Metrics),
     Current = orddict_ext:fetch(Type, Map0, 0),
     Map1 = orddict:store(Type, Current + Size, Map0),
@@ -85,7 +84,6 @@ handle_cast({message, Type, Metrics},
 
 handle_info(time_series, #state{message_type_to_size=MessageMap,
                                 time_series=TimeSeries0}=State) ->
-    lager:info("TS ~p ~p~n", [MessageMap, TimeSeries0]),
     TimeSeries1 = case orddict:is_empty(MessageMap) of
         true ->
             TimeSeries0;
