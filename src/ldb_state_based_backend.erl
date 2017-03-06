@@ -62,13 +62,13 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, CRDT, _NodeName) ->
-        Message = {Key, state_send, CRDT},
+        Message = {Key, state, CRDT},
         {ok, Message}
     end.
 
 -spec message_handler(term()) -> function().
 message_handler(_Message) ->
-    fun({Key, state_send, {Type, _}=RemoteCRDT}) ->
+    fun({Key, state, {Type, _}=RemoteCRDT}) ->
         %% Create a bottom entry (if not present)
         %% @todo support complex types
         _ = ldb_store:create(Key, Type:new()),

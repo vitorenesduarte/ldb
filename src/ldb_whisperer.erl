@@ -113,7 +113,7 @@ schedule_state_sync() ->
 %% @private
 -spec do_send(ldb_node_id(), term()) -> ok.
 do_send(LDBId, Message) ->
-    log_transmission(Message),
+    metrics(Message),
     Result = ldb_peer_service:forward_message(
         LDBId,
         ldb_listener,
@@ -124,23 +124,24 @@ do_send(LDBId, Message) ->
         ok ->
             ok;
         Error ->
-            ?LOG("Error trying to send message ~p to node ~p. Reason ~p", [Message, LDBId, Error])
+            ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
+                 [Message, LDBId, Error])
     end,
     ok.
 
 %% @private
-log_transmission({Key, state_send, CRDT}) ->
-    log_transmission(state_send, {Key, CRDT});
-log_transmission({Key, delta_send, From, Sequence, Delta}) ->
-    log_transmission(delta_send, {Key, From, Sequence, Delta});
-log_transmission({Key, delta_ack, From, Sequence}) ->
-    log_transmission(delta_ack, {Key, From, Sequence});
-log_transmission({tcbcast, Op, MessageActor, MessageVC, From}) ->
-    log_transmission(tcbcast, {Op, MessageActor, MessageVC, From});
-log_transmission({tcbcast_ack, MessageActor, MessageVC, From}) ->
-    log_transmission(tcbcast_ack, {MessageActor, MessageVC, From}).
-%% @todo
-log_transmission(_, _) ->
-    ok.
-%%log_transmission(Type, Payload) ->
-%%    ldb_instrumentation:transmission(Type, Payload).
+metrics({_Key, state, CRDT}) ->
+    record_message(state, {CRDT});
+metrics({_Key, delta, From, Sequence, Delta}) ->
+    record_message(delta, {From, Sequence, Delta});
+metrics({_Key, delta_ack, From, Sequence}) ->
+    record_message(delta_ack, {From, Sequence}).
+
+%% @private
+record_message(Type, Payload) ->
+    case ldb_config:get(ldb_metrics) of
+        true ->
+            ldb_metrics:record_message(Type, Payload);
+        false ->
+            ok
+    end.

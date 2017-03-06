@@ -32,7 +32,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    configure(),
+    BaseSpecs = configure(),
 
     Backend = {ldb_backend,
                {ldb_backend, start_link, []},
@@ -46,11 +46,13 @@ init([]) ->
                 {ldb_listener, start_link, []},
                 permanent, 5000, worker, [ldb_listener]},
 
-    BaseSpecs = [Backend,
-                 Whisperer,
-                 Listener],
+    ReplicationSpecs = [Backend,
+                        Whisperer,
+                        Listener],
+
     SpaceSpecs = space_specs(),
-    Children = BaseSpecs ++ SpaceSpecs,
+
+    Children = BaseSpecs ++ ReplicationSpecs ++ SpaceSpecs,
 
     ?LOG("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
@@ -58,13 +60,32 @@ init([]) ->
 
 %% @private
 configure() ->
-    %% Configure mode
-    case list_to_atom(os:getenv("LDB_MODE", "undefined")) of
-        undefined ->
-            ok;
-        Mode ->
-            ldb_config:set(ldb_mode, Mode)
-    end.
+    %% configure mode
+    configure_var("LDB_MODE",
+                  ldb_mode,
+                  ?DEFAULT_MODE),
+
+    %% configure join decompositions
+    configure_var("LDB_JOIN_DECOMPOSITIONS",
+                  ldb_join_decompositions,
+                  false),
+
+    %% configure metrics
+    Metrics = configure_var("LDB_METRICS",
+                            ldb_metrics,
+                            false),
+
+    BaseSpecs = case Metrics of
+        true ->
+            [{ldb_metrics,
+              {ldb_metrics, start_link, []},
+              permanent, 5000, worker, [ldb_metrics]}];
+        false ->
+            []
+    end,
+
+    BaseSpecs.
+
 
 %% @private
 space_specs() ->
@@ -77,3 +98,15 @@ space_specs() ->
               {ldb_space_server, start_link, [SpacePort]},
               permanent, 5000, worker, [ldb_space_server]}]
     end.
+
+%% @private
+configure_var(Env, Var, Default) ->
+    To = fun(V) -> atom_to_list(V) end,
+    From = fun(V) -> list_to_atom(V) end,
+
+    Current = ldb_config:get(Var, Default),
+    Val = From(
+        os:getenv(Env, To(Current))
+    ),
+    ldb_config:set(Var, Val),
+    Val.

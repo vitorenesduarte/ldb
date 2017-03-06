@@ -87,7 +87,7 @@ message_maker() ->
                         )
                 end,
 
-                Message = {Key, delta_send, ldb_config:id(), Sequence, Delta},
+                Message = {Key, delta, ldb_config:id(), Sequence, Delta},
                 {ok, Message};
             false ->
                 nothing
@@ -95,8 +95,8 @@ message_maker() ->
     end.
 
 -spec message_handler(term()) -> function().
-message_handler({_, delta_send, _, _, _}) ->
-    fun({Key, delta_send, From, N, {Type, _}=RemoteCRDT}) ->
+message_handler({_, delta, _, _, _}) ->
+    fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
         %% Create a bottom entry (if not present)
         %% @todo support complex types
         _ = ldb_store:create(Key, {Type:new(), 0, orddict:new(), orddict:new()}),
@@ -163,12 +163,7 @@ min_seq(DeltaBuffer) ->
 
 %% @private
 last_ack(NodeName, AckMap) ->
-    case orddict:find(NodeName, AckMap) of
-        {ok, Ack} ->
-            Ack;
-        _ ->
-            0
-    end.
+    orddict_ext:fetch(NodeName, AckMap, 0).
 
 %% @private
 send_ack(NodeName, AckMessage) ->
