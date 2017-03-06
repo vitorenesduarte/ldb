@@ -26,6 +26,7 @@
 
 %% ldb_metrics callbacks
 -export([start_link/0,
+         get_time_series/0,
          record_message/2]).
 
 %% gen_server callbacks
@@ -36,14 +37,23 @@
          terminate/2,
          code_change/3]).
 
+-type timestamp() :: non_neg_integer().
+-type metric_type() :: message.
+-type metric() :: term().
+-type time_series() :: list({timestamp(), metric_type(), metric()}).
+
 -record(state, {message_type_to_size :: orddict:orddict(),
-                time_series :: list()}).
+                time_series :: time_series()}).
 
 -define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+-spec get_time_series() -> time_series().
+get_time_series() ->
+    gen_server:call(?MODULE, get_time_series, infinity).
 
 -spec record_message(term(), message()) -> ok.
 record_message(Type, Message) ->
@@ -56,6 +66,10 @@ init([]) ->
     ?LOG("ldb_metrics initialized!"),
     {ok, #state{message_type_to_size=orddict:new(),
                 time_series=[]}}.
+
+handle_call(get_time_series, _From,
+            #state{time_series=TimeSeries}=State) ->
+    {reply, TimeSeries, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
