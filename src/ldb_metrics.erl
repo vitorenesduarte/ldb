@@ -36,9 +36,10 @@
          terminate/2,
          code_change/3]).
 
--record(state, {message_type_to_size :: orddict:orddict()}).
+-record(state, {message_type_to_size :: orddict:orddict(),
+                time_series :: list()}).
 
--define(RECORD_INTERVAL, 1000). %% 1 second.
+-define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -51,7 +52,7 @@ record_message(Type, Message) ->
 
 %% gen_server callbacks
 init([]) ->
-    schedule_record(),
+    schedule_time_series(),
     ?LOG("ldb_metrics initialized!"),
     {ok, #state{message_type_to_size=orddict:new()}}.
 
@@ -66,16 +67,18 @@ handle_cast({message, Type, Metrics},
     Map1 = orddict:store(Type, Current + Size, Map0),
     {noreply, State#state{message_type_to_size=Map1}}.
 
-handle_info(record, #state{message_type_to_size=Map}=State) ->
-    case orddict:is_empty(Map) of
+handle_info(time_series, #state{message_type_to_size=MessageMap,
+                                time_series=TimeSeries0}=State) ->
+    TimeSeries1 = case orddict:is_empty(MessageMap) of
         true ->
-            ok;
+            TimeSeries0;
         false ->
-            %% do stuff
-            _Timestamp = unix_timestamp(),
-            ok
+            Timestamp = unix_timestamp(),
+            MetricType = message,
+            Metric = {Timestamp, MetricType, MessageMap},
+            lists:append(TimeSeries0, [Metric])
     end,
-    {noreply, State};
+    {noreply, State#state{time_series=TimeSeries1}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -88,8 +91,8 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-schedule_record() ->
-    timer:send_after(?RECORD_INTERVAL, record).
+schedule_time_series() ->
+    timer:send_after(?TIME_SERIES_INTERVAL, time_series).
 
 %% @private
 message_metrics(Message) ->
