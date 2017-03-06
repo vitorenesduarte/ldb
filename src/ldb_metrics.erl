@@ -54,7 +54,8 @@ record_message(Type, Message) ->
 init([]) ->
     schedule_time_series(),
     ?LOG("ldb_metrics initialized!"),
-    {ok, #state{message_type_to_size=orddict:new()}}.
+    {ok, #state{message_type_to_size=orddict:new(),
+                time_series=[]}}.
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
