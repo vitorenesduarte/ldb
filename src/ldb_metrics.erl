@@ -36,7 +36,9 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {message_type_to_size :: orddict:orddict()}).
+
+-define(RECORD_INTERVAL, 1000). %% 1 second.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -44,20 +46,36 @@ start_link() ->
 
 -spec record_message(term(), message()) -> ok.
 record_message(Type, Message) ->
-    Metrics = get_metrics(Message),
-    gen_server:cast(?MODULE, {metrics, Type, Metrics}).
+    Metrics = message_metrics(Message),
+    gen_server:cast(?MODULE, {message, Type, Metrics}).
 
 %% gen_server callbacks
 init([]) ->
+    schedule_record(),
     ?LOG("ldb_metrics initialized!"),
-    {ok, #state{}}.
+    {ok, #state{message_type_to_size=orddict:new()}}.
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({metrics, _Type, _Metrics}, State) ->
-    {noreply, State}.
+handle_cast({message, Type, Metrics},
+            #state{message_type_to_size=Map0}=State) ->
+    Size = orddict:fetch(size, Metrics),
+    Current = orddict_ext:fetch(Type, Map0, 0),
+    Map1 = orddict:store(Type, Current + Size, Map0),
+    {noreply, State#state{message_type_to_size=Map1}}.
+
+handle_info(record, #state{message_type_to_size=Map}=State) ->
+    case orddict:is_empty(Map) of
+        true ->
+            ok;
+        false ->
+            %% do stuff
+            _Timestamp = unix_timestamp(),
+            ok
+    end,
+    {noreply, State};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -70,5 +88,19 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-get_metrics(_Message) ->
-    undefined.
+schedule_record() ->
+    timer:send_after(?RECORD_INTERVAL, record).
+
+%% @private
+message_metrics(Message) ->
+    Size = term_size(Message),
+    [{size, Size}].
+
+%% @private
+term_size(T) ->
+    byte_size(term_to_binary(T)).
+
+%% @private
+unix_timestamp() ->
+    {Mega, Sec, _Micro} = erlang:timestamp(),
+    Mega * 1000000 + Sec.

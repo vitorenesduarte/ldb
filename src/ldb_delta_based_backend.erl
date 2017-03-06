@@ -163,12 +163,7 @@ min_seq(DeltaBuffer) ->
 
 %% @private
 last_ack(NodeName, AckMap) ->
-    case orddict:find(NodeName, AckMap) of
-        {ok, Ack} ->
-            Ack;
-        _ ->
-            0
-    end.
+    orddict_ext:fetch(NodeName, AckMap, 0).
 
 %% @private
 send_ack(NodeName, AckMessage) ->
