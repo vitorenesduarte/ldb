@@ -77,7 +77,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% @private
 encode(Message) ->
-    JSONBinary = jsx:encode(Message),
+    JSONBinary = ldb_json:encode(Message),
     iolist_to_binary([JSONBinary, <<"\n">>]).
 
 %% @private
@@ -109,19 +109,14 @@ handle_message(Message, Socket) ->
 
     LDBResult = case Method of
         create ->
-            erlang:apply(ldb, create, [Key, Type]);
+            ldb:create(Key, Type);
         query ->
-            erlang:apply(ldb, query, [Key]);
+            ldb:query(Key);
         update ->
             %% @todo check if the request really has operation defined
             {value, {_, Operation0}} = lists:keysearch(<<"operation">>, 1, Message),
             Operation = parse_operation(Type, Operation0),
-            case erlang:apply(ldb, update, [Key, Operation]) of
-                {ok, _} ->
-                    ok;
-                Else ->
-                    Else
-            end
+            ldb:update(Key, Operation)
     end,
 
     Reply = create_reply(Type, LDBResult),
