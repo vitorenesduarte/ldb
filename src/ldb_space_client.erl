@@ -77,13 +77,12 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% @private
 encode(Message) ->
-    JSONBinary = ldb_json:encode(Message),
-    iolist_to_binary([JSONBinary, <<"\n">>]).
+    Binary = ldb_json:encode(Message),
+    iolist_to_binary([Binary, <<"\n">>]).
 
 %% @private
 decode(Message) ->
-    Binary = list_to_binary(Message),
-    jsx:decode(Binary).
+    ldb_json:decode(Message).
 
 %% @private
 send(Reply, Socket) ->
@@ -96,16 +95,16 @@ send(Reply, Socket) ->
 
 %% @private
 handle_message(Message, Socket) ->
-    %%lager:info("Message received ~p", [Message]),
-
-    {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Message),
-    {value, {_, Method0}} = lists:keysearch(<<"method">>, 1, Message),
-    {value, {_, Type0}} = lists:keysearch(<<"type">>, 1, Message),
+    lager:info("Message received ~p", [Message]),
 
     %% @todo check if the request really has these defined
-    Key = binary_to_list(Key0),
-    Method = ldb_util:binary_to_atom(Method0),
-    Type = ldb_util:binary_to_atom(Type0),
+    Key = maps:get(key, Message),
+    Method = list_to_atom(
+        maps:get(method, Message)
+    ),
+    Type = list_to_atom(
+        maps:get(type, Message)
+    ),
 
     LDBResult = case Method of
         create ->
@@ -114,13 +113,13 @@ handle_message(Message, Socket) ->
             ldb:query(Key);
         update ->
             %% @todo check if the request really has operation defined
-            {value, {_, Operation0}} = lists:keysearch(<<"operation">>, 1, Message),
+            Operation0 = maps:get(operation, Message),
             Operation = parse_operation(Type, Operation0),
             ldb:update(Key, Operation)
     end,
 
     Reply = create_reply(Type, LDBResult),
-    %%lager:info("Reply ~p", [Reply]),
+    lager:info("Reply ~p", [Reply]),
 
     send(Reply, Socket).
 
@@ -137,20 +136,21 @@ create_reply(_Type, Error) ->
     [{code, ?UNKNOWN}].
 
 %% @private
-parse_operation(Type, Operation0) ->
-    {value, {_, OperationName0}} = lists:keysearch(<<"name">>, 1, Operation0),
-    OperationName = ldb_util:binary_to_atom(OperationName0),
+parse_operation(Type, Operation) ->
+    OperationName = list_to_atom(
+        maps:get(name, Operation)
+    ),
 
     case Type of
         gset ->
-            {value, {_, Element0}} = lists:keysearch(<<"elem">>, 1, Operation0),
-            {OperationName, Element0};
+            Element = maps:get(elem, Operation),
+            {OperationName, Element};
         gcounter ->
             OperationName;
         mvmap ->
-            {value, {_, Key0}} = lists:keysearch(<<"key">>, 1, Operation0),
-            {value, {_, Value0}} = lists:keysearch(<<"value">>, 1, Operation0),
-            {OperationName, Key0, Value0}
+            Key = maps:get(key, Operation),
+            Value = maps:get(value, Operation),
+            {OperationName, Key, Value}
     end.
 
 %% @private
@@ -166,5 +166,5 @@ prepare_query_result(Type, QueryResult) ->
                     [{key, Key}, {values, sets:to_list(Value)}]
                 end,
                 QueryResult
-           )
+            )
     end.
