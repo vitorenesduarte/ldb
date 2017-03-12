@@ -34,19 +34,5 @@ encode(D) ->
 decode(E) when is_list(E) ->
     decode(list_to_binary(E));
 decode(E) when is_binary(E) ->
-    Opts = [{labels, atom}],
-    parse(jsx:decode(E, Opts)).
-
-%% @private
-parse(A) when is_atom(A) ->
-    A;
-parse(N) when is_number(N) ->
-    N;
-parse(B) when is_binary(B) ->
-    binary_to_list(B);
-parse(L) when is_list(L) ->
-    maps:from_list(
-        lists:map(fun(E) -> parse(E) end, L)
-    );
-parse({K, V}) ->
-    {K, parse(V)}.
+    Opts = [{labels, atom}, return_maps],
+    jsx:decode(E, Opts).

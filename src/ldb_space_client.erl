@@ -95,14 +95,12 @@ send(Reply, Socket) ->
 
 %% @private
 handle_message(Message, Socket) ->
-    lager:info("Message received ~p", [Message]),
-
     %% @todo check if the request really has these defined
     Key = maps:get(key, Message),
-    Method = list_to_atom(
+    Method = ldb_util:binary_to_atom(
         maps:get(method, Message)
     ),
-    Type = list_to_atom(
+    Type = ldb_util:binary_to_atom(
         maps:get(type, Message)
     ),
 
@@ -113,14 +111,14 @@ handle_message(Message, Socket) ->
             ldb:query(Key);
         update ->
             %% @todo check if the request really has operation defined
-            Operation0 = maps:get(operation, Message),
-            Operation = parse_operation(Type, Operation0),
+            Operation = parse_operation(
+                Type,
+                maps:get(operation, Message)
+            ),
             ldb:update(Key, Operation)
     end,
 
     Reply = create_reply(Type, LDBResult),
-    lager:info("Reply ~p", [Reply]),
-
     send(Reply, Socket).
 
 %% @private
@@ -137,7 +135,7 @@ create_reply(_Type, Error) ->
 
 %% @private
 parse_operation(Type, Operation) ->
-    OperationName = list_to_atom(
+    OperationName = ldb_util:binary_to_atom(
         maps:get(name, Operation)
     ),
 
