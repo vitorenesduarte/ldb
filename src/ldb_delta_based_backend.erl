@@ -31,7 +31,8 @@
          query/1,
          update/2,
          message_maker/0,
-         message_handler/1]).
+         message_handler/1,
+         memory/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -131,7 +132,8 @@ message_handler({_, delta, _, _, _}) ->
                         end
                 end,
 
-                send_ack(From, {Key, delta_ack, ldb_config:id(), N}),
+                %% send ack
+                ldb_whisperer:send(From, {Key, delta_ack, ldb_config:id(), N}),
 
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
@@ -152,22 +154,16 @@ message_handler({_, delta_ack, _, _}) ->
         )
     end.
 
-%% @private
-min_seq(DeltaBuffer) ->
-    case orddict:fetch_keys(DeltaBuffer) of
-        [] ->
-            0;
-        Keys ->
-            lists:nth(1, Keys)
-    end.
+-spec memory() -> {non_neg_integer(), non_neg_integer()}.
+memory() ->
+    FoldFunction = fun({_Key, Value}, {C, R}) ->
+        {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
+        CRDTSize = ldb_util:term_size(CRDT),
+        RestSize = ldb_util:term_size({Sequence, DeltaBuffer, AckMap}),
+        {C + CRDTSize, R + RestSize}
+    end,
 
-%% @private
-last_ack(NodeName, AckMap) ->
-    orddict_ext:fetch(NodeName, AckMap, 0).
-
-%% @private
-send_ack(NodeName, AckMessage) ->
-    ldb_whisperer:send(NodeName, AckMessage).
+    ldb_store:fold(FoldFunction, {0, 0}).
 
 %% gen_server callbacks
 init([]) ->
@@ -233,3 +229,16 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+min_seq(DeltaBuffer) ->
+    case orddict:fetch_keys(DeltaBuffer) of
+        [] ->
+            0;
+        Keys ->
+            lists:nth(1, Keys)
+    end.
+
+%% @private
+last_ack(NodeName, AckMap) ->
+    orddict_ext:fetch(NodeName, AckMap, 0).

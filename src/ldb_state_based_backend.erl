@@ -31,7 +31,8 @@
          query/1,
          update/2,
          message_maker/0,
-         message_handler/1]).
+         message_handler/1,
+         memory/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -80,6 +81,15 @@ message_handler(_Message) ->
             end
         )
     end.
+
+-spec memory() -> {non_neg_integer(), non_neg_integer()}.
+memory() ->
+    FoldFunction = fun({_Key, CRDT}, {C, _}) ->
+        CRDTSize = ldb_util:term_size(CRDT),
+        {C + CRDTSize, 0}
+    end,
+
+    ldb_store:fold(FoldFunction, {0, 0}).
 
 %% gen_server callbacks
 init([]) ->
