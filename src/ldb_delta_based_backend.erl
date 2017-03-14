@@ -156,14 +156,7 @@ message_handler({_, delta_ack, _, _}) ->
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
 memory() ->
-    FoldFunction = fun({_Key, Value}, {C, R}) ->
-        {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
-        CRDTSize = ldb_util:term_size(CRDT),
-        RestSize = ldb_util:term_size({Sequence, DeltaBuffer, AckMap}),
-        {C + CRDTSize, R + RestSize}
-    end,
-
-    ldb_store:fold(FoldFunction, {0, 0}).
+    gen_server:call(?MODULE, memory, infinity).
 
 %% gen_server callbacks
 init([]) ->
@@ -210,6 +203,17 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     end,
 
     Result = ldb_store:update(Key, Function),
+    {reply, Result, State};
+
+handle_call(memory, _From, State) ->
+    FoldFunction = fun({_Key, Value}, {C, R}) ->
+        {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
+        CRDTSize = ldb_util:term_size(CRDT),
+        RestSize = ldb_util:term_size({Sequence, DeltaBuffer, AckMap}),
+        {C + CRDTSize, R + RestSize}
+    end,
+
+    Result = ldb_store:fold(FoldFunction, {0, 0}),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
