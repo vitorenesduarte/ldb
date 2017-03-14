@@ -28,7 +28,8 @@
          query/1,
          update/2,
          message_maker/0,
-         message_handler/1]).
+         message_handler/1,
+         memory/0]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
 -callback create(key(), type()) -> ok.
@@ -50,6 +51,9 @@
 
 %% @doc Returns a function that handles the message received.
 -callback message_handler(term()) -> function().
+
+%% @doc Returns memory consumption.
+-callback memory() -> {non_neg_integer(), non_neg_integer()}.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -76,6 +80,10 @@ message_maker() ->
 -spec message_handler(term()) -> function().
 message_handler(Message) ->
     do(message_handler, [Message]).
+
+-spec memory() -> {non_neg_integer(), non_neg_integer()}.
+memory() ->
+    do(memory, []).
 
 %% @private Execute call to the proper backend.
 do(Function, Args) ->

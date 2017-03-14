@@ -33,7 +33,8 @@
          query/1,
          update/2,
          message_maker/0,
-         message_handler/1]).
+         message_handler/1,
+         memory/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -75,6 +76,11 @@ message_handler(_) ->
     fun(M) ->
         gen_server:cast(?MODULE, M)
     end.
+
+-spec memory() -> {non_neg_integer(), non_neg_integer()}.
+memory() ->
+    %% @todo
+    {0, 0}.
 
 %% @todo do spec
 delivery_function({VV, {Key, EncodedOp}}) ->
