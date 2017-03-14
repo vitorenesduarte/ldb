@@ -37,7 +37,7 @@
          terminate/2,
          code_change/3]).
 
--type metric_type() :: message.
+-type metric_type() :: transmission | memory.
 -type metric() :: term().
 -type time_series() :: list({timestamp(), metric_type(), metric()}).
 
@@ -83,19 +83,24 @@ handle_cast({message, Type, Metrics},
 
 handle_info(time_series, #state{message_type_to_size=MessageMap,
                                 time_series=TimeSeries0}=State) ->
+    Timestamp = ldb_util:unix_timestamp(),
+
+    % transmission metrics
     TimeSeries1 = case orddict:is_empty(MessageMap) of
         true ->
             TimeSeries0;
         false ->
-            Timestamp = ldb_util:unix_timestamp(),
-            MetricType = message,
-            Metric = {Timestamp, MetricType, MessageMap},
-            lists:append(TimeSeries0, [Metric])
+            TMetric = {Timestamp, transmission, MessageMap},
+            lists:append(TimeSeries0, [TMetric])
     end,
+
+    % memory metrics
+    MMetric = {Timestamp, memory, ldb_backend:memory()},
+    TimeSeries2 = lists:append(TimeSeries1, [MMetric]),
 
     schedule_time_series(),
 
-    {noreply, State#state{time_series=TimeSeries1}};
+    {noreply, State#state{time_series=TimeSeries2}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -113,9 +118,5 @@ schedule_time_series() ->
 
 %% @private
 message_metrics(Message) ->
-    Size = term_size(Message),
+    Size = ldb_util:term_size(Message),
     [{size, Size}].
-
-%% @private
-term_size(T) ->
-    byte_size(term_to_binary(T)).
