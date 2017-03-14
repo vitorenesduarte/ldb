@@ -162,7 +162,7 @@ memory() ->
         RestSize = ldb_util:term_size({Sequence, DeltaBuffer, AckMap}),
         {C + CRDTSize, R + RestSize}
     end,
-    
+
     ldb_store:fold(FoldFunction, {0, 0}).
 
 %% gen_server callbacks
