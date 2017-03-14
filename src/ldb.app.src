@@ -1,6 +1,6 @@
 {application,ldb,
              [{description,"Conflict-free Replicated Data Types Database"},
-              {vsn,"0.0.7"},
+              {vsn,"0.0.8"},
               {registered,[]},
               {maintainers,["Vitor Enes Duarte","Georges Younes"]},
               {applications,[kernel,stdlib,crypto,jsx,inets,lager,types,
