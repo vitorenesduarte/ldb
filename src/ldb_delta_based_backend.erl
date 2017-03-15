@@ -74,8 +74,15 @@ message_maker() ->
                     false ->
                         orddict:fold(
                             fun(N, {From, D}, Acc) ->
-                                case LastAck =< N andalso N < Sequence andalso
-                                     NodeName =/= From  of
+                                ShouldSendDelta0 = LastAck =< N andalso N < Sequence,
+                                ShouldSendDelta1 = case ldb_config:get(ldb_dgroup_back_propagation, false) of
+                                    true ->
+                                        ShouldSendDelta0 andalso NodeName =/= From;
+                                    false ->
+                                        ShouldSendDelta0
+                                end,
+
+                                case ShouldSendDelta1 of
                                     true ->
                                         Type:merge(Acc, D);
                                     false ->
