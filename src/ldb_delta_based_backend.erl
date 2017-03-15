@@ -77,6 +77,7 @@ message_maker() ->
                                 ShouldSendDelta0 = LastAck =< N andalso N < Sequence,
                                 ShouldSendDelta1 = case ldb_config:get(ldb_dgroup_back_propagation, false) of
                                     true ->
+                                        % when set to true, avoids back propagation of delta groups
                                         ShouldSendDelta0 andalso NodeName =/= From;
                                     false ->
                                         ShouldSendDelta0
