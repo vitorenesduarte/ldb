@@ -65,9 +65,14 @@ configure() ->
                   ldb_mode,
                   ?DEFAULT_MODE),
 
-    %% configure join decompositions
-    configure_var("LDB_JOIN_DECOMPOSITIONS",
-                  ldb_join_decompositions,
+    %% configure redundant delta groups
+    configure_var("LDB_REDUNDANT_DGROUPS",
+                  ldb_redundant_dgroups,
+                  false),
+
+    %% configure delta group back propagation
+    configure_var("LDB_DGROUP_BACK_PROPAGATION",
+                  ldb_dgroup_back_propagation,
                   false),
 
     %% configure metrics

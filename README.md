@@ -10,3 +10,19 @@ LDB supports different CRDT replication models:
 Next features:
 - implement Delta-state-based replication (as in [http://novasys.di.fct.unl.pt/~alinde/publications/a12-van_der_linde.pdf](http://novasys.di.fct.unl.pt/~alinde/publications/a12-van_der_linde.pdf))
 - implement new replication model only using join-decompositions ([http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf))
+
+
+### Configuration
+- __LDB_MODE__:
+  - state_based
+  - delta_based
+  - pure_op_based
+- __LDB_REDUNDANT_DGROUPS__: when set to _true_,
+removes redundant state that may be present in the received
+delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
+- __LDB_DGROUP_BACK_PROPAGATION__: when set to _true_,
+avoids back-propagation of delta-groups
+- __LDB_METRICS__: metrics are recorded if _true_
+
+__LDB_REDUNDANT_DGROUPS__ and __LDB_DGROUP_BACK_PROPAGATION__ only
+have an effect if __LDB_MODE=delta_based__.
