@@ -63,7 +63,7 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, CRDT, NodeName) ->
-        case driven_mode() of
+        case ldb_config:get(ldb_driven_mode) of
             none ->
                 Message = {Key, state, CRDT},
                 {ok, Message};
@@ -174,10 +174,6 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%% @private
-driven_mode() ->
-    ldb_config:get(ldb_driven_mode).
 
 %% @private
 create_bottom_entry(Key, Type) ->
