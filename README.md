@@ -18,6 +18,7 @@ Next features:
   - delta_based
   - pure_op_based
 - __LDB_DRIVEN_MODE__:
+  - none
   - state_driven
   - digest_driven
 - __LDB_REDUNDANT_DGROUPS__: when set to _true_,
@@ -29,13 +30,13 @@ avoids back-propagation of delta-groups
 
 | __LDB_MODE__ | __LDB_DRIVEN_MODE__ | __LDB_REDUNDANT_DGROUPS__ | __LDB_DGROUP_BACK_PROPAGATION__ |
 |:------------:|:-------------------:|:-------------------------:|:--------------------------------|
-| state_based  | undefined           | N/A                       | N/A                             |
+| state_based  | none                | N/A                       | N/A                             |
 | state_based  | state_driven        | N/A                       | N/A                             |
 | state_based  | digest_driven       | N/A                       | N/A                             |
-| delta_based  | undefined           | false                     | false                           |
-| delta_based  | undefined           | false                     | true                            |
-| delta_based  | undefined           | true                      | false                           |
-| delta_based  | undefined           | true                      | true                            |
+| delta_based  | none                | false                     | false                           |
+| delta_based  | none                | false                     | true                            |
+| delta_based  | none                | true                      | false                           |
+| delta_based  | none                | true                      | true                            |
 | delta_based  | state_driven        | false                     | false                           |
 | delta_based  | state_driven        | false                     | true                            |
 | delta_based  | state_driven        | true                      | false                           |

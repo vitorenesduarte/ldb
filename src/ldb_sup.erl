@@ -78,7 +78,7 @@ configure() ->
     %% configure driven mode
     configure_var("LDB_DRIVEN_MODE",
                   ldb_driven_mode,
-                  undefined),
+                  ?DEFAULT_DRIVEN_MODE),
 
     %% configure metrics
     Metrics = configure_var("LDB_METRICS",
