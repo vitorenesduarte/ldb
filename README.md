@@ -17,6 +17,9 @@ Next features:
   - state_based
   - delta_based
   - pure_op_based
+- __LDB_DRIVEN_MODE__:
+  - state_driven
+  - digest_driven
 - __LDB_REDUNDANT_DGROUPS__: when set to _true_,
 removes redundant state that may be present in the received
 delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
@@ -24,5 +27,21 @@ delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmld
 avoids back-propagation of delta-groups
 - __LDB_METRICS__: metrics are recorded if _true_
 
-__LDB_REDUNDANT_DGROUPS__ and __LDB_DGROUP_BACK_PROPAGATION__ only
-have an effect if __LDB_MODE=delta_based__.
+| __LDB_MODE__ | __LDB_DRIVEN_MODE__ | __LDB_REDUNDANT_DGROUPS__ | __LDB_DGROUP_BACK_PROPAGATION__ |
+|:------------:|:-------------------:|:-------------------------:|:--------------------------------|
+| state_based  | undefined           | N/A                       | N/A                             |
+| state_based  | state_driven        | N/A                       | N/A                             |
+| state_based  | digest_driven       | N/A                       | N/A                             |
+| delta_based  | undefined           | false                     | false                           |
+| delta_based  | undefined           | false                     | true                            |
+| delta_based  | undefined           | true                      | false                           |
+| delta_based  | undefined           | true                      | true                            |
+| delta_based  | state_driven        | false                     | false                           |
+| delta_based  | state_driven        | false                     | true                            |
+| delta_based  | state_driven        | true                      | false                           |
+| delta_based  | state_driven        | true                      | true                            |
+| delta_based  | digest_driven       | false                     | false                           |
+| delta_based  | digest_driven       | false                     | true                            |
+| delta_based  | digest_driven       | true                      | false                           |
+| delta_based  | digest_driven       | true                      | true                            |
+| pure_op_based| N/A                 | N/A                       | N/A                             |
