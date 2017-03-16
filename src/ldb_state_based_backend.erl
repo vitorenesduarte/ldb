@@ -107,7 +107,7 @@ message_handler({_, state_driven, _, _}) ->
                 %% send delta
                 Message = {Key, state, Delta},
                 ldb_whisperer:send(From, Message),
-                Merged = Type:merge(LocalCRDT, Delta),
+                Merged = Type:merge(LocalCRDT, RemoteCRDT),
                 {ok, Merged}
             end
         )
