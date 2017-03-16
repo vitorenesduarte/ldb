@@ -62,21 +62,52 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, CRDT, _NodeName) ->
-        Message = {Key, state, CRDT},
-        {ok, Message}
+    fun(Key, CRDT, NodeName) ->
+        case driven_mode() of
+            none ->
+                Message = {Key, state, CRDT},
+                {ok, Message};
+            state_driven ->
+                Actor = ldb_config:id(),
+                ShouldStart = Actor < NodeName,
+                case ShouldStart of
+                    true ->
+                        Message = {Key, state_driven, Actor, CRDT},
+                        {ok, Message};
+                    false ->
+                        nothing
+                end;
+            digest_driven ->
+                %% @todo
+                nothing
+        end
     end.
 
 -spec message_handler(term()) -> function().
-message_handler(_Message) ->
+message_handler({_, state, _}) ->
     fun({Key, state, {Type, _}=RemoteCRDT}) ->
-        %% Create a bottom entry (if not present)
-        %% @todo support complex types
-        _ = ldb_store:create(Key, Type:new()),
+        create_bottom_entry(Key, Type),
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
+                {ok, Merged}
+            end
+        )
+    end;
+message_handler({_, state_driven, _, _}) ->
+    fun({Key, state_driven, From, {Type, _}=RemoteCRDT}) ->
+        create_bottom_entry(Key, Type),
+        ldb_store:update(
+            Key,
+            fun(LocalCRDT) ->
+                Delta = Type:delta(state_driven,
+                                   LocalCRDT,
+                                   RemoteCRDT),
+                %% send delta
+                Message = {Key, state, Delta},
+                ldb_whisperer:send(From, Message),
+                Merged = Type:merge(LocalCRDT, Delta),
                 {ok, Merged}
             end
         )
@@ -96,8 +127,7 @@ init([]) ->
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Type = ldb_util:get_type(LDBType),
-    %% @todo support complex types
-    Result = ldb_store:create(Key, Type:new()),
+    Result = create_bottom_entry(Key, Type),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
@@ -144,3 +174,13 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+driven_mode() ->
+    ldb_config:get(ldb_driven_mode).
+
+%% @private
+create_bottom_entry(Key, Type) ->
+    %% @todo support complex types
+    Result = ldb_store:create(Key, Type:new()),
+    Result.

@@ -139,7 +139,8 @@ message_handler({_, delta, _, _, _}) ->
                 end,
 
                 %% send ack
-                ldb_whisperer:send(From, {Key, delta_ack, ldb_config:id(), N}),
+                Ack = {Key, delta_ack, ldb_config:id(), N},
+                ldb_whisperer:send(From, Ack),
 
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
