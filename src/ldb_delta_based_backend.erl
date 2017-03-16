@@ -106,9 +106,7 @@ message_maker() ->
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
-        %% Create a bottom entry (if not present)
-        %% @todo support complex types
-        _ = ldb_store:create(Key, {Type:new(), 0, orddict:new(), orddict:new()}),
+        create_bottom_entry(Key, Type),
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
@@ -141,7 +139,8 @@ message_handler({_, delta, _, _, _}) ->
                 end,
 
                 %% send ack
-                ldb_whisperer:send(From, {Key, delta_ack, ldb_config:id(), N}),
+                Ack = {Key, delta_ack, ldb_config:id(), N},
+                ldb_whisperer:send(From, Ack),
 
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
@@ -176,15 +175,7 @@ init([]) ->
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Type = ldb_util:get_type(LDBType),
-
-    %% @todo support complex types
-    CRDT = Type:new(),
-    Sequence = 0,
-    DeltaBuffer = orddict:new(),
-    AckMap = orddict:new(),
-
-    StoreValue = {CRDT, Sequence, DeltaBuffer, AckMap},
-    Result = ldb_store:create(Key, StoreValue),
+    Result = create_bottom_entry(Key, Type),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
@@ -241,6 +232,18 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+create_bottom_entry(Key, Type) ->
+    %% @todo support complex types
+    CRDT = Type:new(),
+    Sequence = 0,
+    DeltaBuffer = orddict:new(),
+    AckMap = orddict:new(),
+
+    StoreValue = {CRDT, Sequence, DeltaBuffer, AckMap},
+    Result = ldb_store:create(Key, StoreValue),
+    Result.
 
 %% @private
 min_seq(DeltaBuffer) ->

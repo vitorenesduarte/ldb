@@ -75,6 +75,11 @@ configure() ->
                   ldb_dgroup_back_propagation,
                   false),
 
+    %% configure driven mode
+    configure_var("LDB_DRIVEN_MODE",
+                  ldb_driven_mode,
+                  ?DEFAULT_DRIVEN_MODE),
+
     %% configure metrics
     Metrics = configure_var("LDB_METRICS",
                             ldb_metrics,
