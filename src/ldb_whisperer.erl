@@ -132,10 +132,12 @@ do_send(LDBId, Message) ->
 %% @private
 metrics({_Key, state, CRDT}) ->
     record_message(state, {CRDT});
-metrics({_Key, delta, From, Sequence, Delta}) ->
-    record_message(delta, {From, Sequence, Delta});
-metrics({_Key, delta_ack, From, Sequence}) ->
-    record_message(delta_ack, {From, Sequence}).
+metrics({_Key, state_driven, _From, Delta}) ->
+    record_message(state_driven, {Delta});
+metrics({_Key, delta, _From, Sequence, Delta}) ->
+    record_message(delta, {Sequence, Delta});
+metrics({_Key, delta_ack, _From, Sequence}) ->
+    record_message(delta_ack, {Sequence}).
 
 %% @private
 record_message(Type, Payload) ->
