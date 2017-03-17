@@ -33,16 +33,7 @@ avoids back-propagation of delta-groups
 | state_based  | none                | N/A                       | N/A                             |
 | state_based  | state_driven        | N/A                       | N/A                             |
 | state_based  | digest_driven       | N/A                       | N/A                             |
-| delta_based  | none                | false                     | false                           |
-| delta_based  | none                | false                     | true                            |
-| delta_based  | none                | true                      | false                           |
-| delta_based  | none                | true                      | true                            |
-| delta_based  | state_driven        | false                     | false                           |
-| delta_based  | state_driven        | false                     | true                            |
-| delta_based  | state_driven        | true                      | false                           |
-| delta_based  | state_driven        | true                      | true                            |
-| delta_based  | digest_driven       | false                     | false                           |
-| delta_based  | digest_driven       | false                     | true                            |
-| delta_based  | digest_driven       | true                      | false                           |
-| delta_based  | digest_driven       | true                      | true                            |
+| delta_based  | none                | boolean                   | boolean                         |
+| delta_based  | state_driven        | boolean                   | boolean                         |
+| delta_based  | digest_driven       | boolean                   | boolean                         |
 | pure_op_based| N/A                 | N/A                       | N/A                             |
