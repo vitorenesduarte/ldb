@@ -106,7 +106,11 @@ message_maker() ->
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
-        create_bottom_entry(Key, Type),
+
+        %% create bottom entry
+        Bottom = ldb_util:new_crdt(state, RemoteCRDT),
+        create_entry(Key, Bottom),
+
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
@@ -174,8 +178,8 @@ init([]) ->
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
-    Type = ldb_util:get_type(LDBType),
-    Result = create_bottom_entry(Key, Type),
+    Bottom = ldb_util:new_crdt(type, LDBType),
+    Result = create_entry(Key, Bottom),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
@@ -234,14 +238,12 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-create_bottom_entry(Key, Type) ->
-    %% @todo support complex types
-    CRDT = Type:new(),
+create_entry(Key, Bottom) ->
     Sequence = 0,
     DeltaBuffer = orddict:new(),
     AckMap = orddict:new(),
 
-    StoreValue = {CRDT, Sequence, DeltaBuffer, AckMap},
+    StoreValue = {Bottom, Sequence, DeltaBuffer, AckMap},
     Result = ldb_store:create(Key, StoreValue),
     Result.
 
