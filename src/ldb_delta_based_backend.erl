@@ -90,8 +90,7 @@ message_maker() ->
                                         Acc
                                 end
                             end,
-                            %% @todo support complex types
-                            Type:new(),
+                            ldb_util:new_crdt(state, CRDT),
                             DeltaBuffer
                         )
                 end,
