@@ -86,7 +86,11 @@ message_maker() ->
 -spec message_handler(term()) -> function().
 message_handler({_, state, _}) ->
     fun({Key, state, {Type, _}=RemoteCRDT}) ->
-        create_bottom_entry(Key, Type),
+
+        %% create bottom entry
+        Bottom = ldb_util:new_crdt(state, RemoteCRDT),
+        ldb_store:create(Key, Bottom),
+
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
@@ -97,7 +101,11 @@ message_handler({_, state, _}) ->
     end;
 message_handler({_, state_driven, _, _}) ->
     fun({Key, state_driven, From, {Type, _}=RemoteCRDT}) ->
-        create_bottom_entry(Key, Type),
+
+        %% create bottom entry
+        Bottom = ldb_util:new_crdt(state, RemoteCRDT),
+        ldb_store:create(Key, Bottom),
+
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
@@ -126,8 +134,8 @@ init([]) ->
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
-    Type = ldb_util:get_type(LDBType),
-    Result = create_bottom_entry(Key, Type),
+    Bottom = ldb_util:new_crdt(type, LDBType),
+    Result = ldb_store:create(Key, Bottom),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
@@ -174,9 +182,3 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%% @private
-create_bottom_entry(Key, Type) ->
-    %% @todo support complex types
-    Result = ldb_store:create(Key, Type:new()),
-    Result.

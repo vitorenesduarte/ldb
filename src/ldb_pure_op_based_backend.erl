@@ -105,7 +105,7 @@ init([]) ->
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
-    Type = ldb_util:get_type(LDBType),
+    Type = ldb_util:new_crdt(type, LDBType),
     %% @todo support complex types
     Result = ldb_store:create(Key, Type:new()),
     {reply, Result, State};

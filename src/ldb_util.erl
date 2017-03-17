@@ -23,27 +23,26 @@
 -include("ldb.hrl").
 
 %% ldb_util callbacks
--export([get_type/1,
+-export([new_crdt/2,
          get_backend/0,
          atom_to_binary/1,
          binary_to_atom/1,
          unix_timestamp/0,
          term_size/1]).
 
-%% @doc Returns the actual type in types repository
-%%      (https://github.com/lasp-lang/types)
--spec get_type(atom()) -> atom().
-get_type(Type) ->
-    Map = types_map(),
-    {State, Op} = orddict:fetch(Type, Map),
-    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
-        state_based ->
-            State;
-        delta_based ->
-            State;
-        pure_op_based ->
-            Op
-    end.
+%% @doc Creates a bottom CRDT from a type
+%%      or from an existing state-based CRDT.
+new_crdt(type, CType) ->
+    {Type, Args} = extract_args(CType),
+    case Args of
+        [] ->
+            Type:new();
+        _ ->
+            Type:new(Args)
+    end;
+new_crdt(state, CRDT) ->
+    %% defined in lasp-lang/types.
+    state_type:new(CRDT).
 
 %% @doc Returns the proper backend.
 -spec get_backend() -> atom().
@@ -79,13 +78,45 @@ term_size(T) ->
     byte_size(term_to_binary(T)).
 
 %% @private
+extract_args({Type, Args}) ->
+    {get_type(Type), get_type(Args)};
+extract_args(Type) ->
+    {get_type(Type), []}.
+
+%% @private
+get_type({A, B}) ->
+    {get_type(A), get_type(B)};
+get_type([]) ->
+    [];
+get_type([H|T]) ->
+    [get_type(H) | get_type(T)];
+get_type(Type) ->
+    {State, Op} = orddict:fetch(Type, types_map()),
+    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
+        state_based ->
+            State;
+        delta_based ->
+            State;
+        pure_op_based ->
+            Op
+    end.
+
+%% @private
 types_map() ->
-    Map0 = orddict:new(),
-    Map1 = orddict:store(gcounter, {state_gcounter, pure_gcounter}, Map0),
-    Map2 = orddict:store(gset, {state_gset, pure_gset}, Map1),
-    Map3 = orddict:store(mvmap, {state_mvmap, undefined}, Map2),
-    Map4 = orddict:store(mvregister, {state_mvregister, pure_mvregister}, Map3),
-    Map5 = orddict:store(awset, {state_awset, pure_awset}, Map4),
-    Map6 = orddict:store(pncounter, {state_pncounter, pure_pncounter}, Map5),
-    Map7 = orddict:store(lwwregister, {state_lwwregister, undefined}, Map6),
-    Map7.
+    Types = [{awset, {state_awset, pure_awset}},
+             {boolean, {state_boolean, undefined}},
+             {dwflag, {state_dwflag, pure_dwflag}},
+             {ewflag, {state_ewflag, pure_ewflag}},
+             {gcounter, {state_gcounter, pure_gcounter}},
+             {gmap, {state_gmap, undefined}},
+             {gset, {state_gset, pure_gset}},
+             {lexcounter, {state_lexcounter, undefined}},
+             {lwwregister, {state_lwwregister, undefined}},
+             {max_int, {state_max_int, undefined}},
+             {mvregister, {state_mvregister, pure_mvregister}},
+             {mvmap, {state_mvmap, undefined}},
+             {ormap, {state_ormap, undefined}},
+             {pair, {state_pair, undefined}},
+             {pncounter, {state_pncounter, undefined}},
+             {twopset, {state_twopset, pure_twopset}}],
+    orddict:from_list(Types).
