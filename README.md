@@ -30,10 +30,10 @@ avoids back-propagation of delta-groups
 
 | __LDB_MODE__ | __LDB_DRIVEN_MODE__ | __LDB_REDUNDANT_DGROUPS__ | __LDB_DGROUP_BACK_PROPAGATION__ |
 |:------------:|:-------------------:|:-------------------------:|:--------------------------------|
-| state_based  | none                | N/A                       | N/A                             |
-| state_based  | state_driven        | N/A                       | N/A                             |
-| state_based  | digest_driven       | N/A                       | N/A                             |
-| delta_based  | none                | boolean                   | boolean                         |
-| delta_based  | state_driven        | boolean                   | boolean                         |
-| delta_based  | digest_driven       | boolean                   | boolean                         |
-| pure_op_based| N/A                 | N/A                       | N/A                             |
+| state_based  | none                | __NA__                    | __NA__                          |
+| state_based  | state_driven        | __NA__                    | __NA__                          |
+| state_based  | digest_driven       | __NA__                    | __NA__                          |
+| delta_based  | none                | _true_/_false_            | _true_/_false_                  |
+| delta_based  | state_driven        | _true_/_false_            | _true_/_false_                  |
+| delta_based  | digest_driven       | _true_/_false_            | _true_/_false_                  |
+| pure_op_based| __NA__              | __NA__                    | __NA__                          |
