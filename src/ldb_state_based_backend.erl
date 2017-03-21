@@ -109,7 +109,7 @@ message_handler({_, state_driven, _, _}) ->
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
-                Delta = Type:delta(state_driven,
+                Delta = Type:delta(state,
                                    LocalCRDT,
                                    RemoteCRDT),
                 %% send delta
