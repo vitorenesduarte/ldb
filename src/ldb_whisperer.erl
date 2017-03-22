@@ -133,7 +133,12 @@ do_send(LDBId, Message) ->
 metrics({_Key, state, CRDT}) ->
     record_message(state, {CRDT});
 metrics({_Key, state_driven, _From, Delta}) ->
-    record_message(state_driven, {Delta});
+    record_message(state, {Delta});
+metrics({_Key, digest_driven, _From, _Bottom, Digest}) ->
+    record_message(digest, {Digest});
+metrics({_Key, digest_driven_with_state, _From, Delta, Digest) ->
+    record_message(state, {Delta}),
+    record_message(digest, {Digest}); 
 metrics({_Key, delta, _From, Sequence, Delta}) ->
     record_message(delta, {Sequence, Delta});
 metrics({_Key, delta_ack, _From, Sequence}) ->
