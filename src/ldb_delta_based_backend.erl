@@ -95,7 +95,8 @@ message_maker() ->
                         )
                 end,
 
-                Message = {Key, delta, ldb_config:id(), Sequence, Delta},
+                Actor = ldb_config:id(),
+                Message = {Key, delta, Actor, Sequence, Delta},
                 {ok, Message};
             false ->
                 nothing
