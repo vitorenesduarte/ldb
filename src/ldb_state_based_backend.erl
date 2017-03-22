@@ -149,7 +149,7 @@ message_handler({_, digest_driven, _, _, _}) ->
         ldb_store:create(Key, Bottom),
 
         %% compute delta and digest
-        LocalCRDT = ldb_store:get(Key),
+        {ok, LocalCRDT} = ldb_store:get(Key),
         LocalDelta = Type:delta(digest, LocalCRDT, RemoteDigest),
         LocalDigest = Type:digest(LocalCRDT),
 
