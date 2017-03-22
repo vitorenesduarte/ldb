@@ -9,7 +9,7 @@
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
  {<<"types">>,
   {git,"https://github.com/lasp-lang/types",
-       {ref,"19031249b70e90f48e8dea9bdb685bb1149b493f"}},
+       {ref,"1b35ae9ecf77e5a02e30db6af4d8901ee94358dc"}},
   0}]}.
 [
 {pkg_hash,[
