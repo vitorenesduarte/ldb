@@ -95,7 +95,8 @@ message_maker() ->
                         )
                 end,
 
-                Message = {Key, delta, ldb_config:id(), Sequence, Delta},
+                Actor = ldb_config:id(),
+                Message = {Key, delta, Actor, Sequence, Delta},
                 {ok, Message};
             false ->
                 nothing
@@ -117,7 +118,7 @@ message_handler({_, delta, _, _, _}) ->
 
                 {Sequence, DeltaBuffer} = case ldb_config:get(ldb_redundant_dgroups, false) of
                     true ->
-                        Delta = Type:delta(state_driven, RemoteCRDT, LocalCRDT),
+                        Delta = Type:delta(state, RemoteCRDT, LocalCRDT),
 
                         %% If what we received, inflates the local state
                         case not Type:is_bottom(Delta) of

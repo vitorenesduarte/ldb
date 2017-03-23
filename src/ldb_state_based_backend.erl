@@ -62,24 +62,43 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, CRDT, NodeName) ->
+    fun(Key, {Type, _}=CRDT, NodeName) ->
+        Actor = ldb_config:id(),
+        ShouldStart = Actor < NodeName,
+
         case ldb_config:get(ldb_driven_mode) of
             none ->
+                %% send local state
                 Message = {Key, state, CRDT},
                 {ok, Message};
             state_driven ->
-                Actor = ldb_config:id(),
-                ShouldStart = Actor < NodeName,
                 case ShouldStart of
                     true ->
+                        %% send local state
                         Message = {Key, state_driven, Actor, CRDT},
                         {ok, Message};
                     false ->
                         nothing
                 end;
             digest_driven ->
-                %% @todo
-                nothing
+                case ShouldStart of
+                    true ->
+                        %% compute digest
+                        Bottom = ldb_util:new_crdt(state, CRDT),
+                        Digest = Type:digest(CRDT),
+
+                        %% send digest
+                        Message = {
+                            Key,
+                            digest_driven,
+                            Actor,
+                            Bottom,
+                            Digest
+                        },
+                        {ok, Message};
+                    false ->
+                        nothing
+                end
         end
     end.
 
@@ -94,6 +113,7 @@ message_handler({_, state, _}) ->
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
+                %% merge received state
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
                 {ok, Merged}
             end
@@ -109,13 +129,58 @@ message_handler({_, state_driven, _, _}) ->
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
-                Delta = Type:delta(state_driven,
-                                   LocalCRDT,
-                                   RemoteCRDT),
+                %% compute delta
+                Delta = Type:delta(state, LocalCRDT, RemoteCRDT),
+
                 %% send delta
                 Message = {Key, state, Delta},
                 ldb_whisperer:send(From, Message),
+
+                %% merge received state
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
+                {ok, Merged}
+            end
+        )
+    end;
+message_handler({_, digest_driven, _, _, _}) ->
+    fun({Key, digest_driven, From, {Type, _}=Bottom, RemoteDigest}) ->
+
+        %% create bottom entry
+        ldb_store:create(Key, Bottom),
+
+        %% compute delta and digest
+        {ok, LocalCRDT} = ldb_store:get(Key),
+        LocalDelta = Type:delta(digest, LocalCRDT, RemoteDigest),
+        LocalDigest = Type:digest(LocalCRDT),
+
+        %% send delta and digest
+        Actor = ldb_config:id(),
+        Message = {
+            Key,
+            digest_driven_with_state,
+            Actor,
+            LocalDelta,
+            LocalDigest
+        },
+        ldb_whisperer:send(From, Message)
+    end;
+message_handler({_, digest_driven_with_state, _, _, _}) ->
+    fun({Key, digest_driven_with_state, From, {Type, _}=RemoteDelta,
+         RemoteDigest}) ->
+
+        ldb_store:update(
+            Key,
+            fun(LocalCRDT) ->
+                %% compute delta
+                LocalDelta = Type:delta(digest,
+                                        LocalCRDT,
+                                        RemoteDigest),
+                %% send delta
+                Message = {Key, state, LocalDelta},
+                ldb_whisperer:send(From, Message),
+
+                %% merge receive state
+                Merged = Type:merge(LocalCRDT, RemoteDelta),
                 {ok, Merged}
             end
         )

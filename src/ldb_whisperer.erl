@@ -131,19 +131,35 @@ do_send(LDBId, Message) ->
 
 %% @private
 metrics({_Key, state, CRDT}) ->
-    record_message(state, {CRDT});
+    M = {state, {CRDT}},
+    record_message([M]);
 metrics({_Key, state_driven, _From, Delta}) ->
-    record_message(state_driven, {Delta});
+    M = {state, {Delta}},
+    record_message([M]);
+metrics({_Key, digest_driven, _From, _Bottom, Digest}) ->
+    M = {digest, {Digest}},
+    record_message([M]);
+metrics({_Key, digest_driven_with_state, _From, Delta, Digest}) ->
+    M1 = {state, {Delta}},
+    M2 = {digest, {Digest}},
+    record_message([M1, M2]);
 metrics({_Key, delta, _From, Sequence, Delta}) ->
-    record_message(delta, {Sequence, Delta});
+    M = {delta, {Sequence, Delta}},
+    record_message([M]);
 metrics({_Key, delta_ack, _From, Sequence}) ->
-    record_message(delta_ack, {Sequence}).
+    M = {delta_ack, {Sequence}},
+    record_message([M]).
 
 %% @private
-record_message(Type, Payload) ->
+record_message(L) ->
     case ldb_config:get(ldb_metrics) of
         true ->
-            ldb_metrics:record_message(Type, Payload);
+            lists:foreach(
+                fun({Type, Payload}) ->
+                    ldb_metrics:record_message(Type, Payload)
+                end,
+                L
+            );
         false ->
             ok
     end.
