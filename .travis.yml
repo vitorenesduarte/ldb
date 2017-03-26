@@ -1,6 +1,6 @@
 language: erlang
 otp_release:
-  - 19.2
+  - 19.3
 install:
   - ./rebar3 update
   - make
@@ -12,6 +12,8 @@ script:
   - make dialyzer
   - make lint
   - make java-client-test
+matrix:
+  fast_finish: true
 notifications:
   slack: haslab:jhAnACJzswFtYwKXpbZzjbFq
   email: false
