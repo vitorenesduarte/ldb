@@ -7,7 +7,7 @@
  {<<"partisan">>,{pkg,<<"partisan">>,<<"0.2.0">>},0},
  {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
- {<<"types">>,{pkg,<<"types">>,<<"0.1.0">>},0}]}.
+ {<<"types">>,{pkg,<<"types">>,<<"0.0.7">>},0}]}.
 [
 {pkg_hash,[
  {<<"acceptor_pool">>, <<"679D741DF87FC13599B1AEF2DF8F78F1F880449A6BEFAB7C44FB6FAE0E92A2DE">>},
@@ -18,5 +18,5 @@
  {<<"partisan">>, <<"8E44E20FD2E904D53D8FF2287C1397F71BC9BFF36B4DB6996C207AAFEFBE3ED1">>},
  {<<"rand_compat">>, <<"624B590931D27252D0BCF710211699DB3695540706F57D2E91B918A17AB58839">>},
  {<<"time_compat">>, <<"23FE0AD1FDF3B5B88821B2D04B4B5E865BF587AE66056D671FE0F53514ED8139">>},
- {<<"types">>, <<"26C745BAAFEED9D339C83F6BBF2FBFE28E3FD1541D4A388D18A2CBB96241868E">>}]}
+ {<<"types">>, <<"C6BC3B5CE26939C01D54FA83FD823B36FDB920612F278C23CC2B7E1337A67E55">>}]}
 ].
