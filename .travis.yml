@@ -12,6 +12,8 @@ script:
   - make dialyzer
   - make lint
   - make java-client-test
+matrix:
+  fast_finish: true
 notifications:
   slack: haslab:jhAnACJzswFtYwKXpbZzjbFq
   email: false
