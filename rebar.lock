@@ -4,7 +4,10 @@
  {<<"ishikawa">>,{pkg,<<"ishikawa">>,<<"0.0.1">>},0},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},0},
- {<<"partisan">>,{pkg,<<"partisan">>,<<"0.2.0">>},0},
+ {<<"partisan">>,
+  {git,"https://github.com/lasp-lang/partisan",
+       {ref,"0cc94b42982b00bc7236eebf467b3afff22fc5eb"}},
+  0},
  {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
  {<<"types">>,{pkg,<<"types">>,<<"0.0.7">>},0}]}.

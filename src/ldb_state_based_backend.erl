@@ -69,13 +69,22 @@ message_maker() ->
         case ldb_config:get(ldb_driven_mode) of
             none ->
                 %% send local state
-                Message = {Key, state, CRDT},
+                Message = {
+                    Key,
+                    state,
+                    CRDT
+                },
                 {ok, Message};
             state_driven ->
                 case ShouldStart of
                     true ->
                         %% send local state
-                        Message = {Key, state_driven, Actor, CRDT},
+                        Message = {
+                            Key,
+                            state_driven,
+                            Actor,
+                            CRDT
+                        },
                         {ok, Message};
                     false ->
                         nothing
@@ -133,7 +142,11 @@ message_handler({_, state_driven, _, _}) ->
                 Delta = Type:delta(state, LocalCRDT, RemoteCRDT),
 
                 %% send delta
-                Message = {Key, state, Delta},
+                Message = {
+                    Key,
+                    state,
+                    Delta
+                },
                 ldb_whisperer:send(From, Message),
 
                 %% merge received state
@@ -176,7 +189,11 @@ message_handler({_, digest_driven_with_state, _, _, _}) ->
                                         LocalCRDT,
                                         RemoteDigest),
                 %% send delta
-                Message = {Key, state, LocalDelta},
+                Message = {
+                    Key,
+                    state,
+                    LocalDelta
+                },
                 ldb_whisperer:send(From, Message),
 
                 %% merge receive state
