@@ -81,12 +81,25 @@ handle_info(state_sync, State) ->
         lists:foreach(
             fun(LDBId) ->
                 MessageMakerFun = ldb_backend:message_maker(),
-                case MessageMakerFun(Key, Value, LDBId) of
+
+                {MicroSeconds, Result} = timer:tc(
+                    MessageMakerFun,
+                    [Key, Value, LDBId]
+                ),
+
+                case Result of
                     {ok, Message} ->
                         do_send(LDBId, Message);
                     nothing ->
                         ok
-                end
+                end,
+
+                %% record latency creating this message
+                %% - when creating the message, ignore the type
+                MessageType = undefined,
+                ldb_metrics:record_latency(local,
+                                           MessageType,
+                                           MicroSeconds)
             end,
             LDBIds
         )

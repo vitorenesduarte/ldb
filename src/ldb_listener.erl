@@ -52,7 +52,17 @@ handle_call(Msg, _From, State) ->
 
 handle_cast(Message, State) ->
     MessageHandler = ldb_backend:message_handler(Message),
-    MessageHandler(Message),
+    {MicroSeconds, _Result} = timer:tc(
+        MessageHandler,
+        [Message]
+    ),
+
+    %% record latency applying this message
+    MessageType = element(2, Message),
+    ldb_metrics:record_latency(remote,
+                               MessageType,
+                               MicroSeconds),
+
     {noreply, State}.
 
 handle_info(Msg, State) ->
