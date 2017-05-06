@@ -27,6 +27,7 @@
 %% ldb_metrics callbacks
 -export([start_link/0,
          get_time_series/0,
+         get_latency/0,
          record_message/2,
          record_latency/3]).
 
@@ -42,9 +43,16 @@
 -type metric() :: term().
 -type time_series() :: list({timestamp(), metric_type(), metric()}).
 
+-type latency_type() :: local | remote.
+-type message_type() :: term().
+-type latency() :: list({
+    {latency_type(), message_type()},
+    list(integer())
+}).
+
 -record(state, {message_type_to_size :: orddict:orddict(),
-                latency_type_to_latency :: orddict:orddict(),
-                time_series :: time_series()}).
+                time_series :: time_series(),
+                latency_type_to_latency :: orddict:orddict()}).
 
 -define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
 
@@ -56,6 +64,10 @@ start_link() ->
 get_time_series() ->
     gen_server:call(?MODULE, get_time_series, infinity).
 
+-spec get_latency() -> latency().
+get_latency() ->
+    gen_server:call(?MODULE, get_latency, infinity).
+
 -spec record_message(term(), message()) -> ok.
 record_message(MessageType, Message) ->
     Metrics = message_metrics(Message),
@@ -64,7 +76,7 @@ record_message(MessageType, Message) ->
 %% @doc Record latency of:
 %%          - `local': creating a message locally
 %%          - `remote': applying a message remotely
--spec record_latency(local | remote, term(), integer()) -> ok.
+-spec record_latency(latency_type(), message_type(), integer()) -> ok.
 record_latency(Type, MessageType, MicroSeconds) ->
     gen_server:cast(?MODULE, {latency, Type, MessageType, MicroSeconds}).
 
@@ -80,6 +92,10 @@ handle_call(get_time_series, _From,
             #state{time_series=TimeSeries}=State) ->
     {reply, TimeSeries, State};
 
+handle_call(get_latency, _From,
+            #state{latency_type_to_latency=Map}=State) ->
+    {reply, Map, State};
+
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
@@ -94,7 +110,11 @@ handle_cast({message, MessageType, Metrics},
 handle_cast({latency, Type, MessageType, MicroSeconds},
             #state{latency_type_to_latency=Map0}=State) ->
     Map1 = orddict:append({Type, MessageType}, MicroSeconds, Map0),
-    {noreply, State#state{latency_type_to_latency=Map1}}.
+    {noreply, State#state{latency_type_to_latency=Map1}};
+
+handle_cast(Msg, State) ->
+    lager:warning("Unhandled cast message: ~p", [Msg]),
+    {noreply, State}.
 
 handle_info(time_series, #state{message_type_to_size=MessageMap,
                                 time_series=TimeSeries0}=State) ->
