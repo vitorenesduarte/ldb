@@ -33,6 +33,7 @@ try to shrink the delta buffer every `X` milliseconds
 - __LDB_METRICS__: metrics are recorded if `true`
 
 | __LDB_MODE__                    | `state_based`                             | `delta_based`                             | `pure_op_based` |
+|---------------------------------|-------------------------------------------|-------------------------------------------|-----------------|
 | __LDB_DRIVEN_MODE__             | `none` / `state_driven` / `digest_driven` | `none` / `state_driven` / `digest_driven` | __NA__          |
 | __LDB_STATE_SYNC_INTERVAL__     | `0..`                                     | `0..`                                     | __NA__          |
 | __LDB_REDUNDANT_DGROUPS__       | __NA__                                    | `true` / `false`                          | __NA__          |
