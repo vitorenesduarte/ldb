@@ -241,9 +241,29 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(dbuffer_shrink, State) ->
-    ShrinkFun = fun({Key, Value}, _Acc) ->
-        %% @todo
-        {Key, Value}
+    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}, _Acc) ->
+        DeltaBuffer1 = case ldb_config:get(ldb_dbuffer_shrink_mode) of
+            normal ->
+                Acks = [N || {_, N} <- AckMap],
+                %% Add the current `Sequence' to the list of acks
+                %% to make sure we have a min;
+                %% If we don't have acks, the buffer will be cleared.
+                %% This ensures local progress.
+                Min = lists:min([Sequence | Acks]),
+
+                orddict:filter(
+                    fun(EntrySequence, {_Actor, _Delta}) ->
+                        EntrySequence >= Min
+                    end,
+                    DeltaBuffer0
+                );
+            dummy ->
+                %% clear the delta buffer
+                orddict:new()
+        end,
+
+        NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap},
+        {ok, NewValue}
     end,
 
     ldb_store:update_all(ShrinkFun),
