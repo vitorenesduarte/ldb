@@ -17,7 +17,7 @@ Next features:
   - state_based
   - delta_based
   - pure_op_based
-- __LDB_STATE_SYNC_INTERVAL__: in `state_based` and `delta_based` modes, state is propagated every __LDB_STATE_SYNC_INTERVAL__ milliseconds
+- __LDB_STATE_SYNC_INTERVAL__: in `state_based` and `delta_based` modes, state is propagated every `X` milliseconds
 - __LDB_DRIVEN_MODE__:
   - none
   - state_driven
