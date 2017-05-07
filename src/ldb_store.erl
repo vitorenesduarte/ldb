@@ -24,10 +24,15 @@
 -include("ldb.hrl").
 
 -export([start_link/0,
+         keys/0,
          get/1,
          create/2,
          update/2,
+         update_all/1,
          fold/2]).
+
+%% @doc Returns list of keys.
+-callback keys() -> list(key()).
 
 %% @doc Returns the value associated with a given `key()'.
 -callback get(key()) -> {ok, value()} | not_found().
@@ -37,8 +42,10 @@
 -callback create(key(), value()) -> ok.
 
 %% @doc Applies a given `function()' to a given `key()'.
--callback update(key(), function()) ->
-    ok | not_found() | error().
+-callback update(key(), function()) -> ok | not_found() | error().
+
+%% @doc Applies a given `function()' to all `key()'s.
+-callback update_all(function()) -> ok.
 
 %% @doc Folds the store.
 %%      The first argument is the function to be passed to the fold.
@@ -48,6 +55,10 @@
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     do(start_link, []).
+
+-spec keys() -> list(key()).
+keys() ->
+    do(keys, []).
 
 -spec get(key()) -> {ok, value()} | not_found().
 get(Key) ->
@@ -60,6 +71,10 @@ create(Key, Value) ->
 -spec update(key(), function()) -> ok | not_found() | error.
 update(Key, Function) ->
     do(update, [Key, Function]).
+
+-spec update_all(function()) -> ok.
+update_all(Function) ->
+    do(update_all, [Function]).
 
 -spec fold(function(), term()) -> term().
 fold(Function, Acc) ->

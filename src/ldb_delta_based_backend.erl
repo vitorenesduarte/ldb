@@ -185,6 +185,8 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
+    schedule_dbuffer_shrink(),
+
     ?LOG("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
@@ -238,6 +240,36 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
+handle_info(dbuffer_shrink, State) ->
+    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}, _Acc) ->
+        DeltaBuffer1 = case ldb_config:get(ldb_dbuffer_shrink_mode) of
+            normal ->
+                Acks = [N || {_, N} <- AckMap],
+                %% Add the current `Sequence' to the list of acks
+                %% to make sure we have a min;
+                %% If we don't have acks, the buffer will be cleared.
+                %% This ensures local progress.
+                Min = lists:min([Sequence | Acks]),
+
+                orddict:filter(
+                    fun(EntrySequence, {_Actor, _Delta}) ->
+                        EntrySequence >= Min
+                    end,
+                    DeltaBuffer0
+                );
+            dummy ->
+                %% clear the delta buffer
+                orddict:new()
+        end,
+
+        NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap},
+        {ok, NewValue}
+    end,
+
+    ldb_store:update_all(ShrinkFun),
+    schedule_dbuffer_shrink(),
+    {noreply, State};
+
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
@@ -247,6 +279,11 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+schedule_dbuffer_shrink() ->
+    Interval = ldb_config:get(ldb_dbuffer_shrink_interval),
+    timer:send_after(Interval, dbuffer_shrink).
 
 %% @private
 create_entry(Key, Bottom) ->
