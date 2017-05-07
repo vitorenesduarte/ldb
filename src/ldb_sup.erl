@@ -60,6 +60,11 @@ init([]) ->
 
 %% @private
 configure() ->
+    %% configure state sync interval
+    configure_var("LDB_STATE_SYNC_INTERVAL",
+                  ldb_state_sync_interval,
+                  ?DEFAULT_STATE_SYNC_INTERVAL),
+
     %% configure mode
     configure_var("LDB_MODE",
                   ldb_mode,

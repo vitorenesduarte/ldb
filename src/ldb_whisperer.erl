@@ -38,8 +38,6 @@
 
 -record(state, {}).
 
--define(STATE_SYNC_INTERVAL, 5000).
-
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -117,7 +115,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% @private
 schedule_state_sync() ->
-    timer:send_after(?STATE_SYNC_INTERVAL, state_sync).
+    Interval = ldb_config:get(ldb_state_sync_interval),
+    timer:send_after(Interval, state_sync).
 
 %% @private
 -spec do_send(ldb_node_id(), term()) -> ok.
