@@ -241,7 +241,7 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(dbuffer_shrink, State) ->
-    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}, _Acc) ->
+    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}) ->
         DeltaBuffer1 = case ldb_config:get(ldb_dbuffer_shrink_mode) of
             normal ->
                 Acks = [N || {_, N} <- AckMap],
