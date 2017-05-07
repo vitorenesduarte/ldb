@@ -29,7 +29,7 @@
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_DRIVEN_MODE, none).
 -define(DEFAULT_DBUFFER_SHRINK_INTERVAL, 20000).
--define(DEFAULT_DBUFFER_SHRINK_MODE, 20000).
+-define(DEFAULT_DBUFFER_SHRINK_MODE, normal).
 -define(DEFAULT_STORE, ldb_ets_store).
 
 %% logging
