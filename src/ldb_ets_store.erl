@@ -112,15 +112,28 @@ handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
         Error ->
             Error
     end,
+
     {reply, Result, State};
 
 handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
     Keys = keys(ETS),
 
-    %% @todo
-    Function(Keys),
+    lists:foreach(
+        fun(Key) ->
+            {ok, Value} = do_get(Key, ETS),
+            case Function(Value) of
+                {ok, NewValue} ->
+                    do_put(Key, NewValue, ETS);
+                _ ->
+                    ok
+            end
+        end,
+        Keys
+    ),
 
-    {reply, ok, State};
+    Result = ok,
+
+    {reply, Result,  State};
 
 handle_call({fold, Function, Acc}, _From, #state{ets_id=ETS}=State) ->
     Result = ets:foldl(Function, Acc, ETS),
