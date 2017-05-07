@@ -27,7 +27,9 @@
 %% ldb_metrics callbacks
 -export([start_link/0,
          get_time_series/0,
-         record_message/2]).
+         get_latency/0,
+         record_message/2,
+         record_latency/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -41,8 +43,12 @@
 -type metric() :: term().
 -type time_series() :: list({timestamp(), metric_type(), metric()}).
 
+-type latency_type() :: local | term().
+-type latency() :: list({latency_type(), list(integer())}).
+
 -record(state, {message_type_to_size :: orddict:orddict(),
-                time_series :: time_series()}).
+                time_series :: time_series(),
+                latency_type_to_latency :: orddict:orddict()}).
 
 -define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
 
@@ -54,32 +60,57 @@ start_link() ->
 get_time_series() ->
     gen_server:call(?MODULE, get_time_series, infinity).
 
+-spec get_latency() -> latency().
+get_latency() ->
+    gen_server:call(?MODULE, get_latency, infinity).
+
 -spec record_message(term(), message()) -> ok.
-record_message(Type, Message) ->
+record_message(MessageType, Message) ->
     Metrics = message_metrics(Message),
-    gen_server:cast(?MODULE, {message, Type, Metrics}).
+    gen_server:cast(?MODULE, {message, MessageType, Metrics}).
+
+%% @doc Record latency of:
+%%          - `local': creating a message locally
+%%          - `MessageType': applying a message (with type `MessageType') remotely
+-spec record_latency(latency_type(), integer()) -> ok.
+record_latency(Type, MicroSeconds) ->
+    gen_server:cast(?MODULE, {latency, Type, MicroSeconds}).
 
 %% gen_server callbacks
 init([]) ->
     schedule_time_series(),
     ?LOG("ldb_metrics initialized!"),
     {ok, #state{message_type_to_size=orddict:new(),
+                latency_type_to_latency=orddict:new(),
                 time_series=[]}}.
 
 handle_call(get_time_series, _From,
             #state{time_series=TimeSeries}=State) ->
     {reply, TimeSeries, State};
 
+handle_call(get_latency, _From,
+            #state{latency_type_to_latency=Map}=State) ->
+    {reply, Map, State};
+
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({message, Type, Metrics},
+handle_cast({message, MessageType, Metrics},
             #state{message_type_to_size=Map0}=State) ->
     Size = orddict:fetch(size, Metrics),
-    Current = orddict_ext:fetch(Type, Map0, 0),
-    Map1 = orddict:store(Type, Current + Size, Map0),
-    {noreply, State#state{message_type_to_size=Map1}}.
+    Current = orddict_ext:fetch(MessageType, Map0, 0),
+    Map1 = orddict:store(MessageType, Current + Size, Map0),
+    {noreply, State#state{message_type_to_size=Map1}};
+
+handle_cast({latency, Type, MicroSeconds},
+            #state{latency_type_to_latency=Map0}=State) ->
+    Map1 = orddict:append(Type, MicroSeconds, Map0),
+    {noreply, State#state{latency_type_to_latency=Map1}};
+
+handle_cast(Msg, State) ->
+    lager:warning("Unhandled cast message: ~p", [Msg]),
+    {noreply, State}.
 
 handle_info(time_series, #state{message_type_to_size=MessageMap,
                                 time_series=TimeSeries0}=State) ->
