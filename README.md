@@ -24,23 +24,28 @@ removes redundant state that may be present in the received
 delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
 - __LDB_DGROUP_BACK_PROPAGATION__: when set to `true`,
 avoids back-propagation of delta-groups
+- __LDB_DBUFFER_SHRINK_INTERVAL__: in `delta_based` mode,
+try to shrink the delta buffer every `X` milliseconds
+- __LDB_DBUFFER_SHRINK_MODE__:
+  - `normal`: remove acknowledged entries in the buffer
+  - `dummy`: remove all entries in the buffer
+(note that this mode is only for evaluation purposes)
 - __LDB_METRICS__: metrics are recorded if `true`
 
-| __LDB_MODE__ | __LDB_DRIVEN_MODE__ | __LDB_REDUNDANT_DGROUPS__ | __LDB_DGROUP_BACK_PROPAGATION__ |
-|:------------:|:-------------------:|:-------------------------:|:--------------------------------|
-| state_based  | `none`              | __NA__                    | __NA__                          |
-| state_based  | `state_driven`      | __NA__                    | __NA__                          |
-| state_based  | `digest_driven`     | __NA__                    | __NA__                          |
-| delta_based  | `none`              | `true` / `false`          | `true` / `false`                |
-| delta_based  | `state_driven`      | `true` / `false`          | `true` / `false`                |
-| delta_based  | `digest_driven`     | `true` / `false`          | `true` / `false`                |
-| pure_op_based| __NA__              | __NA__                    | __NA__                          |
-
+| __LDB_MODE__                    | `state_based`                             | `delta_based`                             | `pure_op_based` |
+| __LDB_DRIVEN_MODE__             | `none` / `state_driven` / `digest_driven` | `none` / `state_driven` / `digest_driven` | __NA__          |
+| __LDB_STATE_SYNC_INTERVAL__     | `0..`                                     | `0..`                                     | __NA__          |
+| __LDB_REDUNDANT_DGROUPS__       | __NA__                                    | `true` / `false`                          | __NA__          |
+| __LDB_DGROUP_BACK_PROPAGATION__ | __NA__                                    | `true` / `false`                          | __NA__          |
+| __LDB_DBUFFER_SHRINK_INTERVAL__ | __NA__                                    | `0..`                                     | __NA__          |
+| __LDB_DBUFFER_SHRINK_MODE__     | __NA__                                    | `normal` / `dummy`                        | __NA__          |
 
 #### Defaults
 - __LDB_MODE__: `state_based`
 - __LDB_DRIVEN_MODE__: `none`
-- __LDB_STATE_SYNC_INTERVAL__: 5000
+- __LDB_STATE_SYNC_INTERVAL__: 1000
 - __LDB_REDUNDANT_DGROUPS__: `false`
 - __LDB_DGROUP_BACK_PROPAGATION__: `false`
+- __LDB_DBUFFER_SHRINK_INTERVAL__: 20000
+- __LDB_DBUFFER_SHRINK_MODE__: `normal`
 - __LDB_METRICS__: `false`
