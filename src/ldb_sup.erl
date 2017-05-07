@@ -65,6 +65,16 @@ configure() ->
                   ldb_mode,
                   ?DEFAULT_MODE),
 
+    %% configure state sync interval
+    configure_int("LDB_STATE_SYNC_INTERVAL",
+                  ldb_state_sync_interval,
+                  ?DEFAULT_STATE_SYNC_INTERVAL),
+
+    %% configure driven mode
+    configure_var("LDB_DRIVEN_MODE",
+                  ldb_driven_mode,
+                  ?DEFAULT_DRIVEN_MODE),
+
     %% configure redundant delta groups
     configure_var("LDB_REDUNDANT_DGROUPS",
                   ldb_redundant_dgroups,
@@ -74,11 +84,6 @@ configure() ->
     configure_var("LDB_DGROUP_BACK_PROPAGATION",
                   ldb_dgroup_back_propagation,
                   false),
-
-    %% configure driven mode
-    configure_var("LDB_DRIVEN_MODE",
-                  ldb_driven_mode,
-                  ?DEFAULT_DRIVEN_MODE),
 
     %% configure metrics
     Metrics = configure_var("LDB_METRICS",
@@ -113,7 +118,16 @@ space_specs() ->
 configure_var(Env, Var, Default) ->
     To = fun(V) -> atom_to_list(V) end,
     From = fun(V) -> list_to_atom(V) end,
+    configure(Env, Var, Default, To, From).
 
+%% @private
+configure_int(Env, Var, Default) ->
+    To = fun(V) -> integer_to_list(V) end,
+    From = fun(V) -> list_to_integer(V) end,
+    configure(Env, Var, Default, To, From).
+
+%% @private
+configure(Env, Var, Default, To, From) ->
     Current = ldb_config:get(Var, Default),
     Val = From(
         os:getenv(Env, To(Current))
