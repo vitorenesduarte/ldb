@@ -95,11 +95,7 @@ handle_info(state_sync, State) ->
                 end,
 
                 %% record latency creating this message
-                %% - when creating the message, ignore the type
-                MessageType = undefined,
-                ldb_metrics:record_latency(local,
-                                           MessageType,
-                                           MicroSeconds)
+                ldb_metrics:record_latency(local, MicroSeconds)
             end,
             LDBIds
         )

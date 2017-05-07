@@ -29,7 +29,7 @@
          get_time_series/0,
          get_latency/0,
          record_message/2,
-         record_latency/3]).
+         record_latency/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -43,12 +43,8 @@
 -type metric() :: term().
 -type time_series() :: list({timestamp(), metric_type(), metric()}).
 
--type latency_type() :: local | remote.
--type message_type() :: term().
--type latency() :: list({
-    {latency_type(), message_type()},
-    list(integer())
-}).
+-type latency_type() :: local | term().
+-type latency() :: list({latency_type(), list(integer())}).
 
 -record(state, {message_type_to_size :: orddict:orddict(),
                 time_series :: time_series(),
@@ -75,10 +71,10 @@ record_message(MessageType, Message) ->
 
 %% @doc Record latency of:
 %%          - `local': creating a message locally
-%%          - `remote': applying a message remotely
--spec record_latency(latency_type(), message_type(), integer()) -> ok.
-record_latency(Type, MessageType, MicroSeconds) ->
-    gen_server:cast(?MODULE, {latency, Type, MessageType, MicroSeconds}).
+%%          - `MessageType': applying a message (with type `MessageType') remotely
+-spec record_latency(latency_type(), integer()) -> ok.
+record_latency(Type, MicroSeconds) ->
+    gen_server:cast(?MODULE, {latency, Type, MicroSeconds}).
 
 %% gen_server callbacks
 init([]) ->
@@ -107,9 +103,9 @@ handle_cast({message, MessageType, Metrics},
     Map1 = orddict:store(MessageType, Current + Size, Map0),
     {noreply, State#state{message_type_to_size=Map1}};
 
-handle_cast({latency, Type, MessageType, MicroSeconds},
+handle_cast({latency, Type, MicroSeconds},
             #state{latency_type_to_latency=Map0}=State) ->
-    Map1 = orddict:append({Type, MessageType}, MicroSeconds, Map0),
+    Map1 = orddict:append(Type, MicroSeconds, Map0),
     {noreply, State#state{latency_type_to_latency=Map1}};
 
 handle_cast(Msg, State) ->
