@@ -7,21 +7,16 @@ LDB supports different CRDT replication models:
 - delta-state-based
 - pure-op-based
 
-Next features:
-- implement Delta-state-based replication (as in [http://novasys.di.fct.unl.pt/~alinde/publications/a12-van_der_linde.pdf](http://novasys.di.fct.unl.pt/~alinde/publications/a12-van_der_linde.pdf))
-- implement new replication model only using join-decompositions ([http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf))
-
-
 ### Configuration
 - __LDB_MODE__:
   - state_based
   - delta_based
   - pure_op_based
-- __LDB_STATE_SYNC_INTERVAL__: in `state_based` and `delta_based` modes, state is propagated every `X` milliseconds
-- __LDB_DRIVEN_MODE__:
+- __LDB_DRIVEN_MODE__: see [this](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf) for details on `state_driven` and `digest_driven` algorithms
   - none
   - state_driven
   - digest_driven
+- __LDB_STATE_SYNC_INTERVAL__: in `state_based` and `delta_based` modes, state is propagated every `X` milliseconds (the default is 5000 ms)
 - __LDB_REDUNDANT_DGROUPS__: when set to _true_,
 removes redundant state that may be present in the received
 delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
