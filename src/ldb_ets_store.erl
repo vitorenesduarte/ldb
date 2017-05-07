@@ -28,9 +28,11 @@
 
 %% ldb_store callbacks
 -export([start_link/0,
+         keys/0,
          get/1,
          create/2,
          update/2,
+         update_all/1,
          fold/2]).
 
 %% gen_server callbacks
@@ -47,6 +49,10 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+-spec keys() -> list(key()).
+keys() ->
+    gen_server:call(?MODULE, keys, infinity).
+
 -spec get(key()) -> {ok, value()} | not_found().
 get(Key) ->
     gen_server:call(?MODULE, {get, Key}, infinity).
@@ -55,10 +61,13 @@ get(Key) ->
 create(Key, Value) ->
     gen_server:call(?MODULE, {create, Key, Value}, infinity).
 
--spec update(key(), function()) ->
-    ok | not_found() | error().
+-spec update(key(), function()) -> ok | not_found() | error().
 update(Key, Function) ->
     gen_server:call(?MODULE, {update, Key, Function}, infinity).
+
+-spec update_all(function()) -> ok.
+update_all(Function) ->
+    gen_server:call(?MODULE, {update_all, Function}, infinity).
 
 -spec fold(function(), term()) -> term().
 fold(Function, Acc) ->
@@ -70,6 +79,10 @@ init([]) ->
 
     ?LOG("ldb_ets_store initialized!"),
     {ok, #state{ets_id=ETS}}.
+
+handle_call(keys, _From, #state{ets_id=ETS}=State) ->
+    Result = keys(ETS),
+    {reply, Result, State};
 
 handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->
     Result = do_get(Key, ETS),
@@ -100,6 +113,14 @@ handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
             Error
     end,
     {reply, Result, State};
+
+handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
+    Keys = keys(ETS),
+
+    %% @todo
+    Function(Keys),
+
+    {reply, ok, State};
 
 handle_call({fold, Function, Acc}, _From, #state{ets_id=ETS}=State) ->
     Result = ets:foldl(Function, Acc, ETS),
@@ -132,6 +153,16 @@ do_get(Key, ETS) ->
             {error, not_found}
     end.
 
+%% @private Inserts a value in the store (replacing if exists)
 do_put(Key, Value, ETS) ->
     true = ets:insert(ETS, {Key, Value}),
     ok.
+
+%% @private Get list of current keys.
+keys(ETS) ->
+    keys(ets:first(ETS), ETS, []).
+
+keys('$end_of_table', _ETS, Acc) ->
+    Acc;
+keys(Key, ETS, Acc) ->
+    keys(ets:next(ETS, Key), ETS, [Key | Acc]).

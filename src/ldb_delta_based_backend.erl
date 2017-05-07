@@ -185,6 +185,8 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
+    schedule_dbuffer_shrink(),
+
     ?LOG("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
@@ -238,6 +240,16 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
+handle_info(dbuffer_shrink, State) ->
+    ShrinkFun = fun({Key, Value}, _Acc) ->
+        %% @todo
+        {Key, Value}
+    end,
+
+    ldb_store:update_all(ShrinkFun),
+    schedule_dbuffer_shrink(),
+    {noreply, State};
+
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
@@ -247,6 +259,11 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @private
+schedule_dbuffer_shrink() ->
+    Interval = ldb_config:get(ldb_dbuffer_shrink_interval),
+    timer:send_after(Interval, dbuffer_shrink).
 
 %% @private
 create_entry(Key, Bottom) ->
