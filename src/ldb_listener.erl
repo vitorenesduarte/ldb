@@ -58,8 +58,7 @@ handle_cast(Message, State) ->
     ),
 
     %% record latency applying this message
-    MessageType = element(2, Message),
-    ldb_metrics:record_latency(MessageType, MicroSeconds),
+    ldb_metrics:record_latency(remote, MicroSeconds),
 
     {noreply, State}.
 
