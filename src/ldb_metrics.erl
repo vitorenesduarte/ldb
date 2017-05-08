@@ -43,7 +43,7 @@
 -type metric() :: term().
 -type time_series() :: list({timestamp(), metric_type(), metric()}).
 
--type latency_type() :: local | term().
+-type latency_type() :: local | remote.
 -type latency() :: list({latency_type(), list(integer())}).
 
 -record(state, {message_type_to_size :: orddict:orddict(),
@@ -71,7 +71,7 @@ record_message(MessageType, Size) ->
 
 %% @doc Record latency of:
 %%          - `local': creating a message locally
-%%          - `MessageType': applying a message (with type `MessageType') remotely
+%%          - `remote': applying a message remotely
 -spec record_latency(latency_type(), integer()) -> ok.
 record_latency(Type, MicroSeconds) ->
     gen_server:cast(?MODULE, {latency, Type, MicroSeconds}).
