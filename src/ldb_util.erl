@@ -28,7 +28,7 @@
          atom_to_binary/1,
          binary_to_atom/1,
          unix_timestamp/0,
-         term_size/1]).
+         size/2]).
 
 %% @doc Creates a bottom CRDT from a type
 %%      or from an existing state-based CRDT.
@@ -73,9 +73,19 @@ unix_timestamp() ->
     Mega * 1000000 + Sec.
 
 %% @doc
--spec term_size(term()) -> non_neg_integer().
-term_size(T) ->
-    byte_size(term_to_binary(T)).
+-spec size(term | crdt | delta_buffer, term()) -> non_neg_integer().
+size(term, T) ->
+    erts_debug:flat_size(T);
+size(crdt, CRDT) ->
+    state_type:crdt_size(CRDT);
+size(delta_buffer, DeltaBuffer) ->
+    lists:foldl(
+        fun({Sequence, {From, CRDT}}, Acc) ->
+            Acc + size(crdt, CRDT) + size(term, {Sequence, From})
+        end,
+        0,
+        DeltaBuffer
+    ).
 
 %% @private
 extract_args({Type, Args}) ->

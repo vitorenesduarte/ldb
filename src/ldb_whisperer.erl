@@ -139,23 +139,23 @@ do_send(LDBId, Message) ->
 
 %% @private
 metrics({_Key, state, CRDT}) ->
-    M = {state, {CRDT}},
+    M = {state, ldb_util:size(crdt, CRDT)},
     record_message([M]);
 metrics({_Key, state_driven, _From, Delta}) ->
-    M = {state, {Delta}},
+    M = {state, ldb_util:size(crdt, Delta)},
     record_message([M]);
 metrics({_Key, digest_driven, _From, _Bottom, Digest}) ->
-    M = {digest, {Digest}},
+    M = {digest, ldb_util:size(term, Digest)},
     record_message([M]);
 metrics({_Key, digest_driven_with_state, _From, Delta, Digest}) ->
-    M1 = {state, {Delta}},
-    M2 = {digest, {Digest}},
+    M1 = {state, ldb_util:size(crdt, Delta)},
+    M2 = {digest, ldb_util:size(term, Digest)},
     record_message([M1, M2]);
 metrics({_Key, delta, _From, Sequence, Delta}) ->
-    M = {delta, {Sequence, Delta}},
+    M = {delta, ldb_util:size(term, Sequence) + ldb_util:size(crdt, Delta)},
     record_message([M]);
 metrics({_Key, delta_ack, _From, Sequence}) ->
-    M = {delta_ack, {Sequence}},
+    M = {delta_ack, ldb_util:size(term, Sequence)},
     record_message([M]).
 
 %% @private
@@ -163,8 +163,8 @@ record_message(L) ->
     case ldb_config:get(ldb_metrics) of
         true ->
             lists:foreach(
-                fun({Type, Payload}) ->
-                    ldb_metrics:record_message(Type, Payload)
+                fun({Type, Size}) ->
+                    ldb_metrics:record_message(Type, Size)
                 end,
                 L
             );
