@@ -224,8 +224,9 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 handle_call(memory, _From, State) ->
     FoldFunction = fun({_Key, Value}, {C, R}) ->
         {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
-        CRDTSize = ldb_util:term_size(CRDT),
-        RestSize = ldb_util:term_size({Sequence, DeltaBuffer, AckMap}),
+        CRDTSize = ldb_util:size(crdt, CRDT),
+        RestSize = ldb_util:size(term, {Sequence, AckMap})
+                 + ldb_util:size(delta_buffer, DeltaBuffer),
         {C + CRDTSize, R + RestSize}
     end,
 

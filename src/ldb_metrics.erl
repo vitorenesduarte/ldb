@@ -64,9 +64,9 @@ get_time_series() ->
 get_latency() ->
     gen_server:call(?MODULE, get_latency, infinity).
 
--spec record_message(term(), message()) -> ok.
-record_message(MessageType, Message) ->
-    Metrics = message_metrics(Message),
+-spec record_message(term(), non_neg_integer()) -> ok.
+record_message(MessageType, Size) ->
+    Metrics = [{size, Size}],
     gen_server:cast(?MODULE, {message, MessageType, Metrics}).
 
 %% @doc Record latency of:
@@ -146,8 +146,3 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private
 schedule_time_series() ->
     timer:send_after(?TIME_SERIES_INTERVAL, time_series).
-
-%% @private
-message_metrics(Message) ->
-    Size = ldb_util:term_size(Message),
-    [{size, Size}].
