@@ -24,8 +24,6 @@ removes redundant state that may be present in the received
 delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
 - __LDB_DGROUP_BACK_PROPAGATION__: when set to `true`,
 avoids back-propagation of delta-groups
-- __LDB_DBUFFER_SHRINK_INTERVAL__: in `delta_based` mode,
-try to shrink the delta buffer every `X` milliseconds
 - __LDB_METRICS__: metrics are recorded if `true`
 
 |||||
@@ -35,7 +33,6 @@ try to shrink the delta buffer every `X` milliseconds
 | __LDB_STATE_SYNC_INTERVAL__     | `0..`                                     | `0..`                                     | __NA__          |
 | __LDB_REDUNDANT_DGROUPS__       | __NA__                                    | `true` / `false`                          | __NA__          |
 | __LDB_DGROUP_BACK_PROPAGATION__ | __NA__                                    | `true` / `false`                          | __NA__          |
-| __LDB_DBUFFER_SHRINK_INTERVAL__ | __NA__                                    | `0..`                                     | __NA__          |
 
 #### Defaults
 - __LDB_MODE__: `state_based`
@@ -43,5 +40,4 @@ try to shrink the delta buffer every `X` milliseconds
 - __LDB_STATE_SYNC_INTERVAL__: 1000
 - __LDB_REDUNDANT_DGROUPS__: `false`
 - __LDB_DGROUP_BACK_PROPAGATION__: `false`
-- __LDB_DBUFFER_SHRINK_INTERVAL__: 20000
 - __LDB_METRICS__: `false`

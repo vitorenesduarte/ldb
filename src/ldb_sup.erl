@@ -85,11 +85,6 @@ configure() ->
                   ldb_dgroup_back_propagation,
                   false),
 
-    %% configure delta buffer shrink interval
-    configure_int("LDB_DBUFFER_SHRINK_INTERVAL",
-                  ldb_dbuffer_shrink_interval,
-                  ?DEFAULT_DBUFFER_SHRINK_INTERVAL),
-
     %% configure metrics
     Metrics = configure_var("LDB_METRICS",
                             ldb_metrics,
