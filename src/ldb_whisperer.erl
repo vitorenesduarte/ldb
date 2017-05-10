@@ -26,6 +26,7 @@
 
 %% ldb_whisperer callbacks
 -export([start_link/0,
+         members/0,
          send/2]).
 
 %% gen_server callbacks
@@ -41,6 +42,10 @@
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+-spec members() -> list(ldb_node_id()).
+members() ->
+    gen_server:call(?MODULE, members, infinity).
 
 -spec send(ldb_node_id(), term()) -> ok.
 send(LDBId, Message) ->
@@ -59,6 +64,11 @@ init([]) ->
 
     ?LOG("ldb_whisperer initialized!"),
     {ok, #state{}}.
+
+handle_call(members, _From, State) ->
+    %% @todo ldb_peer_service should cache members using partisan add_sup_callback
+    {ok, Result} = ldb_peer_service:members(),
+    {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
