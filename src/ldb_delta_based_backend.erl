@@ -278,7 +278,7 @@ handle_info(dbuffer_shrink, #state{to_shrink_keys=Keys}=State) ->
         fun(Key) ->
             ldb_store:update(Key, ShrinkFun)
         end,
-        Keys
+        sets:to_list(Keys)
     ),
 
     schedule_dbuffer_shrink(),
