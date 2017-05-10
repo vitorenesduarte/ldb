@@ -42,7 +42,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: ldb_node_id()}).
+-record(state, {actor :: ldb_node_id(),
+                to_shrink_keys :: sets:set(key())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -173,7 +174,10 @@ message_handler({_, delta_ack, _, _}) ->
                 StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
                 {ok, StoreValue}
             end
-        )
+        ),
+
+        %% tell the backend to try to shrink the dbuffer
+        gen_server:cast(?MODULE, {to_shrink, Key})
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
@@ -188,7 +192,7 @@ init([]) ->
     schedule_dbuffer_shrink(),
 
     ?LOG("ldb_delta_based_backend initialized!"),
-    {ok, #state{actor=Actor}}.
+    {ok, #state{actor=Actor, to_shrink_keys=sets:new()}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Bottom = ldb_util:new_crdt(type, LDBType),
@@ -237,39 +241,48 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
+handle_cast({to_shrink, Key}, #state{to_shrink_keys=Keys}=State) ->
+    {noreply, State#state{to_shrink_keys=sets:add_element(Key, Keys)}};
+
 handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(dbuffer_shrink, State) ->
-    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}) ->
-        DeltaBuffer1 = case ldb_config:get(ldb_dbuffer_shrink_mode) of
-            normal ->
-                Acks = [N || {_, N} <- AckMap],
-                %% Add the current `Sequence' to the list of acks
-                %% to make sure we have a min;
-                %% If we don't have acks, the buffer will be cleared.
-                %% This ensures local progress.
-                Min = lists:min([Sequence | Acks]),
+handle_info(dbuffer_shrink, #state{to_shrink_keys=Keys}=State) ->
 
-                orddict:filter(
-                    fun(EntrySequence, {_Actor, _Delta}) ->
-                        EntrySequence >= Min
-                    end,
-                    DeltaBuffer0
-                );
-            dummy ->
-                %% clear the delta buffer
-                orddict:new()
-        end,
+    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap}) ->
+
+        %% @todo Since we don't ensure that all the peers have
+        %% an entry in the ack map, we may garbage collect an
+        %% entry that a peer did not receive
+
+        Acks = [N || {_, N} <- AckMap],
+        %% Add the current `Sequence' to the list of acks
+        %% to make sure we have a min;
+        %% If we don't have acks, the buffer will be cleared.
+        %% This ensures local progress.
+        Min = lists:min([Sequence | Acks]),
+
+        DeltaBuffer1 = orddict:filter(
+            fun(EntrySequence, {_Actor, _Delta}) ->
+                EntrySequence >= Min
+            end,
+            DeltaBuffer0
+        ),
 
         NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap},
         {ok, NewValue}
     end,
 
-    ldb_store:update_all(ShrinkFun),
+    lists:foreach(
+        fun(Key) ->
+            ldb_store:update(Key, ShrinkFun)
+        end,
+        sets:to_list(Keys)
+    ),
+
     schedule_dbuffer_shrink(),
-    {noreply, State};
+    {noreply, State#state{to_shrink_keys=sets:new()}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),

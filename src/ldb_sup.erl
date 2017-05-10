@@ -90,11 +90,6 @@ configure() ->
                   ldb_dbuffer_shrink_interval,
                   ?DEFAULT_DBUFFER_SHRINK_INTERVAL),
 
-    %% configure delta buffer shrink mode
-    configure_var("LDB_DBUFFER_SHRINK_MODE",
-                  ldb_dbuffer_shrink_mode,
-                  ?DEFAULT_DBUFFER_SHRINK_MODE),
-
     %% configure metrics
     Metrics = configure_var("LDB_METRICS",
                             ldb_metrics,

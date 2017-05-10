@@ -26,10 +26,6 @@ delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmld
 avoids back-propagation of delta-groups
 - __LDB_DBUFFER_SHRINK_INTERVAL__: in `delta_based` mode,
 try to shrink the delta buffer every `X` milliseconds
-- __LDB_DBUFFER_SHRINK_MODE__:
-  - `normal`: remove acknowledged entries in the buffer
-  - `dummy`: remove all entries in the buffer
-(note that this mode is only for evaluation purposes)
 - __LDB_METRICS__: metrics are recorded if `true`
 
 |||||
@@ -40,7 +36,6 @@ try to shrink the delta buffer every `X` milliseconds
 | __LDB_REDUNDANT_DGROUPS__       | __NA__                                    | `true` / `false`                          | __NA__          |
 | __LDB_DGROUP_BACK_PROPAGATION__ | __NA__                                    | `true` / `false`                          | __NA__          |
 | __LDB_DBUFFER_SHRINK_INTERVAL__ | __NA__                                    | `0..`                                     | __NA__          |
-| __LDB_DBUFFER_SHRINK_MODE__     | __NA__                                    | `normal` / `dummy`                        | __NA__          |
 
 #### Defaults
 - __LDB_MODE__: `state_based`
@@ -49,5 +44,4 @@ try to shrink the delta buffer every `X` milliseconds
 - __LDB_REDUNDANT_DGROUPS__: `false`
 - __LDB_DGROUP_BACK_PROPAGATION__: `false`
 - __LDB_DBUFFER_SHRINK_INTERVAL__: 20000
-- __LDB_DBUFFER_SHRINK_MODE__: `normal`
 - __LDB_METRICS__: `false`
