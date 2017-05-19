@@ -46,8 +46,7 @@
 -type latency_type() :: local | remote.
 -type latency() :: list({latency_type(), list(integer())}).
 
--record(state, {message_type_to_size :: orddict:orddict(),
-                time_series :: time_series(),
+-record(state, {time_series :: time_series(),
                 latency_type_to_latency :: orddict:orddict()}).
 
 -define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
@@ -80,8 +79,7 @@ record_latency(Type, MicroSeconds) ->
 init([]) ->
     schedule_time_series(),
     ?LOG("ldb_metrics initialized!"),
-    {ok, #state{message_type_to_size=orddict:new(),
-                latency_type_to_latency=orddict:new(),
+    {ok, #state{latency_type_to_latency=orddict:new(),
                 time_series=[]}}.
 
 handle_call(get_time_series, _From,
@@ -97,11 +95,14 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({message, MessageType, Metrics},
-            #state{message_type_to_size=Map0}=State) ->
+            #state{time_series=TimeSeries0}=State) ->
     Size = orddict:fetch(size, Metrics),
-    Current = orddict_ext:fetch(MessageType, Map0, 0),
-    Map1 = orddict:store(MessageType, Current + Size, Map0),
-    {noreply, State#state{message_type_to_size=Map1}};
+
+    Timestamp = ldb_util:unix_timestamp(),
+    TMetric = {Timestamp, transmission, {MessageType, Size}},
+    TimeSeries1 = lists:append(TimeSeries0, [TMetric]),
+
+    {noreply, State#state{time_series=TimeSeries1}};
 
 handle_cast({latency, Type, MicroSeconds},
             #state{latency_type_to_latency=Map0}=State) ->
@@ -112,26 +113,18 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(time_series, #state{message_type_to_size=MessageMap,
-                                time_series=TimeSeries0}=State) ->
+handle_info(time_series, #state{time_series=TimeSeries0}=State) ->
     Timestamp = ldb_util:unix_timestamp(),
 
-    % transmission metrics
-    TimeSeries1 = case orddict:is_empty(MessageMap) of
-        true ->
-            TimeSeries0;
-        false ->
-            TMetric = {Timestamp, transmission, MessageMap},
-            lists:append(TimeSeries0, [TMetric])
-    end,
+    % tranmission metrics are already recorded in `time_series'
 
     % memory metrics
     MMetric = {Timestamp, memory, ldb_backend:memory()},
-    TimeSeries2 = lists:append(TimeSeries1, [MMetric]),
+    TimeSeries1 = lists:append(TimeSeries0, [MMetric]),
 
     schedule_time_series(),
 
-    {noreply, State#state{time_series=TimeSeries2}};
+    {noreply, State#state{time_series=TimeSeries1}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
