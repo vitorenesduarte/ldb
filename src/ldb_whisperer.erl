@@ -131,16 +131,18 @@ schedule_state_sync() ->
 %% @private
 -spec do_send(ldb_node_id(), term()) -> ok.
 do_send(LDBId, Message) ->
-    metrics(Message),
+
+    %% try to send the message
     Result = ldb_peer_service:forward_message(
         LDBId,
         ldb_listener,
         Message
     ),
 
+    %% if message was sent, collect metrics
     case Result of
         ok ->
-            ok;
+            metrics(Message);
         Error ->
             ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
                  [Message, LDBId, Error])
