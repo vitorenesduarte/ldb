@@ -62,7 +62,7 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, {Type, _}=CRDT, NodeName) ->
+    fun(Key, {Type, _}=CRDT, NodeName, _Round) ->
         Actor = ldb_config:id(),
         ShouldStart = Actor < NodeName,
 

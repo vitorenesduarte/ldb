@@ -62,7 +62,7 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName) ->
+    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName, _Round) ->
         MinSeq = min_seq(DeltaBuffer),
         LastAck = last_ack(NodeName, AckMap),
 

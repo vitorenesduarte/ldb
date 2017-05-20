@@ -37,7 +37,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {state_sync_round :: non_neg_integer()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -63,7 +63,7 @@ init([]) ->
     end,
 
     ?LOG("ldb_whisperer initialized!"),
-    {ok, #state{}}.
+    {ok, #state{state_sync_round=0}}.
 
 handle_call(members, _From, State) ->
     %% @todo ldb_peer_service should cache members using partisan add_sup_callback
@@ -82,7 +82,7 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(state_sync, State) ->
+handle_info(state_sync, #state{state_sync_round=Round}=State) ->
     {ok, LDBIds} = ldb_peer_service:members(),
 
     FoldFunction = fun({Key, Value}, _Acc) ->
@@ -92,7 +92,7 @@ handle_info(state_sync, State) ->
 
                 {MicroSeconds, Result} = timer:tc(
                     MessageMakerFun,
-                    [Key, Value, LDBId]
+                    [Key, Value, LDBId, Round]
                 ),
 
                 case Result of
@@ -111,7 +111,7 @@ handle_info(state_sync, State) ->
 
     ldb_store:fold(FoldFunction, undefined),
     schedule_state_sync(),
-    {noreply, State};
+    {noreply, State#state{state_sync_round=Round + 1}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
