@@ -75,6 +75,11 @@ configure() ->
                   ldb_state_sync_interval,
                   ?DEFAULT_STATE_SYNC_INTERVAL),
 
+    %% configure eviction round number
+    configure_int("LDB_EVICTION_ROUND_NUMBER",
+                  ldb_eviction_round_number,
+                  ?DEFAULT_EVICTION_ROUND_NUMBER),
+
     %% configure redundant delta groups
     configure_var("LDB_REDUNDANT_DGROUPS",
                   ldb_redundant_dgroups,
