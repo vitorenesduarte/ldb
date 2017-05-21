@@ -65,7 +65,7 @@ message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
 
         MinSeq = min_seq_buffer(DeltaBuffer),
-        LastAck = last_ack(NodeName, AckMap0),
+        {LastAck, _} = last_ack(NodeName, AckMap0),
 
         case LastAck < Sequence of
             true ->
@@ -333,12 +333,11 @@ min_seq_ack_map(AckMap) ->
 
 %% @private
 last_ack(NodeName, AckMap) ->
-    {LastAck, _} = orddict_ext:fetch(NodeName, AckMap, {0, 0}),
-    LastAck.
+    orddict_ext:fetch(NodeName, AckMap, {0, 0}).
 
 %% @private
 increment_ack_map_round(Key, NodeName, AckMap) ->
-    {LastAck, Round} = orddict_ext:fetch(NodeName, AckMap, {0, 0}),
+    {LastAck, Round} = last_ack(NodeName, AckMap),
     NextRound = Round + 1,
 
     EvictionRoundNumber = eviction_round_number(),
