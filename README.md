@@ -43,7 +43,7 @@ avoids back-propagation of delta-groups
 - __LDB_MODE__: `state_based`
 - __LDB_DRIVEN_MODE__: `none`
 - __LDB_STATE_SYNC_INTERVAL__: 1000
-- __LDB_EVICTION_ROUND_NUMBER__: 10
+- __LDB_EVICTION_ROUND_NUMBER__: -1
 - __LDB_REDUNDANT_DGROUPS__: `false`
 - __LDB_DGROUP_BACK_PROPAGATION__: `false`
 - __LDB_METRICS__: `false`

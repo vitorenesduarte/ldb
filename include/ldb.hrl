@@ -26,7 +26,7 @@
 
 %% defaults
 -define(DEFAULT_STATE_SYNC_INTERVAL, 1000).
--define(DEFAULT_EVICTION_ROUND_NUMBER, 10).
+-define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_DRIVEN_MODE, none).
 -define(DEFAULT_STORE, ldb_ets_store).
