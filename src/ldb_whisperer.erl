@@ -89,7 +89,6 @@ handle_info(state_sync, State) ->
         NewValue = lists:foldl(
             fun(LDBId, CurrentValue) ->
                 MessageMakerFun = ldb_backend:message_maker(),
-                
 
                 {MicroSeconds, Result} = timer:tc(
                     MessageMakerFun,
