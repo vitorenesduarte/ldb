@@ -21,7 +21,7 @@ for details on `state_driven` and `digest_driven` algorithms
 modes, state is propagated every `X` milliseconds
 - __LDB_EVICTION_ROUND_NUMBER__: evict a peer from the ack map if no
 ack is received from this peer after `X` rounds of state
-synchronization
+synchronization (where messages where sent to this peer)
 - __LDB_REDUNDANT_DGROUPS__: when set to `true`,
 removes redundant state that may be present in the received
 delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
