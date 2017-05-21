@@ -341,7 +341,13 @@ increment_ack_map_round(Key, NodeName, AckMap) ->
     {LastAck, Round} = orddict_ext:fetch(NodeName, AckMap, {0, 0}),
     NextRound = Round + 1,
 
-    case NextRound > eviction_round_number() of
+    EvictionRoundNumber = eviction_round_number(),
+
+    %% if eviction round number is bigger than the current round number
+    %% and we should evict peers from the delta buffer
+    %% (i.e., eviction round number != -1),
+    %% evict peer from the ack map
+    case NextRound > EvictionRoundNumber andalso EvictionRoundNumber /= -1 of
         true ->
             dbuffer_shrink(Key),
             orddict:erase(NodeName, AckMap);
