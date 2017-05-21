@@ -64,7 +64,7 @@ update(Key, Operation) ->
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
 
-        MinSeq = min_seq(DeltaBuffer),
+        MinSeq = min_seq_buffer(DeltaBuffer),
         LastAck = last_ack(NodeName, AckMap0),
 
         case LastAck < Sequence of
@@ -275,7 +275,7 @@ handle_cast({dbuffer_shrink, Key}, State) ->
         %% acknowledged by all the peers
         DeltaBuffer1 = case AllPeersInAckMap of
             true ->
-                Min = lists:min([N || {_, N} <- AckMap1]),
+                Min = min_seq_ack_map(AckMap1),
 
                 orddict:filter(
                     fun(EntrySequence, {_Actor, _Delta}) ->
@@ -319,13 +319,17 @@ create_entry(Key, Bottom) ->
     Result.
 
 %% @private
-min_seq(DeltaBuffer) ->
+min_seq_buffer(DeltaBuffer) ->
     case orddict:fetch_keys(DeltaBuffer) of
         [] ->
             0;
         Keys ->
             lists:nth(1, Keys)
     end.
+
+%% @private
+min_seq_ack_map(AckMap) ->
+    lists:min([Ack || {_, {Ack, _Round}} <- AckMap]).
 
 %% @private
 last_ack(NodeName, AckMap) ->
