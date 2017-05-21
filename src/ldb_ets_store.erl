@@ -121,7 +121,7 @@ handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
     lists:foreach(
         fun(Key) ->
             {ok, Value} = do_get(Key, ETS),
-            case Function(Value) of
+            case Function({Key, Value}) of
                 {ok, NewValue} ->
                     do_put(Key, NewValue, ETS);
                 _ ->
