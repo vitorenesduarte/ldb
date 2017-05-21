@@ -62,17 +62,18 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName) ->
-        MinSeq = min_seq(DeltaBuffer),
-        LastAck = last_ack(NodeName, AckMap),
+    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
+
+        MinSeq = min_seq_buffer(DeltaBuffer),
+        {LastAck, _} = last_ack(NodeName, AckMap0),
 
         case LastAck < Sequence of
             true ->
-                Delta = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
+                {Delta, AckMap1} = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
-                        CRDT;
+                        {CRDT, AckMap0};
                     false ->
-                        orddict:fold(
+                        DeltaGroup = orddict:fold(
                             fun(N, {From, D}, Acc) ->
                                 ShouldSendDelta0 = LastAck =< N andalso N < Sequence,
                                 ShouldSendDelta1 = case ldb_config:get(ldb_dgroup_back_propagation, false) of
@@ -92,8 +93,13 @@ message_maker() ->
                             end,
                             ldb_util:new_crdt(state, CRDT),
                             DeltaBuffer
-                        )
+                        ),
+
+                        {DeltaGroup, increment_ack_map_round(Key, NodeName, AckMap0)}
                 end,
+
+                %% update the ack map
+                NewValue = {CRDT, Sequence, DeltaBuffer, AckMap1},
 
                 Actor = ldb_config:id(),
                 Message = {
@@ -103,9 +109,9 @@ message_maker() ->
                     Sequence,
                     Delta
                 },
-                {ok, Message};
+                {Message, NewValue};
             false ->
-                nothing
+                {nothing, Value}
         end
     end.
 
@@ -167,16 +173,26 @@ message_handler({_, delta_ack, _, _}) ->
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
-                LastAck = last_ack(From, AckMap0),
+                {LastAck, Round} = last_ack(From, AckMap0),
+
+                %% when a new ack is received,
+                %% update the number of rounds without
+                %% receiving an ack to 0
                 MaxAck = max(LastAck, N),
-                AckMap1 = orddict:store(From, MaxAck, AckMap0),
+                NewRound = case MaxAck > LastAck of
+                    true ->
+                        0;
+                    false ->
+                        Round
+                end,
+
+                AckMap1 = orddict:store(From, {MaxAck, NewRound}, AckMap0),
                 StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
                 {ok, StoreValue}
             end
         ),
 
-        %% tell the backend to try to shrink the dbuffer
-        gen_server:cast(?MODULE, {dbuffer_shrink, Key})
+        dbuffer_shrink(Key)
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
@@ -259,7 +275,7 @@ handle_cast({dbuffer_shrink, Key}, State) ->
         %% acknowledged by all the peers
         DeltaBuffer1 = case AllPeersInAckMap of
             true ->
-                Min = lists:min([N || {_, N} <- AckMap1]),
+                Min = min_seq_ack_map(AckMap1),
 
                 orddict:filter(
                     fun(EntrySequence, {_Actor, _Delta}) ->
@@ -303,7 +319,7 @@ create_entry(Key, Bottom) ->
     Result.
 
 %% @private
-min_seq(DeltaBuffer) ->
+min_seq_buffer(DeltaBuffer) ->
     case orddict:fetch_keys(DeltaBuffer) of
         [] ->
             0;
@@ -312,5 +328,37 @@ min_seq(DeltaBuffer) ->
     end.
 
 %% @private
+min_seq_ack_map(AckMap) ->
+    lists:min([Ack || {_, {Ack, _Round}} <- AckMap]).
+
+%% @private
 last_ack(NodeName, AckMap) ->
-    orddict_ext:fetch(NodeName, AckMap, 0).
+    orddict_ext:fetch(NodeName, AckMap, {0, 0}).
+
+%% @private
+increment_ack_map_round(Key, NodeName, AckMap) ->
+    {LastAck, Round} = last_ack(NodeName, AckMap),
+    NextRound = Round + 1,
+
+    EvictionRoundNumber = eviction_round_number(),
+
+    %% if eviction round number is bigger than the current round number
+    %% and we should evict peers from the delta buffer
+    %% (i.e., eviction round number != -1),
+    %% evict peer from the ack map
+    case NextRound > EvictionRoundNumber andalso EvictionRoundNumber /= -1 of
+        true ->
+            dbuffer_shrink(Key),
+            orddict:erase(NodeName, AckMap);
+        false ->
+            orddict:store(NodeName, {LastAck, NextRound}, AckMap)
+    end.
+
+%% @private
+eviction_round_number() ->
+    ldb_config:get(ldb_eviction_round_number).
+
+%% @private
+dbuffer_shrink(Key) ->
+    %% tell the backend to try to shrink the dbuffer
+    gen_server:cast(?MODULE, {dbuffer_shrink, Key}).

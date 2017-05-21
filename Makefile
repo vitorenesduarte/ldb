@@ -41,7 +41,7 @@ eunit:
 	${REBAR} as test eunit
 
 shell:
-	${REBAR} shell --apps ldb
+	${REBAR} shell --apps ${PACKAGE}
 
 java-client-test:
 	./test/java-client-test

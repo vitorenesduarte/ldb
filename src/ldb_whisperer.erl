@@ -85,31 +85,40 @@ handle_cast(Msg, State) ->
 handle_info(state_sync, State) ->
     {ok, LDBIds} = ldb_peer_service:members(),
 
-    FoldFunction = fun({Key, Value}, _Acc) ->
-        lists:foreach(
-            fun(LDBId) ->
+    UpdateFunction = fun({Key, Value}) ->
+        NewValue = lists:foldl(
+            fun(LDBId, CurrentValue) ->
                 MessageMakerFun = ldb_backend:message_maker(),
 
                 {MicroSeconds, Result} = timer:tc(
                     MessageMakerFun,
-                    [Key, Value, LDBId]
+                    [Key, CurrentValue, LDBId]
                 ),
 
-                case Result of
-                    {ok, Message} ->
-                        do_send(LDBId, Message);
+                {Message, UpdatedValue} = Result,
+
+                %% send message if there's a message to send
+                case Message of
                     nothing ->
-                        ok
+                        ok;
+                    _ ->
+                        do_send(LDBId, Message)
                 end,
 
                 %% record latency creating this message
-                ldb_metrics:record_latency(local, MicroSeconds)
+                ldb_metrics:record_latency(local, MicroSeconds),
+
+                UpdatedValue
+
             end,
+            Value,
             LDBIds
-        )
+        ),
+
+        {ok, NewValue}
     end,
 
-    ldb_store:fold(FoldFunction, undefined),
+    ldb_store:update_all(UpdateFunction),
     schedule_state_sync(),
     {noreply, State};
 
@@ -131,16 +140,18 @@ schedule_state_sync() ->
 %% @private
 -spec do_send(ldb_node_id(), term()) -> ok.
 do_send(LDBId, Message) ->
-    metrics(Message),
+
+    %% try to send the message
     Result = ldb_peer_service:forward_message(
         LDBId,
         ldb_listener,
         Message
     ),
 
+    %% if message was sent, collect metrics
     case Result of
         ok ->
-            ok;
+            metrics(Message);
         Error ->
             ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
                  [Message, LDBId, Error])

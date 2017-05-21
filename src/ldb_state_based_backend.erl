@@ -74,7 +74,7 @@ message_maker() ->
                     state,
                     CRDT
                 },
-                {ok, Message};
+                {Message, CRDT};
             state_driven ->
                 case ShouldStart of
                     true ->
@@ -85,9 +85,9 @@ message_maker() ->
                             Actor,
                             CRDT
                         },
-                        {ok, Message};
+                        {Message, CRDT};
                     false ->
-                        nothing
+                        {nothing, CRDT}
                 end;
             digest_driven ->
                 case ShouldStart of
@@ -104,9 +104,9 @@ message_maker() ->
                             Bottom,
                             Digest
                         },
-                        {ok, Message};
+                        {Message, CRDT};
                     false ->
-                        nothing
+                        {nothing, CRDT}
                 end
         end
     end.
