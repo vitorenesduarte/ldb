@@ -110,9 +110,6 @@ handle_info(state_sync, State) ->
     end,
 
     ldb_store:fold(FoldFunction, undefined),
-
-    ldb_backend:state_sync_round_done(),
-
     schedule_state_sync(),
     {noreply, State};
 

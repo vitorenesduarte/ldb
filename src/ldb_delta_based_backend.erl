@@ -31,7 +31,6 @@
          query/1,
          update/2,
          message_maker/0,
-         state_sync_round_done/0,
          message_handler/1,
          memory/0]).
 
@@ -63,7 +62,7 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap, _MinSeqAndCount}, NodeName) ->
+    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName) ->
         MinSeq = min_seq(DeltaBuffer),
         LastAck = last_ack(NodeName, AckMap),
 
@@ -110,10 +109,6 @@ message_maker() ->
         end
     end.
 
--spec state_sync_round_done() -> ok.
-state_sync_round_done() ->
-    gen_server:cast(?MODULE, state_sync_round_done).
-
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
@@ -124,7 +119,7 @@ message_handler({_, delta, _, _, _}) ->
 
         ldb_store:update(
             Key,
-            fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap, MinSeqAndCount}) ->
+            fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
                 {Sequence, DeltaBuffer} = case ldb_config:get(ldb_redundant_dgroups, false) of
@@ -162,7 +157,7 @@ message_handler({_, delta, _, _, _}) ->
                 },
                 ldb_whisperer:send(From, Ack),
 
-                StoreValue = {Merged, Sequence, DeltaBuffer, AckMap, MinSeqAndCount},
+                StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end
         )
@@ -171,11 +166,11 @@ message_handler({_, delta_ack, _, _}) ->
     fun({Key, delta_ack, From, N}) ->
         ldb_store:update(
             Key,
-            fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0, MinSeqAndCount}) ->
+            fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
                 LastAck = last_ack(From, AckMap0),
                 MaxAck = max(LastAck, N),
                 AckMap1 = orddict:store(From, MaxAck, AckMap0),
-                StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1, MinSeqAndCount},
+                StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
                 {ok, StoreValue}
             end
         ),
@@ -212,12 +207,12 @@ handle_call({query, Key}, _From, State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
-    Function = fun({{Type, _}=CRDT0, Sequence, DeltaBuffer0, AckMap, MinSeqAndCount}) ->
+    Function = fun({{Type, _}=CRDT0, Sequence, DeltaBuffer0, AckMap}) ->
         case Type:delta_mutate(Operation, Actor, CRDT0) of
             {ok, Delta} ->
                 CRDT1 = Type:merge(CRDT0, Delta),
                 DeltaBuffer1 = orddict:store(Sequence, {Actor, Delta}, DeltaBuffer0),
-                StoreValue = {CRDT1, Sequence + 1, DeltaBuffer1, AckMap, MinSeqAndCount},
+                StoreValue = {CRDT1, Sequence + 1, DeltaBuffer1, AckMap},
                 {ok, StoreValue};
             Error ->
                 Error
@@ -229,9 +224,9 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 
 handle_call(memory, _From, State) ->
     FoldFunction = fun({_Key, Value}, {C, R}) ->
-        {CRDT, Sequence, DeltaBuffer, AckMap, MinSeqAndCount} = Value,
+        {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
         CRDTSize = ldb_util:size(crdt, CRDT),
-        RestSize = ldb_util:size(term, {Sequence, AckMap, MinSeqAndCount})
+        RestSize = ldb_util:size(term, {Sequence, AckMap})
                  + ldb_util:size(delta_buffer, DeltaBuffer),
         {C + CRDTSize, R + RestSize}
     end,
@@ -243,11 +238,8 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast(state_sync_round_done, State) ->
-    {noreply, State};
-
 handle_cast({dbuffer_shrink, Key}, State) ->
-    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0, MinSeqAndCount}) ->
+    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
 
         Peers = ldb_whisperer:members(),
 
@@ -279,7 +271,7 @@ handle_cast({dbuffer_shrink, Key}, State) ->
                 DeltaBuffer0
         end,
 
-        NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1, MinSeqAndCount},
+        NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
         {ok, NewValue}
     end,
 
@@ -306,9 +298,7 @@ create_entry(Key, Bottom) ->
     DeltaBuffer = orddict:new(),
     AckMap = orddict:new(),
 
-    MinSeqAndCount = {Sequence, 0},
-
-    StoreValue = {Bottom, Sequence, DeltaBuffer, AckMap, MinSeqAndCount},
+    StoreValue = {Bottom, Sequence, DeltaBuffer, AckMap},
     Result = ldb_store:create(Key, StoreValue),
     Result.
 

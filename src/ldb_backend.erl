@@ -28,7 +28,6 @@
          query/1,
          update/2,
          message_maker/0,
-         state_sync_round_done/0,
          message_handler/1,
          memory/0]).
 
@@ -49,10 +48,6 @@
 %%      The function signature should be:
 %%         fun(key(), value(), node_name()) -> {ok, term()} | nothing.
 -callback message_maker() -> function().
-
-%% @doc After each state sync round, the whisperer notifies the
-%%      backend about the end of the round.
--callback state_sync_round_done() -> ok.
 
 %% @doc Returns a function that handles the message received.
 -callback message_handler(term()) -> function().
@@ -81,10 +76,6 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     do(message_maker, []).
-
--spec state_sync_round_done() -> ok.
-state_sync_round_done() ->
-    do(state_sync_round_done, []).
 
 -spec message_handler(term()) -> function().
 message_handler(Message) ->

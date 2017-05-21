@@ -31,7 +31,6 @@
          query/1,
          update/2,
          message_maker/0,
-         state_sync_round_done/0,
          message_handler/1,
          memory/0]).
 
@@ -111,10 +110,6 @@ message_maker() ->
                 end
         end
     end.
-
--spec state_sync_round_done() -> ok.
-state_sync_round_done() ->
-    ok.
 
 -spec message_handler(term()) -> function().
 message_handler({_, state, _}) ->
