@@ -66,7 +66,9 @@ message_maker() ->
         Actor = ldb_config:id(),
         ShouldStart = Actor < NodeName,
 
-        case ldb_config:get(ldb_driven_mode) of
+        Mode = ldb_config:get(ldb_driven_mode),
+
+        case Mode of
             none ->
                 %% send local state
                 Message = {
@@ -75,48 +77,32 @@ message_maker() ->
                     CRDT
                 },
                 {Message, CRDT};
-            state_driven ->
+            _ ->
                 case ShouldStart of
                     true ->
-                        %% send local state
-                        Message = {
-                            Key,
-                            state_driven,
-                            Actor,
-                            CRDT
-                        },
-                        {Message, CRDT};
-                    false ->
-                        {nothing, CRDT}
-                end;
-            digest_driven ->
-                case ShouldStart of
-                    true ->
-                        %% compute digest
+                        %% compute bottom
                         Bottom = ldb_util:new_crdt(state, CRDT),
 
-                        %% this can be a digest or a CRDT state
-                        Message = case Type:digest(CRDT) of
-                            {state, CRDT} ->
-                                %% use state_driven and
-                                %% send local state
-                                {
-                                    Key,
-                                    state_driven,
-                                    Actor,
-                                    CRDT
-                                };
-                            {mdata, Digest} ->
-                                %% send digest
-                                {
-                                    Key,
-                                    digest_driven,
-                                    Actor,
-                                    Bottom,
-                                    Digest
-                                }
+                        %% compute digest
+                        Digest = case Mode of
+                            state_driven ->
+                                {state, CRDT};
+                            digest_driven ->
+                                %% this can still be a CRDT state
+                                %% if implemented like that
+                                %% by the data type
+                                Type:digest(CRDT)
                         end,
+
+                        Message = {
+                            Key,
+                            digest,
+                            Actor,
+                            Bottom,
+                            Digest
+                        },
                         {Message, CRDT};
+
                     false ->
                         {nothing, CRDT}
                 end
@@ -140,65 +126,64 @@ message_handler({_, state, _}) ->
             end
         )
     end;
-message_handler({_, state_driven, _, _}) ->
-    fun({Key, state_driven, From, {Type, _}=RemoteCRDT}) ->
+message_handler({_, digest, _, _, _}) ->
+    fun({Key, digest, From, {Type, _}=Bottom, Remote) ->
 
         %% create bottom entry
-        Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         ldb_store:create(Key, Bottom),
 
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
                 %% compute delta
-                Delta = Type:delta(LocalCRDT, {state, RemoteCRDT}),
+                Delta = Type:delta(LocalCRDT, CRDTOrDigest),
 
-                %% send delta
-                Message = {
-                    Key,
-                    state,
-                    Delta
-                },
-                ldb_whisperer:send(From, Message),
+                {ToSend, Updated} = case CRDTOrDigest of
+                    {state, RemoteCRDT} ->
 
-                %% merge received state
-                Merged = Type:merge(LocalCRDT, RemoteCRDT),
-                {ok, Merged}
+                        %% send delta
+                        Message = {
+                            Key,
+                            state,
+                            Delta
+                        },
+
+                        %% merge received state
+                        Merged = Type:merge(LocalCRDT, RemoteCRDT),
+
+                        {Message, Merged};
+
+                    {mdata, Digest} ->
+
+                        LocalDigest = Type:digest(LocalCRDT),
+
+                        Actor = ldb_config:id(),
+                        Message = {
+                            Key,
+                            digest_and_state,
+                            Actor,
+                            Delta,
+                            LocalDigest
+                        },
+
+                        {Message, LocalCRDT}
+                end,
+
+                ldb_whisperer:send(From, ToSend),
+                {ok, Updated}
             end
         )
     end;
-message_handler({_, digest_driven, _, _, _}) ->
-    fun({Key, digest_driven, From, {Type, _}=Bottom, RemoteDigest}) ->
-
-        %% create bottom entry
-        ldb_store:create(Key, Bottom),
-
-        %% compute delta and digest
-        {ok, LocalCRDT} = ldb_store:get(Key),
-        LocalDelta = Type:delta(LocalCRDT, {mdata, RemoteDigest}),
-        {mdata, LocalDigest} = Type:digest(LocalCRDT),
-
-        %% send delta and digest
-        Actor = ldb_config:id(),
-        Message = {
-            Key,
-            digest_driven_with_state,
-            Actor,
-            LocalDelta,
-            LocalDigest
-        },
-        ldb_whisperer:send(From, Message)
-    end;
-message_handler({_, digest_driven_with_state, _, _, _}) ->
-    fun({Key, digest_driven_with_state, From, {Type, _}=RemoteDelta,
+message_handler({_, digest_and_state, _, _, _}) ->
+    fun({Key, digest_and_state, From, {Type, _}=RemoteDelta,
          RemoteDigest}) ->
 
         ldb_store:update(
             Key,
             fun(LocalCRDT) ->
                 %% compute delta
-                LocalDelta = Type:delta(LocalCRDT,
-                                        {mdata, RemoteDigest}),
+                LocalDelta = Type:delta(LocalCRDT, RemoteDigest),
+
                 %% send delta
                 Message = {
                     Key,
