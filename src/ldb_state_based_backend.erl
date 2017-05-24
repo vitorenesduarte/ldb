@@ -100,12 +100,12 @@ message_maker() ->
                             {state, CRDT} ->
                                 %% use state_driven and
                                 %% send local state
-																{
-																		Key,
-																		state_driven,
-																		Actor,
-																		CRDT
-																};
+                                {
+                                    Key,
+                                    state_driven,
+                                    Actor,
+                                    CRDT
+                                };
                             {mdata, Digest} ->
                                 %% send digest
                                 {
