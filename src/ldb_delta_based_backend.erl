@@ -75,7 +75,7 @@ message_maker() ->
                         ShouldStart = Actor < NodeName,
 
                         Mode = ldb_config:get(ldb_driven_mode),
-                        
+
                         case Mode of
                             none ->
                                 Message = {
@@ -90,27 +90,27 @@ message_maker() ->
                                 case ShouldStart of
                                     true ->
                                         %% compute bottom
-																				Bottom = ldb_util:new_crdt(state, CRDT),
+                                        Bottom = ldb_util:new_crdt(state, CRDT),
 
-																				%% compute digest
-																				Digest = case Mode of
-																						state_driven ->
-																								{state, CRDT};
-																						digest_driven ->
-																								%% this can still be a CRDT state
-																								%% if implemented like that
-																								%% by the data type
-																								Type:digest(CRDT)
-																				end,
+                                        %% compute digest
+                                        Digest = case Mode of
+                                            state_driven ->
+                                                {state, CRDT};
+                                            digest_driven ->
+                                                %% this can still be a CRDT state
+                                                %% if implemented like that
+                                                %% by the data type
+                                                Type:digest(CRDT)
+                                        end,
 
-																				Message = {
-																						Key,
-																						digest,
-																						Actor,
+                                        Message = {
+                                            Key,
+                                            digest,
+                                            Actor,
                                             Sequence,
-																						Bottom,
-																						Digest
-																				},
+                                            Bottom,
+                                            Digest
+                                        },
 
                                         {Message, AckMap0};
                                     false ->
@@ -293,10 +293,10 @@ message_handler({_, digest, _, _, _, _}) ->
 
         ldb_whisperer:send(From, ToSend)
     end;
-message_handler({_, digest_and_state, _, _, _, _}) -> 
+message_handler({_, digest_and_state, _, _, _, _}) ->
     fun({Key, digest_and_state, From, RemoteSequence,
          {Type, _}=RemoteDelta, RemoteDigest}) ->
-            
+
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
         Actor = ldb_config:id(),
 
@@ -314,15 +314,15 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
         %% send delta
         ldb_whisperer:send(From, Message),
 
-				FakeMessage = {
-						Key,
-						delta,
-						From,
-						RemoteSequence,
-						RemoteDelta
-				},
-				Handler = message_handler(FakeMessage),
-				Handler(FakeMessage)
+        FakeMessage = {
+            Key,
+            delta,
+            From,
+            RemoteSequence,
+            RemoteDelta
+        },
+        Handler = message_handler(FakeMessage),
+        Handler(FakeMessage)
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
