@@ -162,10 +162,10 @@ do_send(LDBId, Message) ->
 metrics({_Key, state, CRDT}) ->
     M = {state, ldb_util:size(crdt, CRDT)},
     record_message([M]);
-metrics({_Key, digest, _From, {state, CRDT}}) ->
+metrics({_Key, digest, _From, _Bottom, {state, CRDT}}) ->
     M = {state, ldb_util:size(crdt, CRDT)},
     record_message([M]);
-metrics({_Key, digest, _From, {mdata, Digest}}) ->
+metrics({_Key, digest, _From, _Bottom, {mdata, Digest}}) ->
     M = {digest, ldb_util:size(term, Digest)},
     record_message([M]);
 metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
