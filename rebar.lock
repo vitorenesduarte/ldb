@@ -7,10 +7,7 @@
  {<<"partisan">>,{pkg,<<"partisan">>,<<"0.2.1">>},0},
  {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
- {<<"types">>,
-  {git,"https://github.com/lasp-lang/types",
-       {ref,"16f84ab12a2831ba1be3e6dde4c855974524509b"}},
-  0}]}.
+ {<<"types">>,{pkg,<<"types">>,<<"0.1.4">>},0}]}.
 [
 {pkg_hash,[
  {<<"acceptor_pool">>, <<"679D741DF87FC13599B1AEF2DF8F78F1F880449A6BEFAB7C44FB6FAE0E92A2DE">>},
@@ -20,5 +17,6 @@
  {<<"lager">>, <<"A6DEB74DAE7927F46BD13255268308EF03EB206EC784A94EAF7C1C0F3B811615">>},
  {<<"partisan">>, <<"0B9A791F23EA5E71BD3D5679DC86B219282BBC4E768E71FC3FD8762AA67F134F">>},
  {<<"rand_compat">>, <<"624B590931D27252D0BCF710211699DB3695540706F57D2E91B918A17AB58839">>},
- {<<"time_compat">>, <<"23FE0AD1FDF3B5B88821B2D04B4B5E865BF587AE66056D671FE0F53514ED8139">>}]}
+ {<<"time_compat">>, <<"23FE0AD1FDF3B5B88821B2D04B4B5E865BF587AE66056D671FE0F53514ED8139">>},
+ {<<"types">>, <<"35A159D185FFB83ACAA2EF73B6511E3BC93537DC5616293240D94A4163D2B66D">>}]}
 ].
