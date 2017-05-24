@@ -64,14 +64,59 @@ update(Key, Operation) ->
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
 
+        Actor = ldb_config:id(),
         MinSeq = min_seq_buffer(DeltaBuffer),
         {LastAck, _} = last_ack(NodeName, AckMap0),
 
         case LastAck < Sequence of
             true ->
-                {Delta, AckMap1} = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
+                {ToSend, AckMap1} = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
-                        {CRDT, AckMap0};
+                        ShouldStart = Actor < NodeName,
+
+                        Mode = ldb_config:get(ldb_driven_mode),
+                        
+                        case Mode of
+                            none ->
+                                Message = {
+                                    Key,
+                                    delta,
+                                    Actor,
+                                    Sequence,
+                                    CRDT
+                                },
+                                {Message, AckMap0};
+                            _ ->
+                                case ShouldStart of
+                                    true ->
+                                        %% compute bottom
+																				Bottom = ldb_util:new_crdt(state, CRDT),
+
+																				%% compute digest
+																				Digest = case Mode of
+																						state_driven ->
+																								{state, CRDT};
+																						digest_driven ->
+																								%% this can still be a CRDT state
+																								%% if implemented like that
+																								%% by the data type
+																								Type:digest(CRDT)
+																				end,
+
+																				Message = {
+																						Key,
+																						digest,
+																						Actor,
+                                            Sequence,
+																						Bottom,
+																						Digest
+																				},
+
+                                        {Message, AckMap0};
+                                    false ->
+                                        {nothing, AckMap0}
+                                end
+                        end;
                     false ->
                         DeltaGroup = orddict:fold(
                             fun(N, {From, D}, Acc) ->
@@ -95,21 +140,26 @@ message_maker() ->
                             DeltaBuffer
                         ),
 
-                        {DeltaGroup, increment_ack_map_round(Key, NodeName, AckMap0)}
+                        Message = case Type:is_bottom(DeltaGroup) of
+                            true ->
+                                nothing;
+                            false ->
+                                {
+                                    Key,
+                                    delta,
+                                    Actor,
+                                    Sequence,
+                                    DeltaGroup
+                                }
+                        end,
+
+                        {Message, increment_ack_map_round(Key, NodeName, AckMap0)}
                 end,
 
                 %% update the ack map
                 NewValue = {CRDT, Sequence, DeltaBuffer, AckMap1},
 
-                Actor = ldb_config:id(),
-                Message = {
-                    Key,
-                    delta,
-                    Actor,
-                    Sequence,
-                    Delta
-                },
-                {Message, NewValue};
+                {ToSend, NewValue};
             false ->
                 {nothing, Value}
         end
@@ -193,6 +243,86 @@ message_handler({_, delta_ack, _, _}) ->
         ),
 
         dbuffer_shrink(Key)
+    end;
+message_handler({_, digest, _, _, _, _}) ->
+    fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
+
+        %% create bottom entry
+        ldb_store:create(Key, Bottom),
+        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
+        Actor = ldb_config:id(),
+
+        %% compute delta
+        Delta = Type:delta(LocalCRDT, Remote),
+
+        ToSend = case Remote of
+            {state, RemoteCRDT} ->
+
+                FakeMessage = {
+                    Key,
+                    delta,
+                    From,
+                    RemoteSequence,
+                    RemoteCRDT
+                },
+                Handler = message_handler(FakeMessage),
+                Handler(FakeMessage),
+
+                %% send delta
+                {
+                    Key,
+                    delta,
+                    Actor,
+                    LocalSequence,
+                    Delta
+                };
+            {mdata, _} ->
+
+                LocalDigest = Type:digest(LocalCRDT),
+
+                %% send delta and digest
+                {
+                    Key,
+                    digest_and_state,
+                    Actor,
+                    LocalSequence,
+                    Delta,
+                    LocalDigest
+                }
+        end,
+
+        ldb_whisperer:send(From, ToSend)
+    end;
+message_handler({_, digest_and_state, _, _, _, _}) -> 
+    fun({Key, digest_and_state, From, RemoteSequence,
+         {Type, _}=RemoteDelta, RemoteDigest}) ->
+            
+        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
+        Actor = ldb_config:id(),
+
+        %% compute delta
+        Delta = Type:delta(LocalCRDT, RemoteDigest),
+
+        Message = {
+            Key,
+            delta,
+            Actor,
+            LocalSequence,
+            Delta
+        },
+
+        %% send delta
+        ldb_whisperer:send(From, Message),
+
+				FakeMessage = {
+						Key,
+						delta,
+						From,
+						RemoteSequence,
+						RemoteDelta
+				},
+				Handler = message_handler(FakeMessage),
+				Handler(FakeMessage)
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
