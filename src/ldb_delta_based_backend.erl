@@ -130,7 +130,7 @@ message_handler({_, delta, _, _, _}) ->
 
                 {Sequence, DeltaBuffer} = case ldb_config:get(ldb_redundant_dgroups, false) of
                     true ->
-                        Delta = Type:delta(state, RemoteCRDT, LocalCRDT),
+                        Delta = Type:delta(RemoteCRDT, {state, LocalCRDT}),
 
                         %% If what we received, inflates the local state
                         case not Type:is_bottom(Delta) of
