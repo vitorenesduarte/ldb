@@ -127,7 +127,7 @@ message_handler({_, state, _}) ->
         )
     end;
 message_handler({_, digest, _, _, _}) ->
-    fun({Key, digest, From, {Type, _}=Bottom, Remote) ->
+    fun({Key, digest, From, {Type, _}=Bottom, Remote}) ->
 
         %% create bottom entry
         ldb_store:create(Key, Bottom),
@@ -136,9 +136,9 @@ message_handler({_, digest, _, _, _}) ->
             Key,
             fun(LocalCRDT) ->
                 %% compute delta
-                Delta = Type:delta(LocalCRDT, CRDTOrDigest),
+                Delta = Type:delta(LocalCRDT, Remote),
 
-                {ToSend, Updated} = case CRDTOrDigest of
+                {ToSend, Updated} = case Remote of
                     {state, RemoteCRDT} ->
 
                         %% send delta
@@ -153,7 +153,7 @@ message_handler({_, digest, _, _, _}) ->
 
                         {Message, Merged};
 
-                    {mdata, Digest} ->
+                    {mdata, _} ->
 
                         LocalDigest = Type:digest(LocalCRDT),
 
