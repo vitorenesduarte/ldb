@@ -42,7 +42,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: ldb_node_id()}).
+-record(state, {actor :: ldb_node_id(),
+                keys_to_shrink :: ordsets:ordset(key())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -240,7 +241,7 @@ message_handler({_, delta_ack, _, _}) ->
             end
         ),
 
-        dbuffer_shrink(Key)
+        add_key_to_shrink(Key)
     end;
 message_handler({_, digest, _, _, _, _}) ->
     fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
@@ -331,9 +332,12 @@ memory() ->
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
+    
+    schedule_dbuffer_shrink(),
 
     ?LOG("ldb_delta_based_backend initialized!"),
-    {ok, #state{actor=Actor}}.
+    {ok, #state{actor=Actor,
+                keys_to_shrink=ordsets:new()}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Bottom = ldb_util:new_crdt(type, LDBType),
@@ -382,46 +386,59 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({dbuffer_shrink, Key}, State) ->
-    Peers = ldb_whisperer:members(),
+handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
+    {noreply, State#state{keys_to_shrink=ordsets:add_element(Key, Keys)}};
 
-    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
+handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
+    case ordsets:size(Keys) > 0 of
+        true ->
+            Peers = ldb_whisperer:members(),
 
+            ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
+                %% only keep in the ack map entries from current peers
+                AckMap1 = [Entry || {Peer, _}=Entry <- AckMap0, lists:member(Peer, Peers)],
 
-        %% only keep in the ack map entries from current peers
-        AckMap1 = [Entry || {Peer, _}=Entry <- AckMap0, lists:member(Peer, Peers)],
-
-        %% ensure all current peers have an entry in the ack map
-        AllPeersInAckMap = lists:all(
-            fun(Peer) ->
-                orddict:is_key(Peer, AckMap1)
-            end,
-            Peers
-        ),
-
-        %% if all peers are in the ack map,
-        %% remove from the delta buffer all the entries
-        %% acknowledged by all the peers
-        DeltaBuffer1 = case AllPeersInAckMap of
-            true ->
-                Min = min_seq_ack_map(AckMap1),
-
-                orddict:filter(
-                    fun(EntrySequence, {_Actor, _Delta}) ->
-                        EntrySequence >= Min
+                %% ensure all current peers have an entry in the ack map
+                AllPeersInAckMap = lists:all(
+                    fun(Peer) ->
+                        orddict:is_key(Peer, AckMap1)
                     end,
-                    DeltaBuffer0
-                );
-            false ->
-                DeltaBuffer0
-        end,
+                    Peers
+                ),
 
-        NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
-        {ok, NewValue}
+                %% if all peers are in the ack map,
+                %% remove from the delta buffer all the entries
+                %% acknowledged by all the peers
+                DeltaBuffer1 = case AllPeersInAckMap of
+                    true ->
+                        Min = min_seq_ack_map(AckMap1),
+
+                        orddict:filter(
+                            fun(EntrySequence, {_Actor, _Delta}) ->
+                                EntrySequence >= Min
+                            end,
+                            DeltaBuffer0
+                        );
+                    false ->
+                        DeltaBuffer0
+                end,
+
+                NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
+                {ok, NewValue}
+            end,
+
+            lists:foreach(
+                fun(Key) ->
+                    ldb_store:update(Key, ShrinkFun)
+                end,
+                Keys
+            );
+        false ->
+            ok
     end,
 
-    ldb_store:update(Key, ShrinkFun),
-    {noreply, State};
+    schedule_dbuffer_shrink(),
+    {noreply, State#state{keys_to_shrink=ordsets:new()}};
 
 handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
@@ -477,7 +494,7 @@ increment_ack_map_round(Key, NodeName, AckMap) ->
     %% evict peer from the ack map
     case NextRound > EvictionRoundNumber andalso EvictionRoundNumber /= -1 of
         true ->
-            dbuffer_shrink(Key),
+            add_key_to_shrink(Key),
             orddict:erase(NodeName, AckMap);
         false ->
             orddict:store(NodeName, {LastAck, NextRound}, AckMap)
@@ -488,6 +505,11 @@ eviction_round_number() ->
     ldb_config:get(ldb_eviction_round_number).
 
 %% @private
-dbuffer_shrink(Key) ->
+add_key_to_shrink(Key) ->
+    gen_server:cast(?MODULE, {add_key_to_shrink, Key}).
+
+%% @private
+schedule_dbuffer_shrink() ->
+    Interval = 5000,
     %% tell the backend to try to shrink the dbuffer
-    gen_server:cast(?MODULE, {dbuffer_shrink, Key}).
+    timer:send_after(Interval, dbuffer_shrink).
