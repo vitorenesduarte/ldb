@@ -383,9 +383,7 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({dbuffer_shrink, Key}, State) ->
-    lager:info("ASKING MEMBERS TO WHISPERER"),
     Peers = ldb_whisperer:members(),
-    lager:info("DONE ASKING MEMBERS TO WHISPERER"),
 
     ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
 

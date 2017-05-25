@@ -27,6 +27,7 @@
 %% ldb_whisperer callbacks
 -export([start_link/0,
          members/0,
+         update_membership/1,
          send/2]).
 
 %% gen_server callbacks
@@ -37,7 +38,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {members :: list(ldb_node_id())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -46,6 +47,10 @@ start_link() ->
 -spec members() -> list(ldb_node_id()).
 members() ->
     gen_server:call(?MODULE, members, infinity).
+
+-spec update_membership(list(node_spec())) -> ok.
+update_membership(Membership) ->
+    gen_server:cast(?MODULE, {update_membership, Membership}).
 
 -spec send(ldb_node_id(), term()) -> ok.
 send(LDBId, Message) ->
@@ -62,17 +67,28 @@ init([]) ->
             ok
     end,
 
-    ?LOG("ldb_whisperer initialized!"),
-    {ok, #state{}}.
+    %% configure membership callback
+    MembershipFun = fun(Membership) ->
+        ldb_whisperer:update_membership(Membership)
+    end,
+    partisan_peer_service:add_sup_callback(MembershipFun),
 
-handle_call(members, _From, State) ->
-    %% @todo ldb_peer_service should cache members using partisan add_sup_callback
-    {ok, Result} = ldb_peer_service:members(),
-    {reply, Result, State};
+    ?LOG("ldb_whisperer initialized!"),
+    {ok, #state{members=[]}}.
+
+handle_call(members, _From, #state{members=Members}=State) ->
+    {reply, Members, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
+
+handle_cast({update_membership, Membership}, State) ->
+    Members = [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()],
+
+    ?LOG("NEW MEMBERS ~p\n", [Members]),
+
+    {noreply, State#state{members=Members}};
 
 handle_cast({send, LDBId, Message}, State) ->
     do_send(LDBId, Message),
@@ -82,11 +98,7 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(state_sync, State) ->
-    lager:info("WHISPERER STATE SYNC\n"),
-    {ok, LDBIds} = ldb_peer_service:members(),
-    lager:info("WHISPERER STATE SYNC 1\n"),
-
+handle_info(state_sync, #state{members=LDBIds}=State) ->
     UpdateFunction = fun({Key, Value}) ->
         NewValue = lists:foldl(
             fun(LDBId, CurrentValue) ->
