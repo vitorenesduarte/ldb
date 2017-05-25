@@ -167,7 +167,8 @@ message_maker() ->
 
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
-    fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
+    fun({Key, delta, From, N, {Type, _}=RemoteCRDT}=M) ->
+        lager:info("START HANDLER OF ~p\n", [M]),
 
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
@@ -216,10 +217,12 @@ message_handler({_, delta, _, _, _}) ->
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end
-        )
+        ),
+        lager:info("END HANDLER OF ~p\n", [M])
     end;
 message_handler({_, delta_ack, _, _}) ->
-    fun({Key, delta_ack, From, N}) ->
+    fun({Key, delta_ack, From, N}=M) ->
+        lager:info("START HANDLER OF ~p\n", [M]),
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
@@ -242,10 +245,13 @@ message_handler({_, delta_ack, _, _}) ->
             end
         ),
 
-        dbuffer_shrink(Key)
+        dbuffer_shrink(Key),
+
+        lager:info("END HANDLER OF ~p\n", [M])
     end;
 message_handler({_, digest, _, _, _, _}) ->
-    fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
+    fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}=M) ->
+        lager:info("START HANDLER OF ~p\n", [M]),
 
         %% create bottom entry
         ldb_store:create(Key, Bottom),
@@ -291,11 +297,14 @@ message_handler({_, digest, _, _, _, _}) ->
                 }
         end,
 
-        ldb_whisperer:send(From, ToSend)
+        ldb_whisperer:send(From, ToSend),
+
+        lager:info("END HANDLER OF ~p\n", [M])
     end;
 message_handler({_, digest_and_state, _, _, _, _}) ->
     fun({Key, digest_and_state, From, RemoteSequence,
-         {Type, _}=RemoteDelta, RemoteDigest}) ->
+         {Type, _}=RemoteDelta, RemoteDigest}=M) ->
+        lager:info("START HANDLER OF ~p\n", [M]),
 
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
         Actor = ldb_config:id(),
@@ -322,7 +331,9 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
             RemoteDelta
         },
         Handler = message_handler(FakeMessage),
-        Handler(FakeMessage)
+        Handler(FakeMessage),
+
+        lager:info("END HANDLER OF ~p\n", [M])
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
