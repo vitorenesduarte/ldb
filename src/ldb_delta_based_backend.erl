@@ -332,7 +332,7 @@ memory() ->
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
-    
+
     schedule_dbuffer_shrink(),
 
     ?LOG("ldb_delta_based_backend initialized!"),
