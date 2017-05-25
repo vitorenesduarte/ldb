@@ -139,7 +139,15 @@ handle_call(memory, _From, State) ->
 
     CRDTSize = ldb_store:fold(FoldFunction, 0),
 
-    TRCBSize = ?ISHIKAWA:tcbmemory(),
+    CalcFunction = fun({VV, SVV, RTM, ToBeAckQueue, ToBeDeliveredQueue}) ->
+        erts_debug:flat_size(VV)
+        + erts_debug:flat_size(SVV)
+        + erts_debug:flat_size(RTM)
+        + erts_debug:flat_size(ToBeAckQueue)
+        + erts_debug:flat_size(ToBeDeliveredQueue)
+    end,
+
+    TRCBSize = ?ISHIKAWA:tcbmemory(CalcFunction),
 
     {reply, {CRDTSize, TRCBSize} , State};
 
