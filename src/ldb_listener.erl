@@ -51,7 +51,7 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast(Message, State) ->
-    lager:info("LISTENER HANDLING ~p\n", [Message]),
+    %lager:info("LISTENER HANDLING ~p\n", [Message]),
 
     MessageHandler = ldb_backend:message_handler(Message),
     {MicroSeconds, _Result} = timer:tc(
@@ -62,7 +62,7 @@ handle_cast(Message, State) ->
     %% record latency applying this message
     ldb_metrics:record_latency(remote, MicroSeconds),
 
-    lager:info("LISTENER ENDED HANDLING ~p\n", [Message]),
+    %lager:info("LISTENER ENDED HANDLING ~p\n", [Message]),
 
     {noreply, State}.
 

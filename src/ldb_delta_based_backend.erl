@@ -63,6 +63,7 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
+        lager:info("MESSAGE MAKER ~p FOR ~p", [Value, NodeName]),
 
         Actor = ldb_config:id(),
         MinSeq = min_seq_buffer(DeltaBuffer),
@@ -174,9 +175,11 @@ message_handler({_, delta, _, _, _}) ->
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         create_entry(Key, Bottom),
 
+        lager:info("HANDLING DELTA 1\n"),
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
+                lager:info("HANDLING DELTA 2\n"),
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
                 {Sequence, DeltaBuffer} = case ldb_config:get(ldb_redundant_dgroups, false) of
@@ -205,6 +208,8 @@ message_handler({_, delta, _, _, _}) ->
                         end
                 end,
 
+                lager:info("HANDLING DELTA 3\n"),
+
                 %% send ack
                 Ack = {
                     Key,
@@ -214,6 +219,7 @@ message_handler({_, delta, _, _, _}) ->
                 },
                 ldb_whisperer:send(From, Ack),
 
+                lager:info("HANDLING DELTA 4\n"),
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end
@@ -398,7 +404,9 @@ handle_call(Msg, _From, State) ->
 handle_cast({dbuffer_shrink, Key}, State) ->
     ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
 
+        lager:info("ASKING MEMBERS TO WHISPERER"),
         Peers = ldb_whisperer:members(),
+        lager:info("DONE ASKING MEMBERS TO WHISPERER"),
 
         %% only keep in the ack map entries from current peers
         AckMap1 = [Entry || {Peer, _}=Entry <- AckMap0, lists:member(Peer, Peers)],

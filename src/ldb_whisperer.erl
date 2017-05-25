@@ -83,18 +83,23 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(state_sync, State) ->
-    lager:info("WHISPERER STARTING STATE SYNC\n"),
+    lager:info("WHISPERER STATE SYNC\n"),
     {ok, LDBIds} = ldb_peer_service:members(),
+    lager:info("WHISPERER STATE SYNC 1\n"),
 
     UpdateFunction = fun({Key, Value}) ->
         NewValue = lists:foldl(
             fun(LDBId, CurrentValue) ->
+                lager:info("WHISPERER STATE SYNC 2 ~p\n", [LDBId]),
                 MessageMakerFun = ldb_backend:message_maker(),
+                lager:info("WHISPERER STATE SYNC 3 ~p\n", [LDBId]),
 
                 {MicroSeconds, Result} = timer:tc(
                     MessageMakerFun,
                     [Key, CurrentValue, LDBId]
                 ),
+
+                lager:info("WHISPERER STATE SYNC 4 ~p\n", [LDBId]),
 
                 {Message, UpdatedValue} = Result,
 
@@ -105,10 +110,12 @@ handle_info(state_sync, State) ->
                     _ ->
                         do_send(LDBId, Message)
                 end,
+                lager:info("WHISPERER STATE SYNC 5 ~p\n", [LDBId]),
 
                 %% record latency creating this message
                 ldb_metrics:record_latency(local, MicroSeconds),
 
+                lager:info("WHISPERER STATE SYNC 6 ~p\n", [LDBId]),
                 UpdatedValue
 
             end,
