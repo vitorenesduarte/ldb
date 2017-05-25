@@ -217,7 +217,9 @@ message_handler({_, delta, _, _, _}) ->
                     ldb_config:id(),
                     N
                 },
+                ?LOG("S: SEND delta"),
                 ldb_whisperer:send(From, Ack),
+                ?LOG("E: SEND delta"),
 
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
