@@ -99,6 +99,7 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(state_sync, #state{members=LDBIds}=State) ->
+    lager:info("S: STATE SYNC"),
     UpdateFunction = fun({Key, Value}) ->
         NewValue = lists:foldl(
             fun(LDBId, CurrentValue) ->
@@ -133,6 +134,7 @@ handle_info(state_sync, #state{members=LDBIds}=State) ->
     end,
 
     ldb_store:update_all(UpdateFunction),
+    lager:info("E: STATE SYNC"),
     schedule_state_sync(),
     {noreply, State};
 

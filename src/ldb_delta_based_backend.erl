@@ -64,11 +64,12 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
+        ?LOG("S: MESSAGE MAKER"),
         Actor = ldb_config:id(),
         MinSeq = min_seq_buffer(DeltaBuffer),
         {LastAck, _} = last_ack(NodeName, AckMap0),
 
-        case LastAck < Sequence of
+        Result = case LastAck < Sequence of
             true ->
                 {ToSend, AckMap1} = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
@@ -162,12 +163,18 @@ message_maker() ->
                 {ToSend, NewValue};
             false ->
                 {nothing, Value}
-        end
+        end,
+
+        ?LOG("E: MESSAGE MAKER"),
+
+        Result
     end.
 
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
+
+        ?LOG("S: MESSAGE HANDLER delta"),
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         create_entry(Key, Bottom),
@@ -215,10 +222,12 @@ message_handler({_, delta, _, _, _}) ->
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end
-        )
+        ),
+        ?LOG("E: MESSAGE HANDLER delta")
     end;
 message_handler({_, delta_ack, _, _}) ->
     fun({Key, delta_ack, From, N}) ->
+        ?LOG("S: MESSAGE HANDLER delta_ack"),
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
@@ -241,10 +250,13 @@ message_handler({_, delta_ack, _, _}) ->
             end
         ),
 
-        add_key_to_shrink(Key)
+        add_key_to_shrink(Key),
+
+        ?LOG("E: MESSAGE HANDLER delta_ack")
     end;
 message_handler({_, digest, _, _, _, _}) ->
     fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
+        ?LOG("S: MESSAGE HANDLER digest"),
         %% create bottom entry
         ldb_store:create(Key, Bottom),
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
@@ -289,12 +301,15 @@ message_handler({_, digest, _, _, _, _}) ->
                 }
         end,
 
-        ldb_whisperer:send(From, ToSend)
+        ldb_whisperer:send(From, ToSend),
+
+        ?LOG("E: MESSAGE HANDLER digest")
     end;
 message_handler({_, digest_and_state, _, _, _, _}) ->
     fun({Key, digest_and_state, From, RemoteSequence,
          {Type, _}=RemoteDelta, RemoteDigest}) ->
 
+        ?LOG("S: MESSAGE HANDLER digest_and_state"),
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
         Actor = ldb_config:id(),
 
@@ -320,8 +335,9 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
             RemoteDelta
         },
         Handler = message_handler(FakeMessage),
-        Handler(FakeMessage)
+        Handler(FakeMessage),
 
+        ?LOG("E: MESSAGE HANDLER digest_and_state")
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
@@ -390,6 +406,7 @@ handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
     {noreply, State#state{keys_to_shrink=ordsets:add_element(Key, Keys)}};
 
 handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
+    ?LOG("S: DBUFFER SHRINK"),
     case ordsets:size(Keys) > 0 of
         true ->
             Peers = ldb_whisperer:members(),
@@ -437,6 +454,7 @@ handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
             ok
     end,
 
+    ?LOG("E: DBUFFER SHRINK"),
     schedule_dbuffer_shrink(),
     {noreply, State#state{keys_to_shrink=ordsets:new()}};
 
