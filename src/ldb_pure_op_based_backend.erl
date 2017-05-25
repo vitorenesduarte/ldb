@@ -79,8 +79,7 @@ message_handler(_) ->
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
 memory() ->
-    %% @todo
-    {0, 0}.
+    gen_server:call(?MODULE, memory, infinity).
 
 %% @todo do spec
 delivery_function({VV, {Key, EncodedOp}}) ->
@@ -131,6 +130,18 @@ handle_call({update, Key, Operation}, _From, State) ->
 
     Result = ldb_store:update(Key, Function),
     {reply, Result, State};
+
+handle_call(memory, _From, State) ->
+    FoldFunction = fun({_Key, CRDT}, C) ->
+        Size = ldb_util:size(crdt, CRDT),
+        C + Size
+    end,
+
+    CRDTSize = ldb_store:fold(FoldFunction, 0),
+
+    TRCBSize = ?ISHIKAWA:tcbmemory(),
+
+    {reply, {CRDTSize, TRCBSize} , State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
