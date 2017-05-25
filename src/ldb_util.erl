@@ -73,7 +73,7 @@ unix_timestamp() ->
     Mega * 1000000 + Sec.
 
 %% @doc
--spec size(term | crdt | delta_buffer, term()) -> non_neg_integer().
+-spec size(term | crdt | delta_buffer | pure_crdt, term()) -> non_neg_integer().
 size(term, T) ->
     erts_debug:flat_size(T);
 size(crdt, CRDT) ->
@@ -85,7 +85,9 @@ size(delta_buffer, DeltaBuffer) ->
         end,
         0,
         DeltaBuffer
-    ).
+    );
+size(pure_crdt, CRDT) ->
+    pure_type:crdt_size(CRDT).
 
 %% @private
 extract_args({Type, Args}) ->
