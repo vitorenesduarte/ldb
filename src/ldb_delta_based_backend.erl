@@ -63,8 +63,6 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
-        lager:info("MESSAGE MAKER ~p FOR ~p", [Value, NodeName]),
-
         Actor = ldb_config:id(),
         MinSeq = min_seq_buffer(DeltaBuffer),
         {LastAck, _} = last_ack(NodeName, AckMap0),
@@ -168,18 +166,14 @@ message_maker() ->
 
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
-    fun({Key, delta, From, N, {Type, _}=RemoteCRDT}=M) ->
-        lager:info("START HANDLER OF ~p\n", [M]),
-
+    fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         create_entry(Key, Bottom),
 
-        lager:info("HANDLING DELTA 1\n"),
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
-                lager:info("HANDLING DELTA 2\n"),
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
                 {Sequence, DeltaBuffer} = case ldb_config:get(ldb_redundant_dgroups, false) of
@@ -208,8 +202,6 @@ message_handler({_, delta, _, _, _}) ->
                         end
                 end,
 
-                lager:info("HANDLING DELTA 3\n"),
-
                 %% send ack
                 Ack = {
                     Key,
@@ -219,16 +211,13 @@ message_handler({_, delta, _, _, _}) ->
                 },
                 ldb_whisperer:send(From, Ack),
 
-                lager:info("HANDLING DELTA 4\n"),
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end
-        ),
-        lager:info("END HANDLER OF ~p\n", [M])
+        )
     end;
 message_handler({_, delta_ack, _, _}) ->
-    fun({Key, delta_ack, From, N}=M) ->
-        lager:info("START HANDLER OF ~p\n", [M]),
+    fun({Key, delta_ack, From, N}) ->
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
@@ -251,14 +240,10 @@ message_handler({_, delta_ack, _, _}) ->
             end
         ),
 
-        dbuffer_shrink(Key),
-
-        lager:info("END HANDLER OF ~p\n", [M])
+        dbuffer_shrink(Key)
     end;
 message_handler({_, digest, _, _, _, _}) ->
-    fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}=M) ->
-        lager:info("START HANDLER OF ~p\n", [M]),
-
+    fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
         %% create bottom entry
         ldb_store:create(Key, Bottom),
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
@@ -303,14 +288,11 @@ message_handler({_, digest, _, _, _, _}) ->
                 }
         end,
 
-        ldb_whisperer:send(From, ToSend),
-
-        lager:info("END HANDLER OF ~p\n", [M])
+        ldb_whisperer:send(From, ToSend)
     end;
 message_handler({_, digest_and_state, _, _, _, _}) ->
     fun({Key, digest_and_state, From, RemoteSequence,
-         {Type, _}=RemoteDelta, RemoteDigest}=M) ->
-        lager:info("START HANDLER OF ~p\n", [M]),
+         {Type, _}=RemoteDelta, RemoteDigest}) ->
 
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
         Actor = ldb_config:id(),
@@ -337,9 +319,8 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
             RemoteDelta
         },
         Handler = message_handler(FakeMessage),
-        Handler(FakeMessage),
+        Handler(FakeMessage)
 
-        lager:info("END HANDLER OF ~p\n", [M])
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.

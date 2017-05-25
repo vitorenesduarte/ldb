@@ -90,16 +90,12 @@ handle_info(state_sync, State) ->
     UpdateFunction = fun({Key, Value}) ->
         NewValue = lists:foldl(
             fun(LDBId, CurrentValue) ->
-                lager:info("WHISPERER STATE SYNC 2 ~p\n", [LDBId]),
                 MessageMakerFun = ldb_backend:message_maker(),
-                lager:info("WHISPERER STATE SYNC 3 ~p\n", [LDBId]),
 
                 {MicroSeconds, Result} = timer:tc(
                     MessageMakerFun,
                     [Key, CurrentValue, LDBId]
                 ),
-
-                lager:info("WHISPERER STATE SYNC 4 ~p\n", [LDBId]),
 
                 {Message, UpdatedValue} = Result,
 
@@ -110,12 +106,10 @@ handle_info(state_sync, State) ->
                     _ ->
                         do_send(LDBId, Message)
                 end,
-                lager:info("WHISPERER STATE SYNC 5 ~p\n", [LDBId]),
 
                 %% record latency creating this message
                 ldb_metrics:record_latency(local, MicroSeconds),
 
-                lager:info("WHISPERER STATE SYNC 6 ~p\n", [LDBId]),
                 UpdatedValue
 
             end,
@@ -127,7 +121,6 @@ handle_info(state_sync, State) ->
     end,
 
     ldb_store:update_all(UpdateFunction),
-    lager:info("WHISPERER ENDING STATE SYNC\n"),
     schedule_state_sync(),
     {noreply, State};
 
@@ -149,8 +142,6 @@ schedule_state_sync() ->
 %% @private
 -spec do_send(ldb_node_id(), term()) -> ok.
 do_send(LDBId, Message) ->
-    lager:info("WHISPERER SENDING MESSAGE ~p TO ~p\n", [Message, LDBId]),
-
     %% try to send the message
     Result = ldb_peer_service:forward_message(
         LDBId,
@@ -166,7 +157,6 @@ do_send(LDBId, Message) ->
             ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
                  [Message, LDBId, Error])
     end,
-    lager:info("WHISPERER DONE SENDING MESSAGE ~p TO ~p\n", [Message, LDBId]),
     ok.
 
 %% @private
