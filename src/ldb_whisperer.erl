@@ -84,7 +84,7 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({update_membership, Membership}, State) ->
-    Members = [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()],
+    Members = [Name || {Name, _, _} <- sets:to_list(Membership), Name /= ldb_config:id()],
 
     ?LOG("NEW MEMBERS ~p\n", [Members]),
 
