@@ -115,7 +115,6 @@ message_handler({_, state, _}) ->
 
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
-        ldb_store:create(Key, Bottom),
 
         ldb_store:update(
             Key,
@@ -123,14 +122,12 @@ message_handler({_, state, _}) ->
                 %% merge received state
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
                 {ok, Merged}
-            end
+            end,
+            Bottom
         )
     end;
 message_handler({_, digest, _, _, _}) ->
     fun({Key, digest, From, {Type, _}=Bottom, Remote}) ->
-
-        %% create bottom entry
-        ldb_store:create(Key, Bottom),
 
         ldb_store:update(
             Key,
@@ -171,7 +168,8 @@ message_handler({_, digest, _, _, _}) ->
 
                 ldb_whisperer:send(From, ToSend),
                 {ok, Updated}
-            end
+            end,
+            Bottom
         )
     end;
 message_handler({_, digest_and_state, _, _, _}) ->
@@ -213,7 +211,11 @@ init([]) ->
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Bottom = ldb_util:new_crdt(type, LDBType),
-    Result = ldb_store:create(Key, Bottom),
+    Result = ldb_store:update(
+        Key,
+        fun(V) -> {ok, V} end,
+        Bottom
+    ),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->

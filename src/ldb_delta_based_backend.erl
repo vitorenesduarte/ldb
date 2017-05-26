@@ -177,7 +177,7 @@ message_handler({_, delta, _, _, _}) ->
         ?LOG("S: MESSAGE HANDLER delta"),
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
-        create_entry(Key, Bottom),
+        Default = get_entry(Bottom),
 
         ldb_store:update(
             Key,
@@ -223,7 +223,8 @@ message_handler({_, delta, _, _, _}) ->
 
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
-            end
+            end,
+            Default
         ),
         ?LOG("E: MESSAGE HANDLER delta")
     end;
@@ -259,8 +260,13 @@ message_handler({_, delta_ack, _, _}) ->
 message_handler({_, digest, _, _, _, _}) ->
     fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
         ?LOG("S: MESSAGE HANDLER digest"),
-        %% create bottom entry
-        ldb_store:create(Key, Bottom),
+        Default = get_entry(Bottom),
+        ldb_store:update(
+            Key,
+            fun(V) -> {ok, V} end,
+            Default
+        ),
+
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
         Actor = ldb_config:id(),
 
@@ -359,7 +365,14 @@ init([]) ->
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Bottom = ldb_util:new_crdt(type, LDBType),
-    Result = create_entry(Key, Bottom),
+    Default = get_entry(Bottom),
+
+    Result = ldb_store:update(
+        Key,
+        fun(V) -> {ok, V} end,
+        Default
+    ),
+
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
@@ -475,14 +488,12 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-create_entry(Key, Bottom) ->
+get_entry(Bottom) ->
     Sequence = 0,
     DeltaBuffer = orddict:new(),
     AckMap = orddict:new(),
 
-    StoreValue = {Bottom, Sequence, DeltaBuffer, AckMap},
-    Result = ldb_store:create(Key, StoreValue),
-    Result.
+    {Bottom, Sequence, DeltaBuffer, AckMap}.
 
 %% @private
 min_seq_buffer(DeltaBuffer) ->
