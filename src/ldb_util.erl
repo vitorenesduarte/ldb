@@ -30,6 +30,8 @@
          unix_timestamp/0,
          size/2]).
 
+-export([qs/1]).
+
 %% @doc Creates a bottom CRDT from a type
 %%      or from an existing state-based CRDT.
 new_crdt(type, CType) ->
@@ -130,3 +132,7 @@ types_map() ->
              {pncounter, {state_pncounter, undefined}},
              {twopset, {state_twopset, pure_twopset}}],
     orddict:from_list(Types).
+
+qs(ID) ->
+    {message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
+    lager:info("MAILBOX - " ++ ID ++ " - REMAINING: ~p", [MessageQueueLen]).

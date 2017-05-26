@@ -64,7 +64,7 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
-        ?LOG("S: MESSAGE MAKER"),
+        ?LOG("- MESSAGE MAKER"),
         Actor = ldb_config:id(),
         MinSeq = min_seq_buffer(DeltaBuffer),
         {LastAck, _} = last_ack(NodeName, AckMap0),
@@ -165,7 +165,7 @@ message_maker() ->
                 {nothing, Value}
         end,
 
-        ?LOG("E: MESSAGE MAKER"),
+        ?LOG("+ MESSAGE MAKER"),
 
         Result
     end.
@@ -174,7 +174,7 @@ message_maker() ->
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
 
-        ?LOG("S: MESSAGE HANDLER delta"),
+        ?LOG("- MESSAGE HANDLER delta"),
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         Default = get_entry(Bottom),
@@ -217,20 +217,20 @@ message_handler({_, delta, _, _, _}) ->
                     ldb_config:id(),
                     N
                 },
-                ?LOG("S: SEND delta"),
+                ?LOG("- SEND delta"),
                 ldb_whisperer:send(From, Ack),
-                ?LOG("E: SEND delta"),
+                ?LOG("+ SEND delta"),
 
                 StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end,
             Default
         ),
-        ?LOG("E: MESSAGE HANDLER delta")
+        ?LOG("+ MESSAGE HANDLER delta")
     end;
 message_handler({_, delta_ack, _, _}) ->
     fun({Key, delta_ack, From, N}) ->
-        ?LOG("S: MESSAGE HANDLER delta_ack"),
+        ?LOG("- MESSAGE HANDLER delta_ack"),
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
@@ -255,11 +255,11 @@ message_handler({_, delta_ack, _, _}) ->
 
         add_key_to_shrink(Key),
 
-        ?LOG("E: MESSAGE HANDLER delta_ack")
+        ?LOG("+ MESSAGE HANDLER delta_ack")
     end;
 message_handler({_, digest, _, _, _, _}) ->
     fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
-        ?LOG("S: MESSAGE HANDLER digest"),
+        ?LOG("- MESSAGE HANDLER digest"),
         Default = get_entry(Bottom),
         ldb_store:update(
             Key,
@@ -311,13 +311,13 @@ message_handler({_, digest, _, _, _, _}) ->
 
         ldb_whisperer:send(From, ToSend),
 
-        ?LOG("E: MESSAGE HANDLER digest")
+        ?LOG("+ MESSAGE HANDLER digest")
     end;
 message_handler({_, digest_and_state, _, _, _, _}) ->
     fun({Key, digest_and_state, From, RemoteSequence,
          {Type, _}=RemoteDelta, RemoteDigest}) ->
 
-        ?LOG("S: MESSAGE HANDLER digest_and_state"),
+        ?LOG("- MESSAGE HANDLER digest_and_state"),
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
         Actor = ldb_config:id(),
 
@@ -345,7 +345,7 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
         Handler = message_handler(FakeMessage),
         Handler(FakeMessage),
 
-        ?LOG("E: MESSAGE HANDLER digest_and_state")
+        ?LOG("+ MESSAGE HANDLER digest_and_state")
     end.
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
@@ -364,6 +364,7 @@ init([]) ->
                 keys_to_shrink=ordsets:new()}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
+    ldb_util:qs("DELTA BACKEND create"),
     Bottom = ldb_util:new_crdt(type, LDBType),
     Default = get_entry(Bottom),
 
@@ -376,6 +377,7 @@ handle_call({create, Key, LDBType}, _From, State) ->
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
+    ldb_util:qs("DELTA BACKEND query"),
     Result = case ldb_store:get(Key) of
         {ok, {{Type, _}=CRDT, _, _, _}} ->
             {ok, Type:query(CRDT)};
@@ -386,6 +388,7 @@ handle_call({query, Key}, _From, State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
+    ldb_util:qs("DELTA BACKEND update"),
     Function = fun({{Type, _}=CRDT0, Sequence, DeltaBuffer0, AckMap}) ->
         case Type:delta_mutate(Operation, Actor, CRDT0) of
             {ok, Delta} ->
@@ -402,6 +405,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(memory, _From, State) ->
+    ldb_util:qs("DELTA BACKEND memory"),
     FoldFunction = fun({_Key, Value}, {C, R}) ->
         {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
         CRDTSize = ldb_util:size(crdt, CRDT),
@@ -418,10 +422,12 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
+    ldb_util:qs("DELTA BACKEND add_key_to_shrink"),
     {noreply, State#state{keys_to_shrink=ordsets:add_element(Key, Keys)}};
 
 handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
-    ?LOG("S: DBUFFER SHRINK"),
+    ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
+    ?LOG("- DBUFFER SHRINK"),
     case ordsets:size(Keys) > 0 of
         true ->
             Peers = ldb_whisperer:members(),
@@ -469,7 +475,7 @@ handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
             ok
     end,
 
-    ?LOG("E: DBUFFER SHRINK"),
+    ?LOG("+ DBUFFER SHRINK"),
     schedule_dbuffer_shrink(),
     {noreply, State#state{keys_to_shrink=ordsets:new()}};
 
