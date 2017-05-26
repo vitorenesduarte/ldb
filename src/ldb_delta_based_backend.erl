@@ -350,7 +350,7 @@ init([]) ->
                 keys_to_shrink=ordsets:new()}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
-    %ldb_util:qs("DELTA BACKEND create"),
+    ldb_util:qs("DELTA BACKEND create"),
     Bottom = ldb_util:new_crdt(type, LDBType),
     Default = get_entry(Bottom),
 
@@ -363,7 +363,7 @@ handle_call({create, Key, LDBType}, _From, State) ->
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->
-    %ldb_util:qs("DELTA BACKEND query"),
+    ldb_util:qs("DELTA BACKEND query"),
     Result = case ldb_store:get(Key) of
         {ok, {{Type, _}=CRDT, _, _, _}} ->
             {ok, Type:query(CRDT)};
@@ -374,7 +374,7 @@ handle_call({query, Key}, _From, State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
-    %ldb_util:qs("DELTA BACKEND update"),
+    ldb_util:qs("DELTA BACKEND update"),
     Function = fun({{Type, _}=CRDT0, Sequence, DeltaBuffer0, AckMap}) ->
         case Type:delta_mutate(Operation, Actor, CRDT0) of
             {ok, Delta} ->
@@ -391,7 +391,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(memory, _From, State) ->
-    %ldb_util:qs("DELTA BACKEND memory"),
+    ldb_util:qs("DELTA BACKEND memory"),
     FoldFunction = fun({_Key, Value}, {C, R}) ->
         {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
         CRDTSize = ldb_util:size(crdt, CRDT),
@@ -408,11 +408,11 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
-    %ldb_util:qs("DELTA BACKEND add_key_to_shrink"),
+    ldb_util:qs("DELTA BACKEND add_key_to_shrink"),
     {noreply, State#state{keys_to_shrink=ordsets:add_element(Key, Keys)}};
 
 handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
-    %ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
+    ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
     case ordsets:size(Keys) > 0 of
         true ->
             Peers = ldb_whisperer:members(),

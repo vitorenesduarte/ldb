@@ -81,14 +81,17 @@ init([]) ->
     {ok, #state{ets_id=ETS}}.
 
 handle_call(keys, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE keys"),
     Result = keys(ETS),
     {reply, Result, State};
 
 handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE get"),
     Result = do_get(Key, ETS),
     {reply, Result, State};
 
 handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE update/2"),
     Result = case do_get(Key, ETS) of
         {ok, Value} ->
             case Function(Value) of
@@ -105,6 +108,7 @@ handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
     {reply, Result, State};
 
 handle_call({update, Key, Function, Default}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE update/3"),
     Value = case do_get(Key, ETS) of
         {ok, V} ->
             V;
@@ -123,6 +127,7 @@ handle_call({update, Key, Function, Default}, _From, #state{ets_id=ETS}=State) -
     {reply, Result, State};
 
 handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE update_all"),
     Keys = keys(ETS),
 
     lists:foreach(
@@ -143,6 +148,7 @@ handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
     {reply, Result,  State};
 
 handle_call({fold, Function, Acc}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE fold"),
     Result = ets:foldl(Function, Acc, ETS),
     {reply, Result, State};
 

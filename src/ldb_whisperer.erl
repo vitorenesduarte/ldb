@@ -77,7 +77,7 @@ init([]) ->
     {ok, #state{members=[]}}.
 
 handle_call(members, _From, #state{members=Members}=State) ->
-    %ldb_util:qs("WHISPERER members"),
+    ldb_util:qs("WHISPERER members"),
     {reply, Members, State};
 
 handle_call(Msg, _From, State) ->
@@ -85,7 +85,7 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast({update_membership, Membership}, State) ->
-    %ldb_util:qs("WHISPERER update_membership"),
+    ldb_util:qs("WHISPERER update_membership"),
     Members = [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()],
 
     ?LOG("NEW MEMBERS ~p\n", [Members]),
@@ -93,7 +93,7 @@ handle_cast({update_membership, Membership}, State) ->
     {noreply, State#state{members=Members}};
 
 handle_cast({send, LDBId, Message}, State) ->
-    %ldb_util:qs("WHISPERER send"),
+    ldb_util:qs("WHISPERER send"),
     do_send(LDBId, Message),
     {noreply, State};
 
@@ -102,7 +102,7 @@ handle_cast(Msg, State) ->
     {noreply, State}.
 
 handle_info(state_sync, #state{members=LDBIds}=State) ->
-    %ldb_util:qs("WHISPERER state_sync"),
+    ldb_util:qs("WHISPERER state_sync"),
     UpdateFunction = fun({Key, Value}) ->
         NewValue = lists:foldl(
             fun(LDBId, CurrentValue) ->
