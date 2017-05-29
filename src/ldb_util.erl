@@ -133,6 +133,8 @@ types_map() ->
              {twopset, {state_twopset, pure_twopset}}],
     orddict:from_list(Types).
 
+%% @doc Log Process queue length.
 qs(ID) ->
-    {message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
-    lager:info("MAILBOX - " ++ ID ++ " - REMAINING: ~p", [MessageQueueLen]).
+    %{message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
+    %lager:info("MAILBOX - " ++ ID ++ " - REMAINING: ~p", [MessageQueueLen]).
+    ok.
