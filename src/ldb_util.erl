@@ -134,7 +134,7 @@ types_map() ->
     orddict:from_list(Types).
 
 %% @doc Log Process queue length.
-qs(ID) ->
+qs(_ID) ->
     %{message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
     %lager:info("MAILBOX - " ++ ID ++ " - REMAINING: ~p", [MessageQueueLen]).
     ok.
