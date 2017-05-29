@@ -26,8 +26,8 @@
 -export([start_link/0,
          keys/0,
          get/1,
-         create/2,
          update/2,
+         update/3,
          update_all/1,
          fold/2]).
 
@@ -37,12 +37,12 @@
 %% @doc Returns the value associated with a given `key()'.
 -callback get(key()) -> {ok, value()} | not_found().
 
-%% @doc Creates a `key()' in store with `value()', if the key
-%%      is not already present in the store.
--callback create(key(), value()) -> ok.
-
 %% @doc Applies a given `function()' to a given `key()'.
 -callback update(key(), function()) -> ok | not_found() | error().
+
+%% @doc Applies a given `function()' to a given `key()'.
+%%      If key not present, use the default `value()'.
+-callback update(key(), function(), value()) -> ok | error().
 
 %% @doc Applies a given `function()' to all `key()'s.
 -callback update_all(function()) -> ok.
@@ -64,13 +64,13 @@ keys() ->
 get(Key) ->
     do(get, [Key]).
 
--spec create(key(), value()) -> ok.
-create(Key, Value) ->
-    do(create, [Key, Value]).
-
 -spec update(key(), function()) -> ok | not_found() | error.
 update(Key, Function) ->
     do(update, [Key, Function]).
+
+-spec update(key(), function(), value()) -> ok | error.
+update(Key, Function, Default) ->
+    do(update, [Key, Function, Default]).
 
 -spec update_all(function()) -> ok.
 update_all(Function) ->
