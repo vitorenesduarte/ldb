@@ -67,7 +67,7 @@ message_maker() ->
         MinSeq = min_seq_buffer(DeltaBuffer),
         {LastAck, _} = last_ack(NodeName, AckMap),
 
-        Result = case LastAck < Sequence of
+        case LastAck < Sequence of
             true ->
                 ToSend = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
@@ -150,12 +150,10 @@ message_maker() ->
                         end
                 end,
 
-                {ToSend, Value};
+                ToSend;
             false ->
-                {nothing, Value}
-        end,
-
-        Result
+                nothing
+        end
     end.
 
 -spec message_handler(term()) -> function().
