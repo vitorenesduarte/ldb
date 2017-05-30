@@ -435,7 +435,7 @@ handle_info(dbuffer_shrink, State) ->
                     0 ->
                         %% if no peers, delete all entries
                         %% in the delta buffer
-                        0;
+                        Sequence;
                     _ ->
                         min_seq_ack_map(AckMap1)
                 end,
