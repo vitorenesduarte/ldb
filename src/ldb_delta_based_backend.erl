@@ -62,7 +62,7 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}=Value, NodeName) ->
+    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName) ->
         Actor = ldb_config:id(),
         MinSeq = min_seq_buffer(DeltaBuffer),
         {LastAck, _} = last_ack(NodeName, AckMap),
