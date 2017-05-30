@@ -42,8 +42,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: ldb_node_id(),
-                keys_to_shrink :: ordsets:ordset(key())}).
+-record(state, {actor :: ldb_node_id()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -153,7 +152,7 @@ message_maker() ->
                                 }
                         end,
 
-                        {Message, increment_ack_map_round(Key, NodeName, AckMap0)}
+                        {Message, increment_ack_map_round(NodeName, AckMap0)}
                 end,
 
                 %% update the ack map
@@ -243,10 +242,7 @@ message_handler({_, delta_ack, _, _}) ->
                 StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
                 {ok, StoreValue}
             end
-        ),
-
-        add_key_to_shrink(Key)
-
+        )
     end;
 message_handler({_, digest, _, _, _, _}) ->
     fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
@@ -346,8 +342,7 @@ init([]) ->
     schedule_dbuffer_shrink(),
 
     ?LOG("ldb_delta_based_backend initialized!"),
-    {ok, #state{actor=Actor,
-                keys_to_shrink=ordsets:new()}}.
+    {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
     ldb_util:qs("DELTA BACKEND create"),
@@ -407,65 +402,62 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
-    ldb_util:qs("DELTA BACKEND add_key_to_shrink"),
-    {noreply, State#state{keys_to_shrink=ordsets:add_element(Key, Keys)}};
-
-handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
-    ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
-    case ordsets:size(Keys) > 0 of
-        true ->
-            Peers = ldb_whisperer:members(),
-
-            ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
-                %% only keep in the ack map entries from current peers
-                AckMap1 = [Entry || {Peer, _}=Entry <- AckMap0, lists:member(Peer, Peers)],
-
-                %% ensure all current peers have an entry in the ack map
-                AllPeersInAckMap = lists:all(
-                    fun(Peer) ->
-                        orddict:is_key(Peer, AckMap1)
-                    end,
-                    Peers
-                ),
-
-                %% if all peers are in the ack map,
-                %% remove from the delta buffer all the entries
-                %% acknowledged by all the peers
-                DeltaBuffer1 = case AllPeersInAckMap of
-                    true ->
-                        Min = min_seq_ack_map(AckMap1),
-
-                        orddict:filter(
-                            fun(EntrySequence, {_Actor, _Delta}) ->
-                                EntrySequence >= Min
-                            end,
-                            DeltaBuffer0
-                        );
-                    false ->
-                        DeltaBuffer0
-                end,
-
-                NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
-                {ok, NewValue}
-            end,
-
-            lists:foreach(
-                fun(Key) ->
-                    ldb_store:update(Key, ShrinkFun)
-                end,
-                Keys
-            );
-        false ->
-            ok
-    end,
-
-    schedule_dbuffer_shrink(),
-    {noreply, State#state{keys_to_shrink=ordsets:new()}};
-
 handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
+
+handle_info(dbuffer_shrink, State) ->
+    ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
+
+    Peers = ldb_whisperer:members(),
+
+    ShrinkFun = fun({_Key, {LocalCRDT, Sequence, DeltaBuffer0, AckMap0}}) ->
+        %% only keep in the ack map entries from current peers
+        AckMap1 = [Entry || {Peer, _}=Entry <- AckMap0, lists:member(Peer, Peers)],
+
+        %% ensure all current peers have an entry in the ack map
+        AllPeersInAckMap = lists:all(
+            fun(Peer) ->
+                orddict:is_key(Peer, AckMap1)
+            end,
+            Peers
+        ),
+
+        %% if all peers are in the ack map,
+        %% remove from the delta buffer all the entries
+        %% acknowledged by all the peers
+        DeltaBuffer1 = case AllPeersInAckMap of
+            true ->
+                Min = case length(Peers) of
+                    0 ->
+                        %% if no peers, delete all entries
+                        %% in the delta buffer
+                        Sequence;
+                    _ ->
+                        min_seq_ack_map(AckMap1)
+                end,
+
+                orddict:filter(
+                    fun(EntrySequence, {_Actor, _Delta}) ->
+                        EntrySequence >= Min
+                    end,
+                    DeltaBuffer0
+                );
+            false ->
+                DeltaBuffer0
+        end,
+
+        ?LOG("Delta-buffer size before/after: ~p/~p",
+             [orddict:size(DeltaBuffer0), orddict:size(DeltaBuffer1)]),
+
+        NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
+        {ok, NewValue}
+    end,
+
+    ldb_store:update_all(ShrinkFun),
+
+    schedule_dbuffer_shrink(),
+    {noreply, State};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -503,7 +495,7 @@ last_ack(NodeName, AckMap) ->
     orddict_ext:fetch(NodeName, AckMap, {0, 0}).
 
 %% @private
-increment_ack_map_round(Key, NodeName, AckMap) ->
+increment_ack_map_round(NodeName, AckMap) ->
     {LastAck, Round} = last_ack(NodeName, AckMap),
     NextRound = Round + 1,
 
@@ -515,7 +507,6 @@ increment_ack_map_round(Key, NodeName, AckMap) ->
     %% evict peer from the ack map
     case NextRound > EvictionRoundNumber andalso EvictionRoundNumber /= -1 of
         true ->
-            add_key_to_shrink(Key),
             orddict:erase(NodeName, AckMap);
         false ->
             orddict:store(NodeName, {LastAck, NextRound}, AckMap)
@@ -524,10 +515,6 @@ increment_ack_map_round(Key, NodeName, AckMap) ->
 %% @private
 eviction_round_number() ->
     ldb_config:get(ldb_eviction_round_number).
-
-%% @private
-add_key_to_shrink(Key) ->
-    gen_server:cast(?MODULE, {add_key_to_shrink, Key}).
 
 %% @private
 schedule_dbuffer_shrink() ->
