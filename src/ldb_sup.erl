@@ -91,20 +91,21 @@ configure() ->
                   false),
 
     %% configure metrics
-    Metrics = configure_var("LDB_METRICS",
-                            ldb_metrics,
-                            false),
+    % Metrics = configure_var("LDB_METRICS",
+    %                         ldb_metrics,
+    %                         false),
 
-    BaseSpecs = case Metrics of
-        true ->
-            [{ldb_metrics,
-              {ldb_metrics, start_link, []},
-              permanent, 5000, worker, [ldb_metrics]}];
-        false ->
-            []
-    end,
+    % BaseSpecs = case Metrics of
+    %     true ->
+    %         [{ldb_metrics,
+    %           {ldb_metrics, start_link, []},
+    %           permanent, 5000, worker, [ldb_metrics]}];
+    %     false ->
+    %         []
+    % end,
 
-    BaseSpecs.
+    % BaseSpecs.
+    [].
 
 
 %% @private

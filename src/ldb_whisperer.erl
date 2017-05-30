@@ -106,7 +106,7 @@ handle_info(state_sync, State) ->
                 end,
 
                 %% record latency creating this message
-                ldb_metrics:record_latency(local, MicroSeconds),
+                lmetrics:record_latency(local, MicroSeconds),
 
                 UpdatedValue
 
@@ -181,14 +181,9 @@ metrics({_Key, delta_ack, _From, Sequence}) ->
 
 %% @private
 record_message(L) ->
-    case ldb_config:get(ldb_metrics) of
-        true ->
-            lists:foreach(
-                fun({Type, Size}) ->
-                    ldb_metrics:record_message(Type, Size)
-                end,
-                L
-            );
-        false ->
-            ok
-    end.
+    lists:foreach(
+        fun({Type, Size}) ->
+            lmetrics:record_message(Type, Size)
+        end,
+        L
+    ).
