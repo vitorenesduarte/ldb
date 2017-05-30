@@ -412,7 +412,11 @@ handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
     lager:info("ADD KEY TO SHRINK ~p\n\n", [Key]),
     {noreply, State#state{keys_to_shrink=ordsets:add_element(Key, Keys)}};
 
-handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
+handle_cast(Msg, State) ->
+    lager:warning("Unhandled cast message: ~p", [Msg]),
+    {noreply, State}.
+
+handle_info(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
     ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
 
     lager:info("KEYS TO SHRINK ~p\n\n", [Keys]),
@@ -467,10 +471,6 @@ handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
 
     schedule_dbuffer_shrink(),
     {noreply, State#state{keys_to_shrink=ordsets:new()}};
-
-handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
-    {noreply, State}.
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
