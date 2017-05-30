@@ -423,9 +423,6 @@ handle_info(dbuffer_shrink, State) ->
             Peers
         ),
 
-        lager:info("ACK MAP ~p", [AckMap1]),
-        lager:info("ALL PEERS IN ~p", [AllPeersInAckMap]),
-
         %% if all peers are in the ack map,
         %% remove from the delta buffer all the entries
         %% acknowledged by all the peers
@@ -440,11 +437,6 @@ handle_info(dbuffer_shrink, State) ->
                         min_seq_ack_map(AckMap1)
                 end,
 
-                lager:info("LEN ~p", [length(Peers)]),
-                lager:info("MIN ~p", [Min]),
-                Entries = [E || {E, _} <- DeltaBuffer0],
-                lager:info("ENTRIES ~p\n\n\n\n", [Entries]),
-
                 orddict:filter(
                     fun(EntrySequence, {_Actor, _Delta}) ->
                         EntrySequence >= Min
@@ -455,7 +447,8 @@ handle_info(dbuffer_shrink, State) ->
                 DeltaBuffer0
         end,
 
-        lager:info("DBUFFER SIZE BEFORE/AFTER: ~p/~p\n\n", [orddict:size(DeltaBuffer0), orddict:size(DeltaBuffer1)]),
+        ?LOG("Delta-buffer size before/after: ~p/~p",
+             [orddict:size(DeltaBuffer0), orddict:size(DeltaBuffer1)]),
 
         NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
         {ok, NewValue}
@@ -514,7 +507,6 @@ increment_ack_map_round(NodeName, AckMap) ->
     %% evict peer from the ack map
     case NextRound > EvictionRoundNumber andalso EvictionRoundNumber /= -1 of
         true ->
-            lager:info("NODE ~p EVICTED\n\n", [NodeName]),
             orddict:erase(NodeName, AckMap);
         false ->
             orddict:store(NodeName, {LastAck, NextRound}, AckMap)
