@@ -176,6 +176,7 @@ do_send(LDBId, Message) ->
     ok.
 
 %% @private
+%% state-based
 metrics({_Key, state, CRDT}) ->
     M = {state, ldb_util:size(crdt, CRDT)},
     record_message([M]);
@@ -189,12 +190,27 @@ metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
     M1 = {state, ldb_util:size(crdt, Delta)},
     M2 = {digest, ldb_util:size(term, Digest)},
     record_message([M1, M2]);
+%% delta-based
 metrics({_Key, delta, _From, Sequence, Delta}) ->
-    M = {delta, ldb_util:size(term, Sequence) + ldb_util:size(crdt, Delta)},
-    record_message([M]);
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {delta, ldb_util:size(crdt, Delta)},
+    record_message([M1, M2]);
 metrics({_Key, delta_ack, _From, Sequence}) ->
     M = {delta_ack, ldb_util:size(term, Sequence)},
-    record_message([M]).
+    record_message([M]);
+metrics({_Key, digest, _From, Sequence, _Bottom, {state, CRDT}}) ->
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {state, ldb_util:size(crdt, CRDT)},
+    record_message([M1, M2]);
+metrics({_Key, digest, _From, Sequence, _Bottom, {mdata, Digest}}) ->
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {digest, ldb_util:size(term, Digest)},
+    record_message([M1, M2]);
+metrics({_Key, digest_and_state, _From, Sequence, Delta, {mdata, Digest}}) ->
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {state, ldb_util:size(crdt, Delta)},
+    M3 = {digest, ldb_util:size(term, Digest)},
+    record_message([M1, M2, M3]).
 
 %% @private
 record_message(L) ->
