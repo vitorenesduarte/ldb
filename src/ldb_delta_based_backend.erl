@@ -423,6 +423,9 @@ handle_info(dbuffer_shrink, State) ->
             Peers
         ),
 
+        lager:info("ACK MAP ~p", [AckMap1]),
+        lager:info("ALL PEERS IN ~p", [AllPeersInAckMap]),
+
         %% if all peers are in the ack map,
         %% remove from the delta buffer all the entries
         %% acknowledged by all the peers
@@ -436,6 +439,11 @@ handle_info(dbuffer_shrink, State) ->
                     _ ->
                         min_seq_ack_map(AckMap1)
                 end,
+
+                lager:info("LEN ~p", [length(Peers)]),
+                lager:info("MIN ~p", [Min]),
+                Entries = [E || {E, _} <- DeltaBuffer0],
+                lager:info("ENTRIES ~p\n\n\n\n", [Entries]),
 
                 orddict:filter(
                     fun(EntrySequence, {_Actor, _Delta}) ->
