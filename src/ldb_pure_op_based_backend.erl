@@ -99,6 +99,8 @@ init([]) ->
 
     ?ISHIKAWA:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
 
+    ok = lmetrics:set_time_series_callback(fun() -> ToBeAdded = memory(), {ok, ToBeAdded} end),
+
     ?LOG("ldb_pure_op_based_backend initialized!"),
 
     {ok, #state{actor=Actor}}.
