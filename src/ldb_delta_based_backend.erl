@@ -411,7 +411,7 @@ handle_info(dbuffer_shrink, State) ->
 
     Peers = ldb_whisperer:members(),
 
-    ShrinkFun = fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
+    ShrinkFun = fun({_Key, {LocalCRDT, Sequence, DeltaBuffer0, AckMap0}}) ->
         %% only keep in the ack map entries from current peers
         AckMap1 = [Entry || {Peer, _}=Entry <- AckMap0, lists:member(Peer, Peers)],
 
