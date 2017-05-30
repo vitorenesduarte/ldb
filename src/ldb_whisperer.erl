@@ -103,17 +103,15 @@ handle_cast(Msg, State) ->
 
 handle_info(state_sync, #state{members=LDBIds}=State) ->
     ldb_util:qs("WHISPERER state_sync"),
-    UpdateFunction = fun({Key, Value}) ->
-        NewValue = lists:foldl(
-            fun(LDBId, CurrentValue) ->
+    FoldFunction = fun({Key, Value}, _) ->
+        lists:foreach(
+            fun(LDBId) ->
                 MessageMakerFun = ldb_backend:message_maker(),
 
-                {MicroSeconds, Result} = timer:tc(
+                {MicroSeconds, Message} = timer:tc(
                     MessageMakerFun,
-                    [Key, CurrentValue, LDBId]
+                    [Key, Value, LDBId]
                 ),
-
-                {Message, UpdatedValue} = Result,
 
                 %% send message if there's a message to send
                 case Message of
@@ -124,19 +122,13 @@ handle_info(state_sync, #state{members=LDBIds}=State) ->
                 end,
 
                 %% record latency creating this message
-                ldb_metrics:record_latency(local, MicroSeconds),
-
-                UpdatedValue
-
+                ldb_metrics:record_latency(local, MicroSeconds)
             end,
-            Value,
             LDBIds
-        ),
-
-        {ok, NewValue}
+        )
     end,
 
-    ldb_store:update_all(UpdateFunction),
+    ldb_store:fold(FoldFunction, undefined),
     schedule_state_sync(),
     {noreply, State};
 

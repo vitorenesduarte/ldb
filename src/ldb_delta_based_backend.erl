@@ -62,14 +62,14 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap0}=Value, NodeName) ->
+    fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}=Value, NodeName) ->
         Actor = ldb_config:id(),
         MinSeq = min_seq_buffer(DeltaBuffer),
-        {LastAck, _} = last_ack(NodeName, AckMap0),
+        {LastAck, _} = last_ack(NodeName, AckMap),
 
         Result = case LastAck < Sequence of
             true ->
-                {ToSend, AckMap1} = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
+                ToSend = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
                         ShouldStart = Actor < NodeName,
 
@@ -77,14 +77,13 @@ message_maker() ->
 
                         case Mode of
                             none ->
-                                Message = {
+                                {
                                     Key,
                                     delta,
                                     Actor,
                                     Sequence,
                                     CRDT
-                                },
-                                {Message, AckMap0};
+                                };
                             _ ->
                                 case ShouldStart of
                                     true ->
@@ -102,18 +101,16 @@ message_maker() ->
                                                 Type:digest(CRDT)
                                         end,
 
-                                        Message = {
+                                        {
                                             Key,
                                             digest,
                                             Actor,
                                             Sequence,
                                             Bottom,
                                             Digest
-                                        },
-
-                                        {Message, AckMap0};
+                                        };
                                     false ->
-                                        {nothing, AckMap0}
+                                        nothing
                                 end
                         end;
                     false ->
@@ -139,7 +136,7 @@ message_maker() ->
                             DeltaBuffer
                         ),
 
-                        Message = case Type:is_bottom(DeltaGroup) of
+                        case Type:is_bottom(DeltaGroup) of
                             true ->
                                 nothing;
                             false ->
@@ -150,15 +147,10 @@ message_maker() ->
                                     Sequence,
                                     DeltaGroup
                                 }
-                        end,
-
-                        {Message, increment_ack_map_round(NodeName, AckMap0)}
+                        end
                 end,
 
-                %% update the ack map
-                NewValue = {CRDT, Sequence, DeltaBuffer, AckMap1},
-
-                {ToSend, NewValue};
+                {ToSend, Value};
             false ->
                 {nothing, Value}
         end,
@@ -493,28 +485,6 @@ min_seq_ack_map(AckMap) ->
 %% @private
 last_ack(NodeName, AckMap) ->
     orddict_ext:fetch(NodeName, AckMap, {0, 0}).
-
-%% @private
-increment_ack_map_round(NodeName, AckMap) ->
-    {LastAck, Round} = last_ack(NodeName, AckMap),
-    NextRound = Round + 1,
-
-    EvictionRoundNumber = eviction_round_number(),
-
-    %% if eviction round number is bigger than the current round number
-    %% and we should evict peers from the delta buffer
-    %% (i.e., eviction round number != -1),
-    %% evict peer from the ack map
-    case NextRound > EvictionRoundNumber andalso EvictionRoundNumber /= -1 of
-        true ->
-            orddict:erase(NodeName, AckMap);
-        false ->
-            orddict:store(NodeName, {LastAck, NextRound}, AckMap)
-    end.
-
-%% @private
-eviction_round_number() ->
-    ldb_config:get(ldb_eviction_round_number).
 
 %% @private
 schedule_dbuffer_shrink() ->
