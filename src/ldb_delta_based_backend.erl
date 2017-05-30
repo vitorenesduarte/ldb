@@ -409,6 +409,7 @@ handle_call(Msg, _From, State) ->
 
 handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
     ldb_util:qs("DELTA BACKEND add_key_to_shrink"),
+    lager:info("ADD KEY TO SHRINK ~p\n\n", [Key]),
     {noreply, State#state{keys_to_shrink=ordsets:add_element(Key, Keys)}};
 
 handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
