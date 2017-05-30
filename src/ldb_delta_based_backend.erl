@@ -413,6 +413,8 @@ handle_cast({add_key_to_shrink, Key}, #state{keys_to_shrink=Keys}=State) ->
 
 handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
     ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
+
+    lager:info("KEYS TO SHRINK ~p\n\n", [Keys]),
     case ordsets:size(Keys) > 0 of
         true ->
             Peers = ldb_whisperer:members(),
@@ -445,6 +447,8 @@ handle_cast(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
                     false ->
                         DeltaBuffer0
                 end,
+
+                lager:info("DBUFFER SIZE BEFORE/AFTER: ~p/~p\n\n", [orddict:size(DeltaBuffer0), orddict:size(DeltaBuffer1)]),
 
                 NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
                 {ok, NewValue}
@@ -515,6 +519,7 @@ increment_ack_map_round(Key, NodeName, AckMap) ->
     %% evict peer from the ack map
     case NextRound > EvictionRoundNumber andalso EvictionRoundNumber /= -1 of
         true ->
+            lager:info("NODE ~p EVICTED\n\n", [NodeName]),
             add_key_to_shrink(Key),
             orddict:erase(NodeName, AckMap);
         false ->
