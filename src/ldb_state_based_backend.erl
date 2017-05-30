@@ -71,12 +71,11 @@ message_maker() ->
         case Mode of
             none ->
                 %% send local state
-                Message = {
+                {
                     Key,
                     state,
                     CRDT
-                },
-                {Message, CRDT};
+                };
             _ ->
                 case ShouldStart of
                     true ->
@@ -94,17 +93,15 @@ message_maker() ->
                                 Type:digest(CRDT)
                         end,
 
-                        Message = {
+                        {
                             Key,
                             digest,
                             Actor,
                             Bottom,
                             Digest
-                        },
-                        {Message, CRDT};
-
+                        };
                     false ->
-                        {nothing, CRDT}
+                        nothing
                 end
         end
     end.
