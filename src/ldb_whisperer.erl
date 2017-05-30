@@ -106,7 +106,12 @@ handle_info(state_sync, State) ->
                 end,
 
                 %% record latency creating this message
-                lmetrics:record_latency(local, MicroSeconds),
+                case ldb_config:get(lmetrics) of
+                    true ->
+                        lmetrics:record_latency(local, MicroSeconds);
+                    false ->
+                        ok
+                end,
 
                 UpdatedValue
 
@@ -151,7 +156,12 @@ do_send(LDBId, Message) ->
     %% if message was sent, collect metrics
     case Result of
         ok ->
-            metrics(Message);
+            case ldb_config:get(lmetrics) of
+                true ->
+                    metrics(Message);
+                false ->
+                    ok
+            end;
         Error ->
             ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
                  [Message, LDBId, Error])

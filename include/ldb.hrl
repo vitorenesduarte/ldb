@@ -30,6 +30,7 @@
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_DRIVEN_MODE, none).
 -define(DEFAULT_STORE, ldb_ets_store).
+-define(METRICS_DEFAULT, false).
 
 %% logging
 -define(LOGGING, list_to_atom("true")). %% dialyzer
