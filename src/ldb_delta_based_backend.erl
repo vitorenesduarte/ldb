@@ -441,7 +441,14 @@ handle_info(dbuffer_shrink, #state{keys_to_shrink=Keys}=State) ->
                 %% acknowledged by all the peers
                 DeltaBuffer1 = case AllPeersInAckMap of
                     true ->
-                        Min = min_seq_ack_map(AckMap1),
+                        Min = case length(Peers) of
+                            0 ->
+                                %% if no peers, delete all entries
+                                %% in the delta buffer
+                                0;
+                            _ ->
+                                min_seq_ack_map(AckMap1)
+                        end,
 
                         orddict:filter(
                             fun(EntrySequence, {_Actor, _Delta}) ->
