@@ -46,9 +46,7 @@
 %% @doc Returns a function that will, given what's in the store,
 %%      decide what should be sent.
 %%      The function signature should be:
-%%         fun(key(), value(), node_name()) ->
-%%             {Message, UpdatedValue}.
-%%
+%%         fun(key(), value(), node_name()) -> Message
 %%          - if `Message == undefined', no message is sent.
 -callback message_maker() -> function().
 

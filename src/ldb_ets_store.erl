@@ -30,8 +30,8 @@
 -export([start_link/0,
          keys/0,
          get/1,
-         create/2,
          update/2,
+         update/3,
          update_all/1,
          fold/2]).
 
@@ -57,13 +57,13 @@ keys() ->
 get(Key) ->
     gen_server:call(?MODULE, {get, Key}, infinity).
 
--spec create(key(), value()) -> ok.
-create(Key, Value) ->
-    gen_server:call(?MODULE, {create, Key, Value}, infinity).
-
 -spec update(key(), function()) -> ok | not_found() | error().
 update(Key, Function) ->
     gen_server:call(?MODULE, {update, Key, Function}, infinity).
+
+-spec update(key(), function(), value()) -> ok | error().
+update(Key, Function, Default) ->
+    gen_server:call(?MODULE, {update, Key, Function, Default}, infinity).
 
 -spec update_all(function()) -> ok.
 update_all(Function) ->
@@ -81,25 +81,17 @@ init([]) ->
     {ok, #state{ets_id=ETS}}.
 
 handle_call(keys, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE keys"),
     Result = keys(ETS),
     {reply, Result, State};
 
 handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE get"),
     Result = do_get(Key, ETS),
     {reply, Result, State};
 
-handle_call({create, Key, Value}, _From, #state{ets_id=ETS}=State) ->
-    Result = case do_get(Key, ETS) of
-        {ok, _} ->
-            ok;
-        _ ->
-            do_put(Key, Value, ETS),
-            ok
-    end,
-
-    {reply, Result, State};
-
 handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE update/2"),
     Result = case do_get(Key, ETS) of
         {ok, Value} ->
             case Function(Value) of
@@ -115,7 +107,27 @@ handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
 
     {reply, Result, State};
 
+handle_call({update, Key, Function, Default}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE update/3"),
+    Value = case do_get(Key, ETS) of
+        {ok, V} ->
+            V;
+        _ ->
+            Default
+    end,
+
+    Result = case Function(Value) of
+        {ok, NewValue} ->
+            do_put(Key, NewValue, ETS),
+            ok;
+        Error ->
+            Error
+    end,
+
+    {reply, Result, State};
+
 handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE update_all"),
     Keys = keys(ETS),
 
     lists:foreach(
@@ -136,6 +148,7 @@ handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
     {reply, Result,  State};
 
 handle_call({fold, Function, Acc}, _From, #state{ets_id=ETS}=State) ->
+    ldb_util:qs("STORE fold"),
     Result = ets:foldl(Function, Acc, ETS),
     {reply, Result, State};
 

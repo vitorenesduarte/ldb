@@ -112,7 +112,11 @@ init([]) ->
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Bottom = ldb_util:new_crdt(type, LDBType),
-    Result = ldb_store:create(Key, Bottom),
+    Result = ldb_store:update(
+        Key,
+        fun(V) -> {ok, V} end,
+        Bottom
+    ),
     {reply, Result, State};
 
 handle_call({query, Key}, _From, State) ->

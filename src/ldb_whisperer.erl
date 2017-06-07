@@ -27,6 +27,7 @@
 %% ldb_whisperer callbacks
 -export([start_link/0,
          members/0,
+         update_membership/1,
          send/2]).
 
 %% gen_server callbacks
@@ -37,7 +38,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {members :: list(ldb_node_id())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -46,6 +47,10 @@ start_link() ->
 -spec members() -> list(ldb_node_id()).
 members() ->
     gen_server:call(?MODULE, members, infinity).
+
+-spec update_membership(list(node_spec())) -> ok.
+update_membership(Membership) ->
+    gen_server:cast(?MODULE, {update_membership, Membership}).
 
 -spec send(ldb_node_id(), term()) -> ok.
 send(LDBId, Message) ->
@@ -62,19 +67,33 @@ init([]) ->
             ok
     end,
 
-    ?LOG("ldb_whisperer initialized!"),
-    {ok, #state{}}.
+    %% configure membership callback
+    MembershipFun = fun(Membership) ->
+        ldb_whisperer:update_membership(Membership)
+    end,
+    partisan_peer_service:add_sup_callback(MembershipFun),
 
-handle_call(members, _From, State) ->
-    %% @todo ldb_peer_service should cache members using partisan add_sup_callback
-    {ok, Result} = ldb_peer_service:members(),
-    {reply, Result, State};
+    ?LOG("ldb_whisperer initialized!"),
+    {ok, #state{members=[]}}.
+
+handle_call(members, _From, #state{members=Members}=State) ->
+    ldb_util:qs("WHISPERER members"),
+    {reply, Members, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
+handle_cast({update_membership, Membership}, State) ->
+    ldb_util:qs("WHISPERER update_membership"),
+    Members = [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()],
+
+    ?LOG("NEW MEMBERS ~p\n", [Members]),
+
+    {noreply, State#state{members=Members}};
+
 handle_cast({send, LDBId, Message}, State) ->
+    ldb_util:qs("WHISPERER send"),
     do_send(LDBId, Message),
     {noreply, State};
 
@@ -82,20 +101,17 @@ handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(state_sync, State) ->
-    {ok, LDBIds} = ldb_peer_service:members(),
-
-    UpdateFunction = fun({Key, Value}) ->
-        NewValue = lists:foldl(
-            fun(LDBId, CurrentValue) ->
+handle_info(state_sync, #state{members=LDBIds}=State) ->
+    ldb_util:qs("WHISPERER state_sync"),
+    FoldFunction = fun({Key, Value}, _) ->
+        lists:foreach(
+            fun(LDBId) ->
                 MessageMakerFun = ldb_backend:message_maker(),
 
-                {MicroSeconds, Result} = timer:tc(
+                {MicroSeconds, Message} = timer:tc(
                     MessageMakerFun,
-                    [Key, CurrentValue, LDBId]
+                    [Key, Value, LDBId]
                 ),
-
-                {Message, UpdatedValue} = Result,
 
                 %% send message if there's a message to send
                 case Message of
@@ -112,18 +128,12 @@ handle_info(state_sync, State) ->
                     false ->
                         ok
                 end,
-
-                UpdatedValue
-
             end,
-            Value,
             LDBIds
-        ),
-
-        {ok, NewValue}
+        )
     end,
 
-    ldb_store:update_all(UpdateFunction),
+    ldb_store:fold(FoldFunction, undefined),
     schedule_state_sync(),
     {noreply, State};
 
@@ -145,7 +155,6 @@ schedule_state_sync() ->
 %% @private
 -spec do_send(ldb_node_id(), term()) -> ok.
 do_send(LDBId, Message) ->
-
     %% try to send the message
     Result = ldb_peer_service:forward_message(
         LDBId,
@@ -169,25 +178,41 @@ do_send(LDBId, Message) ->
     ok.
 
 %% @private
+%% state-based
 metrics({_Key, state, CRDT}) ->
     M = {state, ldb_util:size(crdt, CRDT)},
     record_message([M]);
-metrics({_Key, state_driven, _From, Delta}) ->
-    M = {state, ldb_util:size(crdt, Delta)},
+metrics({_Key, digest, _From, _Bottom, {state, CRDT}}) ->
+    M = {state, ldb_util:size(crdt, CRDT)},
     record_message([M]);
-metrics({_Key, digest_driven, _From, _Bottom, Digest}) ->
+metrics({_Key, digest, _From, _Bottom, {mdata, Digest}}) ->
     M = {digest, ldb_util:size(term, Digest)},
     record_message([M]);
-metrics({_Key, digest_driven_with_state, _From, Delta, Digest}) ->
+metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
     M1 = {state, ldb_util:size(crdt, Delta)},
     M2 = {digest, ldb_util:size(term, Digest)},
     record_message([M1, M2]);
+%% delta-based
 metrics({_Key, delta, _From, Sequence, Delta}) ->
-    M = {delta, ldb_util:size(term, Sequence) + ldb_util:size(crdt, Delta)},
-    record_message([M]);
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {delta, ldb_util:size(crdt, Delta)},
+    record_message([M1, M2]);
 metrics({_Key, delta_ack, _From, Sequence}) ->
     M = {delta_ack, ldb_util:size(term, Sequence)},
-    record_message([M]).
+    record_message([M]);
+metrics({_Key, digest, _From, Sequence, _Bottom, {state, CRDT}}) ->
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {state, ldb_util:size(crdt, CRDT)},
+    record_message([M1, M2]);
+metrics({_Key, digest, _From, Sequence, _Bottom, {mdata, Digest}}) ->
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {digest, ldb_util:size(term, Digest)},
+    record_message([M1, M2]);
+metrics({_Key, digest_and_state, _From, Sequence, Delta, {mdata, Digest}}) ->
+    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+    M2 = {state, ldb_util:size(crdt, Delta)},
+    M3 = {digest, ldb_util:size(term, Digest)},
+    record_message([M1, M2, M3]).
 
 %% @private
 record_message(L) ->

@@ -51,6 +51,7 @@ handle_call(Msg, _From, State) ->
     {noreply, State}.
 
 handle_cast(Message, State) ->
+    ldb_util:qs("LISTENER message cast"),
     MessageHandler = ldb_backend:message_handler(Message),
     {MicroSeconds, _Result} = timer:tc(
         MessageHandler,
