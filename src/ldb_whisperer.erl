@@ -127,7 +127,7 @@ handle_info(state_sync, #state{members=LDBIds}=State) ->
                         lmetrics:record_latency(local, MicroSeconds);
                     false ->
                         ok
-                end,
+                end
             end,
             LDBIds
         )
