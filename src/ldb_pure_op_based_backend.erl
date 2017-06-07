@@ -22,7 +22,7 @@
 
 -include("ldb.hrl").
 
--define(ISHIKAWA, ishikawa).
+-define(FEATHERINE, featherine).
 
 -behaviour(ldb_backend).
 -behaviour(gen_server).
@@ -97,7 +97,7 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    ?ISHIKAWA:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
+    ?FEATHERINE:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
 
     case ldb_config:get(lmetrics) of
         true ->
@@ -129,7 +129,7 @@ handle_call({update, Key, Operation}, _From, State) ->
     MessageBody = {Key, encode_op(Operation)},
 
     %% broadcast
-    {ok, VV} = ?ISHIKAWA:tcbcast(MessageBody),
+    {ok, VV} = ?FEATHERINE:tcbcast(MessageBody),
 
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, VV, CRDT)
@@ -154,7 +154,7 @@ handle_call(memory, _From, State) ->
         + erts_debug:flat_size(ToBeDeliveredQueue)
     end,
 
-    TRCBSize = ?ISHIKAWA:tcbmemory(CalcFunction),
+    TRCBSize = ?FEATHERINE:tcbmemory(CalcFunction),
 
     {reply, {CRDTSize, TRCBSize} , State};
 
