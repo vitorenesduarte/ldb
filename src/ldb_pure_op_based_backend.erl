@@ -22,8 +22,6 @@
 
 -include("ldb.hrl").
 
--define(ISHIKAWA, ishikawa).
-
 -behaviour(ldb_backend).
 -behaviour(gen_server).
 
@@ -98,7 +96,8 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    ?ISHIKAWA:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
+    M = ishikawa(),
+    M:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
 
     ?LOG("ldb_pure_op_based_backend initialized!"),
 
@@ -127,7 +126,8 @@ handle_call({update, Key, Operation}, _From, State) ->
     MessageBody = {Key, encode_op(Operation)},
 
     %% broadcast
-    {ok, VV} = ?ISHIKAWA:tcbcast(MessageBody),
+    M = ishikawa(),
+    {ok, VV} = M:tcbcast(MessageBody),
 
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, VV, CRDT)
@@ -167,3 +167,7 @@ decode_op({1, E}) ->
 %% @todo
 decode_op(Op) ->
     Op.
+
+%% @private
+ishikawa() ->
+    ldb_config:get(ishikawa).
