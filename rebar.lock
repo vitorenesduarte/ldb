@@ -9,7 +9,7 @@
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},0},
  {<<"lmetrics">>,
   {git,"https://github.com/gyounes/lmetrics",
-       {ref,"9037b6e61643592992e855b4afa54d2f2ddaa83e"}},
+       {ref,"52edc56487beb2c65305a4c9b0ba005d20a0fc36"}},
   0},
  {<<"partisan">>,
   {git,"https://github.com/lasp-lang/partisan",
