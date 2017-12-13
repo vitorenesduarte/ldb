@@ -26,6 +26,9 @@ delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmld
 avoids back-propagation of delta-groups
 - __LDB_METRICS__: metrics are recorded if `true`
 
+State-based, delta-based, state-driven and digest-driven modes are described [here](vitorenesduarte.github.io/page/other/msc-thesis.pdf),
+as well as the optimizations removal of redundant delta-groups and avoiding back-propagation of delta-groups.
+
 |||||
 |---------------------------------|-------------------------------------------|-------------------------------------------|-----------------|
 | __LDB_MODE__                    | `state_based`                             | `delta_based`                             | `pure_op_based` |
