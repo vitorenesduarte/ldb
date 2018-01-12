@@ -4,7 +4,7 @@
               {registered,[]},
               {maintainers,["Vitor Enes Duarte","Georges Younes"]},
               {applications,[kernel,stdlib,crypto,jsx,inets,lager,types,
-                             ishikawa]},
+                             featherine,lmetrics]},
               {mod,{ldb_app,[]}},
               {modules,[]},
               {licenses,["Apache 2.0"]},

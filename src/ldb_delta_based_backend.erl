@@ -329,6 +329,12 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
+    case ldb_config:get(lmetrics) of
+        true ->
+            lmetrics:set_time_series_callback(fun() -> ToBeAdded = memory(), {ok, ToBeAdded} end);
+        false ->
+            ok
+    end,
     schedule_dbuffer_shrink(),
 
     ?LOG("ldb_delta_based_backend initialized!"),

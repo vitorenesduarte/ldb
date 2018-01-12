@@ -32,7 +32,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    BaseSpecs = configure(),
+    configure(),
 
     Backend = {ldb_backend,
                {ldb_backend, start_link, []},
@@ -52,7 +52,7 @@ init([]) ->
 
     SpaceSpecs = space_specs(),
 
-    Children = BaseSpecs ++ ReplicationSpecs ++ SpaceSpecs,
+    Children = ReplicationSpecs ++ SpaceSpecs,
 
     ?LOG("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
@@ -86,21 +86,9 @@ configure() ->
                   false),
 
     %% configure metrics
-    Metrics = configure_var("LDB_METRICS",
-                            ldb_metrics,
-                            false),
-
-    BaseSpecs = case Metrics of
-        true ->
-            [{ldb_metrics,
-              {ldb_metrics, start_link, []},
-              permanent, 5000, worker, [ldb_metrics]}];
-        false ->
-            []
-    end,
-
-    BaseSpecs.
-
+    configure_var("LMETRICS",
+                            lmetrics,
+                            ?METRICS_DEFAULT).
 
 %% @private
 space_specs() ->

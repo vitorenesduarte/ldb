@@ -22,7 +22,7 @@
 
 -include("ldb.hrl").
 
--define(ISHIKAWA, ishikawa).
+-define(FEATHERINE, featherine).
 
 -behaviour(ldb_backend).
 -behaviour(gen_server).
@@ -79,8 +79,7 @@ message_handler(_) ->
 
 -spec memory() -> {non_neg_integer(), non_neg_integer()}.
 memory() ->
-    %% @todo
-    {0, 0}.
+    gen_server:call(?MODULE, memory, infinity).
 
 %% @todo do spec
 delivery_function({VV, {Key, EncodedOp}}) ->
@@ -98,7 +97,14 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    ?ISHIKAWA:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
+    ?FEATHERINE:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
+
+    case ldb_config:get(lmetrics) of
+        true ->
+            lmetrics:set_time_series_callback(fun() -> ToBeAdded = memory(), {ok, ToBeAdded} end);
+        false ->
+            ok
+    end,
 
     ?LOG("ldb_pure_op_based_backend initialized!"),
 
@@ -127,7 +133,7 @@ handle_call({update, Key, Operation}, _From, State) ->
     MessageBody = {Key, encode_op(Operation)},
 
     %% broadcast
-    {ok, VV} = ?ISHIKAWA:tcbcast(MessageBody),
+    {ok, VV} = ?FEATHERINE:tcbcast(MessageBody),
 
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, VV, CRDT)
@@ -135,6 +141,26 @@ handle_call({update, Key, Operation}, _From, State) ->
 
     Result = ldb_store:update(Key, Function),
     {reply, Result, State};
+
+handle_call(memory, _From, State) ->
+    FoldFunction = fun({_Key, CRDT}, C) ->
+        Size = ldb_util:size(crdt, CRDT),
+        C + Size
+    end,
+
+    CRDTSize = ldb_store:fold(FoldFunction, 0),
+
+    CalcFunction = fun({VV, SVV, RTM, ToBeAckQueue, ToBeDeliveredQueue}) ->
+        erts_debug:flat_size(VV)
+        + erts_debug:flat_size(SVV)
+        + erts_debug:flat_size(RTM)
+        + erts_debug:flat_size(ToBeAckQueue)
+        + erts_debug:flat_size(ToBeDeliveredQueue)
+    end,
+
+    TRCBSize = ?FEATHERINE:tcbmemory(CalcFunction),
+
+    {reply, {CRDTSize, TRCBSize} , State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),

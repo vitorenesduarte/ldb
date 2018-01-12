@@ -122,7 +122,12 @@ handle_info(state_sync, #state{members=LDBIds}=State) ->
                 end,
 
                 %% record latency creating this message
-                ldb_metrics:record_latency(local, MicroSeconds)
+                case ldb_config:get(lmetrics) of
+                    true ->
+                        lmetrics:record_latency(local, MicroSeconds);
+                    false ->
+                        ok
+                end
             end,
             LDBIds
         )
@@ -160,7 +165,12 @@ do_send(LDBId, Message) ->
     %% if message was sent, collect metrics
     case Result of
         ok ->
-            metrics(Message);
+            case ldb_config:get(lmetrics) of
+                true ->
+                    metrics(Message);
+                false ->
+                    ok
+            end;
         Error ->
             ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
                  [Message, LDBId, Error])
@@ -206,14 +216,9 @@ metrics({_Key, digest_and_state, _From, Sequence, Delta, {mdata, Digest}}) ->
 
 %% @private
 record_message(L) ->
-    case ldb_config:get(ldb_metrics) of
-        true ->
-            lists:foreach(
-                fun({Type, Size}) ->
-                    ldb_metrics:record_message(Type, Size)
-                end,
-                L
-            );
-        false ->
-            ok
-    end.
+    lists:foreach(
+        fun({Type, Size}) ->
+            lmetrics:record_message(Type, Size)
+        end,
+        L
+    ).
