@@ -110,7 +110,7 @@ handle_info(state_sync, #state{members=LDBIds,
                                metrics=Metrics}=State) ->
     ldb_util:qs("WHISPERER state_sync"),
 
-    FoldFunction = fun({Key, Value}, _) ->
+    FoldFunction = fun(Key, Value, _) ->
         lists:foreach(
             fun(LDBId) ->
 

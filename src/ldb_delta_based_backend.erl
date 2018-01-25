@@ -389,7 +389,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 
 handle_call(memory, _From, State) ->
     ldb_util:qs("DELTA BACKEND memory"),
-    FoldFunction = fun({_Key, Value}, {C, R}) ->
+    FoldFunction = fun(_Key, Value, {C, R}) ->
         {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
         CRDTSize = ldb_util:size(crdt, CRDT),
         RestSize = ldb_util:size(term, {Sequence, AckMap})

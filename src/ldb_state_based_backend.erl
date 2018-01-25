@@ -234,7 +234,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(memory, _From, State) ->
-    FoldFunction = fun({_Key, CRDT}, {C, _}) ->
+    FoldFunction = fun(_Key, CRDT, {C, _}) ->
         CRDTSize = ldb_util:size(crdt, CRDT),
         {C + CRDTSize, 0}
     end,
