@@ -1,16 +1,6 @@
 language: erlang
 otp_release:
   - 20.0
-# install maven
-# from: https://gist.github.com/ppatierno/a50396b19c83554fe5f43a71c12c70c6
-cache:
-  directories:
-  - "$HOME/.m2/repository"
-  - "$HOME/apache-maven-3.5.0"
-before_install:
-  - export M2_HOME=$HOME/apache-maven-3.5.0
-  - if [ ! -d $M2_HOME/bin ]; then curl https://archive.apache.org/dist/maven/maven-3/3.5.0/binaries/apache-maven-3.5.0-bin.tar.gz | tar zxf - -C $HOME; fi
-  - export PATH=$M2_HOME/bin:$PATH
 install:
   - ./rebar3 update
   - make
@@ -21,7 +11,6 @@ script:
   - make xref
   - make dialyzer
   - make lint
-  - make java-client-test
 matrix:
   fast_finish: true
 notifications:
