@@ -38,7 +38,9 @@
          terminate/2,
          code_change/3]).
 
--record(state, {members :: list(ldb_node_id())}).
+-record(state, {members :: list(ldb_node_id()),
+                mm_fun :: function(),
+                metrics :: boolean()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -74,7 +76,9 @@ init([]) ->
     partisan_peer_service:add_sup_callback(MembershipFun),
 
     ?LOG("ldb_whisperer initialized!"),
-    {ok, #state{members=[]}}.
+    {ok, #state{members=[],
+                mm_fun=ldb_backend:message_maker(),
+                metrics=ldb_config:get(ldb_metrics)}}.
 
 handle_call(members, _From, #state{members=Members}=State) ->
     ldb_util:qs("WHISPERER members"),
@@ -92,37 +96,34 @@ handle_cast({update_membership, Membership}, State) ->
 
     {noreply, State#state{members=Members}};
 
-handle_cast({send, LDBId, Message}, State) ->
+handle_cast({send, LDBId, Message}, #state{metrics=Metrics}=State) ->
     ldb_util:qs("WHISPERER send"),
-    do_send(LDBId, Message),
+    do_send(LDBId, Message, Metrics),
     {noreply, State};
 
 handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
 
-handle_info(state_sync, #state{members=LDBIds}=State) ->
+handle_info(state_sync, #state{members=LDBIds,
+                               mm_fun=MessageMakerFun,
+                               metrics=Metrics}=State) ->
     ldb_util:qs("WHISPERER state_sync"),
+
     FoldFunction = fun({Key, Value}, _) ->
         lists:foreach(
             fun(LDBId) ->
-                MessageMakerFun = ldb_backend:message_maker(),
 
-                {MicroSeconds, Message} = timer:tc(
-                    MessageMakerFun,
-                    [Key, Value, LDBId]
-                ),
+                Message = do_make(MessageMakerFun, Key, Value, LDBId, Metrics),
 
                 %% send message if there's a message to send
                 case Message of
                     nothing ->
                         ok;
                     _ ->
-                        do_send(LDBId, Message)
-                end,
+                        do_send(LDBId, Message, Metrics)
+                end
 
-                %% record latency creating this message
-                ldb_metrics:record_latency(local, MicroSeconds)
             end,
             LDBIds
         )
@@ -148,8 +149,23 @@ schedule_state_sync() ->
     timer:send_after(Interval, state_sync).
 
 %% @private
--spec do_send(ldb_node_id(), term()) -> ok.
-do_send(LDBId, Message) ->
+do_make(MessageMakerFun, Key, Value, LDBId, true) ->
+    {MicroSeconds, Message} = timer:tc(
+        MessageMakerFun,
+        [Key, Value, LDBId]
+    ),
+
+    %% record latency creating this message
+    ldb_metrics:record_latency(local, MicroSeconds),
+
+    Message;
+
+do_make(MessageMakerFun, Key, Value, LDBId, false) ->
+    MessageMakerFun(Key, Value, LDBId).
+
+%% @private
+-spec do_send(ldb_node_id(), term(), boolean()) -> ok.
+do_send(LDBId, Message, Metrics) ->
     %% try to send the message
     Result = ldb_peer_service:forward_message(
         LDBId,
@@ -160,7 +176,12 @@ do_send(LDBId, Message) ->
     %% if message was sent, collect metrics
     case Result of
         ok ->
-            metrics(Message);
+            case Metrics of
+                true ->
+                    metrics(Message);
+                false ->
+                    ok
+            end;
         Error ->
             ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
                  [Message, LDBId, Error])
@@ -206,14 +227,9 @@ metrics({_Key, digest_and_state, _From, Sequence, Delta, {mdata, Digest}}) ->
 
 %% @private
 record_message(L) ->
-    case ldb_config:get(ldb_metrics) of
-        true ->
-            lists:foreach(
-                fun({Type, Size}) ->
-                    ldb_metrics:record_message(Type, Size)
-                end,
-                L
-            );
-        false ->
-            ok
-    end.
+    lists:foreach(
+        fun({Type, Size}) ->
+            ldb_metrics:record_message(Type, Size)
+        end,
+        L
+    ).
