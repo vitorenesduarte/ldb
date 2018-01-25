@@ -85,7 +85,7 @@ size(ack_map, AckMap) ->
 size(delta_buffer, DeltaBuffer) ->
     lists:foldl(
         fun({_Sequence, {_From, CRDT}}, Acc) ->
-            Acc + size(crdt, CRDT) + 2
+            Acc + size(crdt, CRDT)
         end,
         0,
         DeltaBuffer
