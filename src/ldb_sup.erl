@@ -88,7 +88,7 @@ configure() ->
     %% configure metrics
     Metrics = configure_var("LDB_METRICS",
                             ldb_metrics,
-                            false),
+                            true),
 
     BaseSpecs = case Metrics of
         true ->
