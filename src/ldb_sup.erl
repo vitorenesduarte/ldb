@@ -54,7 +54,7 @@ init([]) ->
 
     Children = BaseSpecs ++ ReplicationSpecs ++ SpaceSpecs,
 
-    ?LOG("ldb_sup initialized!"),
+    lager:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
     {ok, {RestartStrategy, Children}}.
 

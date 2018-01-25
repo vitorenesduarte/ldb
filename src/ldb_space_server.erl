@@ -47,7 +47,7 @@ init([Port]) ->
 
     prepare_accept(),
 
-    ?LOG("ldb_space_server initialized!"),
+    lager:info("ldb_space_server initialized!"),
     {ok, #state{listener=Listener}}.
 
 handle_call(Msg, _From, State) ->

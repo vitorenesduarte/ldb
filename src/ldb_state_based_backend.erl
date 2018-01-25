@@ -203,7 +203,7 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    ?LOG("ldb_state_based_backend initialized!"),
+    lager:info("ldb_state_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->

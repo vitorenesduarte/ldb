@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -76,7 +75,7 @@ fold(Function, Acc) ->
 %% gen_server callbacks
 init([]) ->
 
-    ?LOG("ldb_actor_store initialized!"),
+    lager:info("ldb_actor_store initialized!"),
     {ok, #state{key_to_data=maps:new()}}.
 
 handle_call(keys, _From, #state{key_to_data=Map}=State) ->

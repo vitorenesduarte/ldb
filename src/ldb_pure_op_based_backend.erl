@@ -82,7 +82,7 @@ memory() ->
 
 %% @todo do spec
 delivery_function({VV, {Key, EncodedOp}}) ->
-    ?LOG("message delivered ~p~n~n", [{VV, {Key, EncodedOp}}]),
+    ?DEBUG("message delivered ~p~n~n", [{VV, {Key, EncodedOp}}]),
     Operation = decode_op(EncodedOp),
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, VV, CRDT)
@@ -99,7 +99,7 @@ init([]) ->
     M = ishikawa(),
     M:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
 
-    ?LOG("ldb_pure_op_based_backend initialized!"),
+    lager:info("ldb_pure_op_based_backend initialized!"),
 
     {ok, #state{actor=Actor}}.
 

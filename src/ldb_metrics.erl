@@ -78,7 +78,7 @@ record_latency(Type, MicroSeconds) ->
 %% gen_server callbacks
 init([]) ->
     %schedule_time_series(),
-    ?LOG("ldb_metrics initialized!"),
+    lager:info("ldb_metrics initialized!"),
     {ok, #state{latency_type_to_latency=orddict:new(),
                 time_series=[]}}.
 
@@ -116,7 +116,7 @@ handle_cast(Msg, State) ->
 handle_info(time_series, #state{time_series=TimeSeries0}=State) ->
     Timestamp = ldb_util:unix_timestamp(),
 
-    % tranmission metrics are already recorded in `time_series'
+    % transmission metrics are already recorded in `time_series'
 
     % memory metrics
     MMetric = {Timestamp, memory, ldb_backend:memory()},

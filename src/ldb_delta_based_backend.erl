@@ -343,7 +343,7 @@ init([]) ->
 
     schedule_dbuffer_shrink(),
 
-    ?LOG("ldb_delta_based_backend initialized!"),
+    lager:info("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
@@ -449,7 +449,7 @@ handle_info(dbuffer_shrink, State) ->
                 DeltaBuffer0
         end,
 
-        ?LOG("Delta-buffer size before/after: ~p/~p",
+        ?DEBUG("Delta-buffer size before/after: ~p/~p",
              [orddict:size(DeltaBuffer0), orddict:size(DeltaBuffer1)]),
 
         NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},

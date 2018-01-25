@@ -75,7 +75,7 @@ init([]) ->
     end,
     partisan_peer_service:add_sup_callback(MembershipFun),
 
-    ?LOG("ldb_whisperer initialized!"),
+    lager:info("ldb_whisperer initialized!"),
     {ok, #state{members=[],
                 mm_fun=ldb_backend:message_maker(),
                 metrics=ldb_config:get(ldb_metrics)}}.
@@ -92,7 +92,7 @@ handle_cast({update_membership, Membership}, State) ->
     ldb_util:qs("WHISPERER update_membership"),
     Members = [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()],
 
-    ?LOG("NEW MEMBERS ~p\n", [Members]),
+    lager:info("NEW MEMBERS ~p\n", [Members]),
 
     {noreply, State#state{members=Members}};
 
@@ -183,8 +183,8 @@ do_send(LDBId, Message, Metrics) ->
                     ok
             end;
         Error ->
-            ?LOG("Error trying to send message ~p to node ~p. Reason ~p",
-                 [Message, LDBId, Error])
+            lager:info("Error trying to send message ~p to node ~p. Reason ~p",
+                       [Message, LDBId, Error])
     end,
     ok.
 
