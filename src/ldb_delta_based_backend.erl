@@ -63,7 +63,12 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName) ->
+
+        %% config
         Actor = ldb_config:id(),
+        Mode = ldb_config:get(ldb_driven_mode),
+        BP = ldb_config:get(ldb_dgroup_back_propagation, false),
+
         MinSeq = min_seq_buffer(DeltaBuffer),
         {LastAck, _} = last_ack(NodeName, AckMap),
 
@@ -72,8 +77,6 @@ message_maker() ->
                 ToSend = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
                         ShouldStart = Actor < NodeName,
-
-                        Mode = ldb_config:get(ldb_driven_mode),
 
                         case Mode of
                             none ->
@@ -117,7 +120,7 @@ message_maker() ->
                         DeltaGroup = orddict:fold(
                             fun(N, {From, D}, Acc) ->
                                 ShouldSendDelta0 = LastAck =< N andalso N < Sequence,
-                                ShouldSendDelta1 = case ldb_config:get(ldb_dgroup_back_propagation, false) of
+                                ShouldSendDelta1 = case BP of
                                     true ->
                                         % when set to true, avoids back propagation of delta groups
                                         ShouldSendDelta0 andalso NodeName =/= From;
@@ -160,6 +163,10 @@ message_maker() ->
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
 
+        %% config
+        Actor = ldb_config:id(),
+        RR = ldb_config:get(ldb_redundant_dgroups, false),
+
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         Default = get_entry(Bottom),
@@ -169,7 +176,7 @@ message_handler({_, delta, _, _, _}) ->
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
-                {Sequence, DeltaBuffer} = case ldb_config:get(ldb_redundant_dgroups, false) of
+                {Sequence, DeltaBuffer} = case RR of
                     true ->
                         Delta = Type:delta(RemoteCRDT, {state, LocalCRDT}),
 
@@ -199,7 +206,7 @@ message_handler({_, delta, _, _, _}) ->
                 Ack = {
                     Key,
                     delta_ack,
-                    ldb_config:id(),
+                    Actor,
                     N
                 },
                 ldb_whisperer:send(From, Ack),
@@ -236,6 +243,10 @@ message_handler({_, delta_ack, _, _}) ->
     end;
 message_handler({_, digest, _, _, _, _}) ->
     fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
+
+        %% config
+        Actor = ldb_config:id(),
+
         Default = get_entry(Bottom),
         ldb_store:update(
             Key,
@@ -244,7 +255,6 @@ message_handler({_, digest, _, _, _, _}) ->
         ),
 
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
-        Actor = ldb_config:id(),
 
         %% compute delta
         Delta = Type:delta(LocalCRDT, Remote),
@@ -291,8 +301,10 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
     fun({Key, digest_and_state, From, RemoteSequence,
          {Type, _}=RemoteDelta, RemoteDigest}) ->
 
-        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
+        %% config
         Actor = ldb_config:id(),
+
+        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
 
         %% compute delta
         Delta = Type:delta(LocalCRDT, RemoteDigest),

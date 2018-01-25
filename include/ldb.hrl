@@ -29,7 +29,7 @@
 -define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_DRIVEN_MODE, none).
--define(DEFAULT_STORE, ldb_ets_store).
+-define(DEFAULT_STORE, ldb_actor_store).
 
 %% logging
 -define(LOGGING, list_to_atom("true")). %% dialyzer

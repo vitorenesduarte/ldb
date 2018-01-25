@@ -77,7 +77,7 @@ record_latency(Type, MicroSeconds) ->
 
 %% gen_server callbacks
 init([]) ->
-    schedule_time_series(),
+    %schedule_time_series(),
     ?LOG("ldb_metrics initialized!"),
     {ok, #state{latency_type_to_latency=orddict:new(),
                 time_series=[]}}.
