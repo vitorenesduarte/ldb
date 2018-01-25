@@ -75,15 +75,17 @@ unix_timestamp() ->
     Mega * 1000000 + Sec.
 
 %% @doc
--spec size(term | crdt | delta_buffer, term()) -> non_neg_integer().
-size(term, T) ->
-    erts_debug:flat_size(T);
+-spec size(crdt | digest | ack_map | delta_buffer, term()) -> non_neg_integer().
 size(crdt, CRDT) ->
     state_type:crdt_size(CRDT);
+size(digest, Digest) ->
+    state_type:digest_size(Digest);
+size(ack_map, AckMap) ->
+    orddict:size(AckMap);
 size(delta_buffer, DeltaBuffer) ->
     lists:foldl(
-        fun({Sequence, {From, CRDT}}, Acc) ->
-            Acc + size(crdt, CRDT) + size(term, {Sequence, From})
+        fun({_Sequence, {_From, CRDT}}, Acc) ->
+            Acc + size(crdt, CRDT) + 2
         end,
         0,
         DeltaBuffer

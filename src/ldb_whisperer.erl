@@ -197,32 +197,32 @@ metrics({_Key, digest, _From, _Bottom, {state, CRDT}}) ->
     M = {state, ldb_util:size(crdt, CRDT)},
     record_message([M]);
 metrics({_Key, digest, _From, _Bottom, {mdata, Digest}}) ->
-    M = {digest, ldb_util:size(term, Digest)},
+    M = {digest, ldb_util:size(digest, Digest)},
     record_message([M]);
 metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
     M1 = {state, ldb_util:size(crdt, Delta)},
-    M2 = {digest, ldb_util:size(term, Digest)},
+    M2 = {digest, ldb_util:size(digest, Digest)},
     record_message([M1, M2]);
 %% delta-based
-metrics({_Key, delta, _From, Sequence, Delta}) ->
-    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+metrics({_Key, delta, _From, _Sequence, Delta}) ->
+    M1 = {delta_ack, 1},
     M2 = {delta, ldb_util:size(crdt, Delta)},
     record_message([M1, M2]);
-metrics({_Key, delta_ack, _From, Sequence}) ->
-    M = {delta_ack, ldb_util:size(term, Sequence)},
+metrics({_Key, delta_ack, _From, _Sequence}) ->
+    M = {delta_ack, 1},
     record_message([M]);
-metrics({_Key, digest, _From, Sequence, _Bottom, {state, CRDT}}) ->
-    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+metrics({_Key, digest, _From, _Sequence, _Bottom, {state, CRDT}}) ->
+    M1 = {delta_ack, 1},
     M2 = {state, ldb_util:size(crdt, CRDT)},
     record_message([M1, M2]);
-metrics({_Key, digest, _From, Sequence, _Bottom, {mdata, Digest}}) ->
-    M1 = {delta_ack, ldb_util:size(term, Sequence)},
-    M2 = {digest, ldb_util:size(term, Digest)},
+metrics({_Key, digest, _From, _Sequence, _Bottom, {mdata, Digest}}) ->
+    M1 = {delta_ack, 1},
+    M2 = {digest, ldb_util:size(digest, Digest)},
     record_message([M1, M2]);
-metrics({_Key, digest_and_state, _From, Sequence, Delta, {mdata, Digest}}) ->
-    M1 = {delta_ack, ldb_util:size(term, Sequence)},
+metrics({_Key, digest_and_state, _From, _Sequence, Delta, {mdata, Digest}}) ->
+    M1 = {delta_ack, 1},
     M2 = {state, ldb_util:size(crdt, Delta)},
-    M3 = {digest, ldb_util:size(term, Digest)},
+    M3 = {digest, ldb_util:size(digest, Digest)},
     record_message([M1, M2, M3]).
 
 %% @private

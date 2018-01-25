@@ -70,7 +70,7 @@ message_maker() ->
         BP = ldb_config:get(ldb_dgroup_back_propagation, false),
 
         MinSeq = min_seq_buffer(DeltaBuffer),
-        {LastAck, _} = last_ack(NodeName, AckMap),
+        LastAck = last_ack(NodeName, AckMap),
 
         case LastAck < Sequence of
             true ->
@@ -222,20 +222,14 @@ message_handler({_, delta_ack, _, _}) ->
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
-                {LastAck, Round} = last_ack(From, AckMap0),
+                LastAck = last_ack(From, AckMap0),
 
                 %% when a new ack is received,
                 %% update the number of rounds without
                 %% receiving an ack to 0
                 MaxAck = max(LastAck, N),
-                NewRound = case MaxAck > LastAck of
-                    true ->
-                        0;
-                    false ->
-                        Round
-                end,
 
-                AckMap1 = orddict:store(From, {MaxAck, NewRound}, AckMap0),
+                AckMap1 = orddict:store(From, MaxAck, AckMap0),
                 StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
                 {ok, StoreValue}
             end
@@ -390,9 +384,11 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 handle_call(memory, _From, State) ->
     ldb_util:qs("DELTA BACKEND memory"),
     FoldFunction = fun(_Key, Value, {C, R}) ->
-        {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
+        {CRDT, _Sequence, DeltaBuffer, AckMap} = Value,
         CRDTSize = ldb_util:size(crdt, CRDT),
-        RestSize = ldb_util:size(term, {Sequence, AckMap})
+        %% sequence + ack map + delta buffer
+        RestSize = 1
+                 + ldb_util:size(ack_map, AckMap)
                  + ldb_util:size(delta_buffer, DeltaBuffer),
         {C + CRDTSize, R + RestSize}
     end,
@@ -490,11 +486,11 @@ min_seq_buffer(DeltaBuffer) ->
 
 %% @private
 min_seq_ack_map(AckMap) ->
-    lists:min([Ack || {_, {Ack, _Round}} <- AckMap]).
+    lists:min([Ack || {_, Ack} <- AckMap]).
 
 %% @private
 last_ack(NodeName, AckMap) ->
-    orddict_ext:fetch(NodeName, AckMap, {0, 0}).
+    orddict_ext:fetch(NodeName, AckMap, 0).
 
 %% @private
 schedule_dbuffer_shrink() ->
