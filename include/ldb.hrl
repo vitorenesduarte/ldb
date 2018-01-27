@@ -17,6 +17,9 @@
 -type message() :: term().
 -type timestamp() :: non_neg_integer().
 
+%% size metric: metadata size, payload size
+-type size_metric() :: {non_neg_integer(), non_neg_integer()}.
+
 %% space server
 -define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
 

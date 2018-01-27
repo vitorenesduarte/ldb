@@ -63,10 +63,9 @@ get_time_series() ->
 get_latency() ->
     gen_server:call(?MODULE, get_latency, infinity).
 
--spec record_message(term(), non_neg_integer()) -> ok.
+-spec record_message(term(), size_metric()) -> ok.
 record_message(MessageType, Size) ->
-    Metrics = [{size, Size}],
-    gen_server:cast(?MODULE, {message, MessageType, Metrics}).
+    gen_server:cast(?MODULE, {message, MessageType, Size}).
 
 %% @doc Record latency of:
 %%          - `local': creating a message locally
@@ -94,9 +93,8 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({message, MessageType, Metrics},
+handle_cast({message, MessageType, Size},
             #state{time_series=TimeSeries0}=State) ->
-    Size = orddict:fetch(size, Metrics),
 
     Timestamp = ldb_util:unix_timestamp(),
     TMetric = {Timestamp, transmission, {MessageType, Size}},

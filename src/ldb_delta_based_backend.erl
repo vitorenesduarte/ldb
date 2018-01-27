@@ -326,7 +326,7 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
 
     end.
 
--spec memory() -> {non_neg_integer(), non_neg_integer()}.
+-spec memory() -> {size_metric(), size_metric()}.
 memory() ->
     gen_server:call(?MODULE, memory, infinity).
 
@@ -383,17 +383,21 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 
 handle_call(memory, _From, State) ->
     ldb_util:qs("DELTA BACKEND memory"),
-    FoldFunction = fun(_Key, Value, {C, R}) ->
+    FoldFunction = fun(_Key, Value, {C0, R0}) ->
         {CRDT, _Sequence, DeltaBuffer, AckMap} = Value,
-        CRDTSize = ldb_util:size(crdt, CRDT),
-        %% sequence + ack map + delta buffer
-        RestSize = 1
-                 + ldb_util:size(ack_map, AckMap)
-                 + ldb_util:size(delta_buffer, DeltaBuffer),
-        {C + CRDTSize, R + RestSize}
+
+        C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
+
+        %% delta buffer + ack map
+        R = ldb_util:plus(
+            ldb_util:plus(R0, ldb_util:size(ack_map, AckMap)),
+            ldb_util:size(delta_buffer, DeltaBuffer)
+        ),
+
+        {C, R}
     end,
 
-    Result = ldb_store:fold(FoldFunction, {0, 0}),
+    Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->

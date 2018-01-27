@@ -75,10 +75,10 @@ message_handler(_) ->
         gen_server:cast(?MODULE, M)
     end.
 
--spec memory() -> {non_neg_integer(), non_neg_integer()}.
+-spec memory() -> {size_metric(), size_metric()}.
 memory() ->
     %% @todo
-    {0, 0}.
+    {{0, 0}, {0, 0}}.
 
 %% @todo do spec
 delivery_function({VV, {Key, EncodedOp}}) ->

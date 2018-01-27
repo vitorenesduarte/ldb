@@ -28,7 +28,8 @@
          atom_to_binary/1,
          binary_to_atom/1,
          unix_timestamp/0,
-         size/2]).
+         size/2,
+         plus/2]).
 
 -export([qs/1]).
 
@@ -75,21 +76,29 @@ unix_timestamp() ->
     Mega * 1000000 + Sec.
 
 %% @doc
--spec size(crdt | digest | ack_map | delta_buffer, term()) -> non_neg_integer().
+-spec size(crdt | digest | ack_map | delta_buffer, term()) -> {non_neg_integer(), non_neg_integer()}.
 size(crdt, CRDT) ->
     state_type:crdt_size(CRDT);
 size(digest, Digest) ->
-    state_type:digest_size(Digest);
+    {state_type:digest_size(Digest), 0};
 size(ack_map, AckMap) ->
-    orddict:size(AckMap);
+    {orddict:size(AckMap), 0};
 size(delta_buffer, DeltaBuffer) ->
     lists:foldl(
         fun({_Sequence, {_From, CRDT}}, Acc) ->
-            Acc + size(crdt, CRDT)
+            plus(
+                plus(Acc, size(crdt, CRDT)),
+                %% +1 for the From and Sequence
+                {1, 0}
+            )
         end,
-        0,
+        {0, 0},
         DeltaBuffer
     ).
+
+%% @doc sum
+plus({A1, B1}, {A2, B2}) -> {A1 + A2, B1 + B2};
+plus(A, B) -> A + B.
 
 %% @private
 extract_args({Type, Args}) ->

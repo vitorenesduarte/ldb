@@ -194,7 +194,7 @@ message_handler({_, digest_and_state, _, _, _}) ->
         )
     end.
 
--spec memory() -> {non_neg_integer(), non_neg_integer()}.
+-spec memory() -> {size_metric(), size_metric()}.
 memory() ->
     gen_server:call(?MODULE, memory, infinity).
 
@@ -234,12 +234,12 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     {reply, Result, State};
 
 handle_call(memory, _From, State) ->
-    FoldFunction = fun(_Key, CRDT, {C, _}) ->
-        CRDTSize = ldb_util:size(crdt, CRDT),
-        {C + CRDTSize, 0}
+    FoldFunction = fun(_Key, CRDT, {C0, R}) ->
+        C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
+        {C, R}
     end,
 
-    Result = ldb_store:fold(FoldFunction, {0, 0}),
+    Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
