@@ -42,7 +42,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: ldb_node_id()}).
+-record(state, {actor :: ldb_node_id(),
+                vv :: vclock()}).
 
 -define(WAIT_TIME_BEFORE_RESEND, 5).
 -define(CHECK_RESEND_INTERVAL, 5000).
@@ -81,7 +82,7 @@ memory() ->
     {{0, 0}, {0, 0}}.
 
 %% @todo do spec
-delivery_function({VV, {Key, EncodedOp}}) ->
+delivery_function({_Origin, VV, {Key, EncodedOp}}) ->
     ?DEBUG("message delivered ~p~n~n", [{VV, {Key, EncodedOp}}]),
     Operation = decode_op(EncodedOp),
     Function = fun({Type, _}=CRDT) ->
@@ -91,17 +92,17 @@ delivery_function({VV, {Key, EncodedOp}}) ->
     _Result = ldb_store:update(Key, Function),
     ok.
 
+
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    M = ishikawa(),
-    M:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
+    trcb_base:tcbdelivery(fun delivery_function/1),
 
     lager:info("ldb_pure_op_based_backend initialized!"),
 
-    {ok, #state{actor=Actor}}.
+    {ok, #state{actor=Actor, vv=vv:fresh()}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
     Bottom = ldb_util:new_crdt(type, LDBType),
@@ -126,11 +127,13 @@ handle_call({update, Key, Operation}, _From, State) ->
     MessageBody = {Key, encode_op(Operation)},
 
     %% broadcast
-    M = ishikawa(),
-    {ok, VV} = M:tcbcast(MessageBody),
+    NewVV=vv:increment(
+                 State#state.actor,
+                 State#state.vv),
+    ok = trcb_base:tcbcast(MessageBody, NewVV),
 
     Function = fun({Type, _}=CRDT) ->
-        Type:mutate(Operation, VV, CRDT)
+        Type:mutate(Operation, NewVV, CRDT)
     end,
 
     Result = ldb_store:update(Key, Function),
@@ -167,7 +170,3 @@ decode_op({1, E}) ->
 %% @todo
 decode_op(Op) ->
     Op.
-
-%% @private
-ishikawa() ->
-    ldb_config:get(ishikawa).

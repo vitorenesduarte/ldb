@@ -23,10 +23,13 @@
 -behaviour(application).
 
 -export([start/2,
-         stop/1]).
+         stop/1,
+         happened_before/2]).
 
 %% @doc Initialize the application.
 start(_StartType, _StartArgs) ->
+    application:set_env(types, happened_before_mod, ?MODULE),
+    application:set_env(types, happened_before_fun, happened_before),
     case ldb_sup:start_link() of
         {ok, Pid} ->
             {ok, Pid};
@@ -37,3 +40,10 @@ start(_StartType, _StartArgs) ->
 %% @doc Stop the application.
 stop(_State) ->
     ok.
+
+
+happened_before(A, B) ->
+    case vclock:compare(A, B) of
+        lt -> true;
+        _ -> false
+    end.
