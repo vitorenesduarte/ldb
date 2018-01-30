@@ -22,8 +22,6 @@
 
 -include("ldb.hrl").
 
--define(ISHIKAWA, ishikawa).
-
 -behaviour(ldb_backend).
 -behaviour(gen_server).
 
