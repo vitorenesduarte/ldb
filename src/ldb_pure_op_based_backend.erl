@@ -81,24 +81,15 @@ memory() ->
     %% @todo
     {0, 0}.
 
-%% @todo do spec
-delivery_function({_Origin, VV, {Key, EncodedOp}}) ->
-    ?LOG("message delivered ~p~n~n", [{VV, {Key, EncodedOp}}]),
-    Operation = decode_op(EncodedOp),
-    Function = fun({Type, _}=CRDT) ->
-        Type:mutate(Operation, VV, CRDT)
-    end,
-
-    _Result = ldb_store:update(Key, Function),
-    ok.
-
-
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    trcb_base:tcbdelivery(fun delivery_function/1),
+    trcb_base:tcbdelivery(
+      fun (msg) ->
+              gen_server:call(?MODULE, {delivery, msg}, infinity)
+      end),
 
     ?LOG("ldb_pure_op_based_backend initialized!"),
 
@@ -127,19 +118,30 @@ handle_call({update, Key, Operation}, _From, State) ->
     MessageBody = {Key, encode_op(Operation)},
 
     %% broadcast
-    NewVV=vclock:increment(
+    VVNew=vclock:increment(
                  State#state.actor,
                  State#state.vv),
-    ?LOG("Bcast at ~p: ~p", [State#state.actor, {MessageBody, NewVV}]),
-    ok = trcb_base:tcbcast(MessageBody, NewVV),
+    ?LOG("Bcasting: ~p", [{MessageBody, VVNew}]),
+    ok = trcb_base:tcbcast(MessageBody, VVNew),
 
     Function = fun({Type, _}=CRDT) ->
-        Type:mutate(Operation, NewVV, CRDT)
+        Type:mutate(Operation, VVNew, CRDT)
     end,
 
     Result = ldb_store:update(Key, Function),
-    StateNew = State#state{vv=NewVV},
+    StateNew = State#state{vv=VVNew},
     {reply, Result, StateNew};
+
+handle_call({delivery, {Origin, MsgVV, {Key, EncodedOp}}}, _From, State) ->
+    ?LOG("message delivered ~p~n~n", [{Origin, MsgVV, {Key, EncodedOp}}]),
+    Operation = decode_op(EncodedOp),
+    VVNew = vclock:increment(Origin, State#state.vv),
+    Function = fun({Type, _}=CRDT) ->
+        Type:mutate(Operation, VVNew, CRDT)
+    end,
+    _Result = ldb_store:update(Key, Function),
+    StateNew = State#state{vv=VVNew},
+    {noreply, StateNew};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),

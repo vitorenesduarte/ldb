@@ -13,13 +13,13 @@
   0},
  {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
- {<<"types">>,
-  {git,"https://github.com/lasp-lang/types",
-       {ref,"914ca18e9d89f160f1dea89edc91e47ba68c539c"}},
-  0},
  {<<"trcb_base">>,
   {git,"https://github.com/gyounes/trcb_base",
        {ref,"2e7974711455fd20e9f3d88af2300f168f5d598d"}},
+  0},
+ {<<"types">>,
+  {git,"https://github.com/lasp-lang/types",
+       {ref,"914ca18e9d89f160f1dea89edc91e47ba68c539c"}},
   0}]}.
 [
 {pkg_hash,[
