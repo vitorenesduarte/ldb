@@ -5,7 +5,7 @@
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},0},
  {<<"partisan">>,
   {git,"https://github.com/lasp-lang/partisan",
-       {ref,"3481ee17e8ef53581ee2da843a39e2fe4c132afa"}},
+       {ref,"5a63cd7a6c4df441a6494b59e449b2910f423522"}},
   0},
  {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
