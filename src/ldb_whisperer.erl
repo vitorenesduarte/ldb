@@ -28,6 +28,7 @@
 -export([start_link/0,
          members/0,
          update_membership/1,
+         update_metrics_membership/1,
          send/2]).
 
 %% gen_server callbacks
@@ -40,7 +41,11 @@
 
 -record(state, {members :: list(ldb_node_id()),
                 mm_fun :: function(),
-                metrics :: boolean()}).
+                metrics :: boolean(),
+                %% if the following is different that `all',
+                %% transmission metrics will only be recorded
+                %% for peers with ids in the set
+                metrics_members :: all | sets:set(ldb_node_id())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -53,6 +58,10 @@ members() ->
 -spec update_membership(list(node_spec())) -> ok.
 update_membership(Membership) ->
     gen_server:cast(?MODULE, {update_membership, Membership}).
+
+-spec update_metrics_membership(list(node_spec())) -> ok.
+update_metrics_membership(Membership) ->
+    gen_server:cast(?MODULE, {update_metrics_membership, Membership}).
 
 -spec send(ldb_node_id(), term()) -> ok.
 send(LDBId, Message) ->
@@ -78,7 +87,8 @@ init([]) ->
     lager:info("ldb_whisperer initialized!"),
     {ok, #state{members=[],
                 mm_fun=ldb_backend:message_maker(),
-                metrics=ldb_config:get(ldb_metrics)}}.
+                metrics=ldb_config:get(ldb_metrics),
+                metrics_members=all}}.
 
 handle_call(members, _From, #state{members=Members}=State) ->
     ldb_util:qs("WHISPERER members"),
@@ -96,9 +106,17 @@ handle_cast({update_membership, Membership}, State) ->
 
     {noreply, State#state{members=Members}};
 
-handle_cast({send, LDBId, Message}, #state{metrics=Metrics}=State) ->
+handle_cast({update_metrics_membership, Membership}, State) ->
+    ldb_util:qs("WHISPERER update_metrics_membership"),
+
+    lager:info("NEW METRICS MEMBERS ~p\n", [Membership]),
+
+    {noreply, State#state{metrics_members=sets:from_list(Membership)}};
+
+handle_cast({send, LDBId, Message}, #state{metrics=Metrics,
+                                           metrics_members=MetricsMembers}=State) ->
     ldb_util:qs("WHISPERER send"),
-    do_send(LDBId, Message, Metrics),
+    do_send(LDBId, Message, Metrics, MetricsMembers),
     {noreply, State};
 
 handle_cast(Msg, State) ->
@@ -107,7 +125,8 @@ handle_cast(Msg, State) ->
 
 handle_info(state_sync, #state{members=LDBIds,
                                mm_fun=MessageMakerFun,
-                               metrics=Metrics}=State) ->
+                               metrics=Metrics,
+                               metrics_members=MetricsMembers}=State) ->
     ldb_util:qs("WHISPERER state_sync"),
 
     FoldFunction = fun(Key, Value, _) ->
@@ -121,7 +140,7 @@ handle_info(state_sync, #state{members=LDBIds,
                     nothing ->
                         ok;
                     _ ->
-                        do_send(LDBId, Message, Metrics)
+                        do_send(LDBId, Message, Metrics, MetricsMembers)
                 end
 
             end,
@@ -164,8 +183,8 @@ do_make(MessageMakerFun, Key, Value, LDBId, false) ->
     MessageMakerFun(Key, Value, LDBId).
 
 %% @private
--spec do_send(ldb_node_id(), term(), boolean()) -> ok.
-do_send(LDBId, Message, Metrics) ->
+-spec do_send(ldb_node_id(), term(), boolean(), sets:set(ldb_node_id())) -> ok.
+do_send(LDBId, Message, Metrics, MetricsMembers) ->
     %% try to send the message
     Result = ldb_peer_service:forward_message(
         LDBId,
@@ -176,7 +195,7 @@ do_send(LDBId, Message, Metrics) ->
     %% if message was sent, collect metrics
     case Result of
         ok ->
-            case Metrics of
+            case should_record_metrics(Metrics, LDBId, MetricsMembers) of
                 true ->
                     record(metrics(Message));
                 false ->
@@ -187,6 +206,16 @@ do_send(LDBId, Message, Metrics) ->
                        [Message, LDBId, Error])
     end,
     ok.
+
+%% @private
+-spec should_record_metrics(boolean(), ldb_node_id(), all | sets:set(ldb_node_id())) ->
+    boolean().
+should_record_metrics(false, _, _) ->
+    false;
+should_record_metrics(true, _, all) ->
+    true;
+should_record_metrics(true, LDBId, Set) ->
+    sets:is_element(LDBId, Set).
 
 %% @private
 %% state-based
