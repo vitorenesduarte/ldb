@@ -54,7 +54,7 @@
 -callback message_handler(term()) -> function().
 
 %% @doc Returns memory consumption.
--callback memory() -> {non_neg_integer(), non_neg_integer()}.
+-callback memory() -> {size_metric(), size_metric()}.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->

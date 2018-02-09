@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016 SyncFree Consortium.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -18,7 +17,7 @@
 %%
 %% -------------------------------------------------------------------
 
--module(ldb_ets_store).
+-module(ldb_actor_store).
 -author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
@@ -43,7 +42,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {ets_id :: term()}).
+-record(state, {key_to_data :: maps:map()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -75,81 +74,75 @@ fold(Function, Acc) ->
 
 %% gen_server callbacks
 init([]) ->
-    ETS = ets:new(node(), [ordered_set, private]),
 
-    ?LOG("ldb_ets_store initialized!"),
-    {ok, #state{ets_id=ETS}}.
+    lager:info("ldb_actor_store initialized!"),
+    {ok, #state{key_to_data=maps:new()}}.
 
-handle_call(keys, _From, #state{ets_id=ETS}=State) ->
+handle_call(keys, _From, #state{key_to_data=Map}=State) ->
     ldb_util:qs("STORE keys"),
-    Result = keys(ETS),
+    Result = maps:keys(Map),
     {reply, Result, State};
 
-handle_call({get, Key}, _From, #state{ets_id=ETS}=State) ->
+handle_call({get, Key}, _From, #state{key_to_data=Map}=State) ->
     ldb_util:qs("STORE get"),
-    Result = do_get(Key, ETS),
+    Result = do_get(Key, Map),
     {reply, Result, State};
 
-handle_call({update, Key, Function}, _From, #state{ets_id=ETS}=State) ->
+handle_call({update, Key, Function}, _From, #state{key_to_data=Map0}=State) ->
     ldb_util:qs("STORE update/2"),
-    Result = case do_get(Key, ETS) of
+    {Result, Map} = case do_get(Key, Map0) of
         {ok, Value} ->
             case Function(Value) of
                 {ok, NewValue} ->
-                    do_put(Key, NewValue, ETS),
-                    ok;
+                    {ok, do_put(Key, NewValue, Map0)};
                 Error ->
-                    Error
+                    {Error, Map0}
             end;
         Error ->
-            Error
+            {Error, Map0}
     end,
 
-    {reply, Result, State};
+    {reply, Result, State#state{key_to_data=Map}};
 
-handle_call({update, Key, Function, Default}, _From, #state{ets_id=ETS}=State) ->
+handle_call({update, Key, Function, Default}, _From, #state{key_to_data=Map0}=State) ->
     ldb_util:qs("STORE update/3"),
-    Value = case do_get(Key, ETS) of
-        {ok, V} ->
-            V;
-        _ ->
-            Default
-    end,
 
-    Result = case Function(Value) of
+    %% get the current value
+    Value = do_get(Key, Map0, Default),
+
+    {Result, Map} = case Function(Value) of
         {ok, NewValue} ->
-            do_put(Key, NewValue, ETS),
-            ok;
+            {ok, do_put(Key, NewValue, Map0)};
         Error ->
-            Error
+            {Error, Map0}
     end,
 
-    {reply, Result, State};
+    {reply, Result, State#state{key_to_data=Map}};
 
-handle_call({update_all, Function}, _From, #state{ets_id=ETS}=State) ->
+handle_call({update_all, Function}, _From, #state{key_to_data=Map0}=State) ->
     ldb_util:qs("STORE update_all"),
-    Keys = keys(ETS),
 
-    lists:foreach(
-        fun(Key) ->
-            {ok, Value} = do_get(Key, ETS),
+    Map = maps:map(
+        fun(Key, Value) ->
             case Function({Key, Value}) of
                 {ok, NewValue} ->
-                    do_put(Key, NewValue, ETS);
+                    %% if okay, update
+                    NewValue;
                 _ ->
-                    ok
+                    %% otherwise, keep the same value
+                    Value
             end
         end,
-        Keys
+        Map0
     ),
 
     Result = ok,
 
-    {reply, Result,  State};
+    {reply, Result,  State#state{key_to_data=Map}};
 
-handle_call({fold, Function, Acc}, _From, #state{ets_id=ETS}=State) ->
+handle_call({fold, Function, Acc}, _From, #state{key_to_data=Map}=State) ->
     ldb_util:qs("STORE fold"),
-    Result = ets:foldl(Function, Acc, ETS),
+    Result = maps:fold(Function, Acc, Map),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
@@ -170,25 +163,19 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%% @private Attemts to retrieve a certain value from the ets.
-do_get(Key, ETS) ->
-    case ets:lookup(ETS, Key) of
-        [{Key, Value}] ->
+%% @private Attemts to retrieve a certain value from the map.
+do_get(Key, Map) ->
+    case maps:find(Key, Map) of
+        {ok, Value} ->
             {ok, Value};
-        [] ->
+        error ->
             {error, not_found}
     end.
 
+%% @private Retrieve a certain value from the map.
+do_get(Key, Map, Default) ->
+    maps:get(Key, Map, Default).
+
 %% @private Inserts a value in the store (replacing if exists)
-do_put(Key, Value, ETS) ->
-    true = ets:insert(ETS, {Key, Value}),
-    ok.
-
-%% @private Get list of current keys.
-keys(ETS) ->
-    keys(ets:first(ETS), ETS, []).
-
-keys('$end_of_table', _ETS, Acc) ->
-    Acc;
-keys(Key, ETS, Acc) ->
-    keys(ets:next(ETS, Key), ETS, [Key | Acc]).
+do_put(Key, Value, Map) ->
+    maps:put(Key, Value, Map).

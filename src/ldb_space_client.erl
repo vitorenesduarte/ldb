@@ -47,7 +47,8 @@ start_link(Socket) ->
     gen_server:start_link(?MODULE, [Socket], []).
 
 init([Socket]) ->
-    ?LOG("ldb_space_client initialized! Node ~p listening to new client ~p", [node(), Socket]),
+    lager:info("ldb_space_client initialized! Node ~p listening to new client ~p",
+               [node(), Socket]),
     {ok, #state{socket=Socket}}.
 
 handle_call(Msg, _From, State) ->
@@ -90,7 +91,7 @@ send(Reply, Socket) ->
         ok ->
             ok;
         Error ->
-            ?LOG("Failed to send message: ~p", [Error])
+            lager:info("Failed to send message: ~p", [Error])
     end.
 
 %% @private
@@ -130,7 +131,7 @@ create_reply(Type, {ok, QueryResult0}) ->
 create_reply(_Type, {error, not_found}) ->
     [{code, ?KEY_NOT_FOUND}];
 create_reply(_Type, Error) ->
-    ?LOG("Update request from client produced the following error ~p", [Error]),
+    lager:info("Update request from client produced the following error ~p", [Error]),
     [{code, ?UNKNOWN}].
 
 %% @private

@@ -22,8 +22,6 @@
 
 -include("ldb.hrl").
 
--define(ISHIKAWA, ishikawa).
-
 -behaviour(ldb_backend).
 -behaviour(gen_server).
 
@@ -77,14 +75,14 @@ message_handler(_) ->
         gen_server:cast(?MODULE, M)
     end.
 
--spec memory() -> {non_neg_integer(), non_neg_integer()}.
+-spec memory() -> {size_metric(), size_metric()}.
 memory() ->
     %% @todo
-    {0, 0}.
+    {{0, 0}, {0, 0}}.
 
 %% @todo do spec
 delivery_function({VV, {Key, EncodedOp}}) ->
-    ?LOG("message delivered ~p~n~n", [{VV, {Key, EncodedOp}}]),
+    ?DEBUG("message delivered ~p~n~n", [{VV, {Key, EncodedOp}}]),
     Operation = decode_op(EncodedOp),
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, VV, CRDT)
@@ -98,9 +96,10 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    ?ISHIKAWA:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
+    M = ishikawa(),
+    M:tcbdelivery(fun(Msg) -> delivery_function(Msg) end),
 
-    ?LOG("ldb_pure_op_based_backend initialized!"),
+    lager:info("ldb_pure_op_based_backend initialized!"),
 
     {ok, #state{actor=Actor}}.
 
@@ -127,7 +126,8 @@ handle_call({update, Key, Operation}, _From, State) ->
     MessageBody = {Key, encode_op(Operation)},
 
     %% broadcast
-    {ok, VV} = ?ISHIKAWA:tcbcast(MessageBody),
+    M = ishikawa(),
+    {ok, VV} = M:tcbcast(MessageBody),
 
     Function = fun({Type, _}=CRDT) ->
         Type:mutate(Operation, VV, CRDT)
@@ -167,3 +167,7 @@ decode_op({1, E}) ->
 %% @todo
 decode_op(Op) ->
     Op.
+
+%% @private
+ishikawa() ->
+    ldb_config:get(ishikawa).

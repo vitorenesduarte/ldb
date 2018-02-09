@@ -17,6 +17,9 @@
 -type message() :: term().
 -type timestamp() :: non_neg_integer().
 
+%% size metric: metadata size, payload size
+-type size_metric() :: {non_neg_integer(), non_neg_integer()}.
+
 %% space server
 -define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
 
@@ -29,18 +32,13 @@
 -define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
 -define(DEFAULT_MODE, state_based).
 -define(DEFAULT_DRIVEN_MODE, none).
--define(DEFAULT_STORE, ldb_ets_store).
+-define(DEFAULT_STORE, ldb_actor_store).
 
 %% logging
--define(LOGGING, list_to_atom("true")). %% dialyzer
--define(LOG(S),
-        ?LOG(S, [])
-       ).
--define(LOG(S, Args),
-        case ?LOGGING of
-            true ->
-                lager:info(S, Args);
-            false ->
-                ok
-        end
-       ).
+-ifdef(debug).
+-define(DEBUG(M), lager:info(M)).
+-define(DEBUG(M, A), lager:info(M, A)).
+-else.
+-define(DEBUG(_M), ok).
+-define(DEBUG(_M, _A), ok).
+-endif.

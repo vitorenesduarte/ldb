@@ -43,7 +43,7 @@ start_link() ->
 
 %% gen_server callbacks
 init([]) ->
-    ?LOG("ldb_listener initialized!"),
+    lager:info("ldb_listener initialized!"),
     {ok, #state{}}.
 
 handle_call(Msg, _From, State) ->

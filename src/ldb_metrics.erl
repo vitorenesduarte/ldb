@@ -63,10 +63,9 @@ get_time_series() ->
 get_latency() ->
     gen_server:call(?MODULE, get_latency, infinity).
 
--spec record_message(term(), non_neg_integer()) -> ok.
+-spec record_message(term(), size_metric()) -> ok.
 record_message(MessageType, Size) ->
-    Metrics = [{size, Size}],
-    gen_server:cast(?MODULE, {message, MessageType, Metrics}).
+    gen_server:cast(?MODULE, {message, MessageType, Size}).
 
 %% @doc Record latency of:
 %%          - `local': creating a message locally
@@ -78,7 +77,7 @@ record_latency(Type, MicroSeconds) ->
 %% gen_server callbacks
 init([]) ->
     schedule_time_series(),
-    ?LOG("ldb_metrics initialized!"),
+    lager:info("ldb_metrics initialized!"),
     {ok, #state{latency_type_to_latency=orddict:new(),
                 time_series=[]}}.
 
@@ -94,9 +93,8 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({message, MessageType, Metrics},
+handle_cast({message, MessageType, Size},
             #state{time_series=TimeSeries0}=State) ->
-    Size = orddict:fetch(size, Metrics),
 
     Timestamp = ldb_util:unix_timestamp(),
     TMetric = {Timestamp, transmission, {MessageType, Size}},
@@ -116,7 +114,7 @@ handle_cast(Msg, State) ->
 handle_info(time_series, #state{time_series=TimeSeries0}=State) ->
     Timestamp = ldb_util:unix_timestamp(),
 
-    % tranmission metrics are already recorded in `time_series'
+    % transmission metrics are already recorded in `time_series'
 
     % memory metrics
     MMetric = {Timestamp, memory, ldb_backend:memory()},

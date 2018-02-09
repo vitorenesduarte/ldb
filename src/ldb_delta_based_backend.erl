@@ -63,17 +63,20 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {{Type, _}=CRDT, Sequence, DeltaBuffer, AckMap}, NodeName) ->
+
+        %% config
         Actor = ldb_config:id(),
+        Mode = ldb_config:get(ldb_driven_mode),
+        BP = ldb_config:get(ldb_dgroup_back_propagation, false),
+
         MinSeq = min_seq_buffer(DeltaBuffer),
-        {LastAck, _} = last_ack(NodeName, AckMap),
+        LastAck = last_ack(NodeName, AckMap),
 
         case LastAck < Sequence of
             true ->
                 ToSend = case orddict:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
                         ShouldStart = Actor < NodeName,
-
-                        Mode = ldb_config:get(ldb_driven_mode),
 
                         case Mode of
                             none ->
@@ -117,7 +120,7 @@ message_maker() ->
                         DeltaGroup = orddict:fold(
                             fun(N, {From, D}, Acc) ->
                                 ShouldSendDelta0 = LastAck =< N andalso N < Sequence,
-                                ShouldSendDelta1 = case ldb_config:get(ldb_dgroup_back_propagation, false) of
+                                ShouldSendDelta1 = case BP of
                                     true ->
                                         % when set to true, avoids back propagation of delta groups
                                         ShouldSendDelta0 andalso NodeName =/= From;
@@ -160,6 +163,10 @@ message_maker() ->
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
 
+        %% config
+        Actor = ldb_config:id(),
+        RR = ldb_config:get(ldb_redundant_dgroups, false),
+
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         Default = get_entry(Bottom),
@@ -169,7 +176,7 @@ message_handler({_, delta, _, _, _}) ->
             fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
                 Merged = Type:merge(LocalCRDT, RemoteCRDT),
 
-                {Sequence, DeltaBuffer} = case ldb_config:get(ldb_redundant_dgroups, false) of
+                {Sequence, DeltaBuffer} = case RR of
                     true ->
                         Delta = Type:delta(RemoteCRDT, {state, LocalCRDT}),
 
@@ -199,7 +206,7 @@ message_handler({_, delta, _, _, _}) ->
                 Ack = {
                     Key,
                     delta_ack,
-                    ldb_config:id(),
+                    Actor,
                     N
                 },
                 ldb_whisperer:send(From, Ack),
@@ -215,20 +222,14 @@ message_handler({_, delta_ack, _, _}) ->
         ldb_store:update(
             Key,
             fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
-                {LastAck, Round} = last_ack(From, AckMap0),
+                LastAck = last_ack(From, AckMap0),
 
                 %% when a new ack is received,
                 %% update the number of rounds without
                 %% receiving an ack to 0
                 MaxAck = max(LastAck, N),
-                NewRound = case MaxAck > LastAck of
-                    true ->
-                        0;
-                    false ->
-                        Round
-                end,
 
-                AckMap1 = orddict:store(From, {MaxAck, NewRound}, AckMap0),
+                AckMap1 = orddict:store(From, MaxAck, AckMap0),
                 StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
                 {ok, StoreValue}
             end
@@ -236,6 +237,10 @@ message_handler({_, delta_ack, _, _}) ->
     end;
 message_handler({_, digest, _, _, _, _}) ->
     fun({Key, digest, From, RemoteSequence, {Type, _}=Bottom, Remote}) ->
+
+        %% config
+        Actor = ldb_config:id(),
+
         Default = get_entry(Bottom),
         ldb_store:update(
             Key,
@@ -244,7 +249,6 @@ message_handler({_, digest, _, _, _, _}) ->
         ),
 
         {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
-        Actor = ldb_config:id(),
 
         %% compute delta
         Delta = Type:delta(LocalCRDT, Remote),
@@ -291,8 +295,10 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
     fun({Key, digest_and_state, From, RemoteSequence,
          {Type, _}=RemoteDelta, RemoteDigest}) ->
 
-        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
+        %% config
         Actor = ldb_config:id(),
+
+        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
 
         %% compute delta
         Delta = Type:delta(LocalCRDT, RemoteDigest),
@@ -320,7 +326,7 @@ message_handler({_, digest_and_state, _, _, _, _}) ->
 
     end.
 
--spec memory() -> {non_neg_integer(), non_neg_integer()}.
+-spec memory() -> {size_metric(), size_metric()}.
 memory() ->
     gen_server:call(?MODULE, memory, infinity).
 
@@ -331,7 +337,7 @@ init([]) ->
 
     schedule_dbuffer_shrink(),
 
-    ?LOG("ldb_delta_based_backend initialized!"),
+    lager:info("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
 
 handle_call({create, Key, LDBType}, _From, State) ->
@@ -377,15 +383,21 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 
 handle_call(memory, _From, State) ->
     ldb_util:qs("DELTA BACKEND memory"),
-    FoldFunction = fun({_Key, Value}, {C, R}) ->
-        {CRDT, Sequence, DeltaBuffer, AckMap} = Value,
-        CRDTSize = ldb_util:size(crdt, CRDT),
-        RestSize = ldb_util:size(term, {Sequence, AckMap})
-                 + ldb_util:size(delta_buffer, DeltaBuffer),
-        {C + CRDTSize, R + RestSize}
+    FoldFunction = fun(_Key, Value, {C0, R0}) ->
+        {CRDT, _Sequence, DeltaBuffer, AckMap} = Value,
+
+        C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
+
+        %% delta buffer + ack map
+        R = ldb_util:plus(
+            ldb_util:plus(R0, ldb_util:size(ack_map, AckMap)),
+            ldb_util:size(delta_buffer, DeltaBuffer)
+        ),
+
+        {C, R}
     end,
 
-    Result = ldb_store:fold(FoldFunction, {0, 0}),
+    Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
@@ -437,7 +449,7 @@ handle_info(dbuffer_shrink, State) ->
                 DeltaBuffer0
         end,
 
-        ?LOG("Delta-buffer size before/after: ~p/~p",
+        ?DEBUG("Delta-buffer size before/after: ~p/~p",
              [orddict:size(DeltaBuffer0), orddict:size(DeltaBuffer1)]),
 
         NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
@@ -478,11 +490,11 @@ min_seq_buffer(DeltaBuffer) ->
 
 %% @private
 min_seq_ack_map(AckMap) ->
-    lists:min([Ack || {_, {Ack, _Round}} <- AckMap]).
+    lists:min([Ack || {_, Ack} <- AckMap]).
 
 %% @private
 last_ack(NodeName, AckMap) ->
-    orddict_ext:fetch(NodeName, AckMap, {0, 0}).
+    orddict_ext:fetch(NodeName, AckMap, 0).
 
 %% @private
 schedule_dbuffer_shrink() ->
