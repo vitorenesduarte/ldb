@@ -195,8 +195,6 @@ do_send(LDBId, Message, Metrics, MetricsMembers) ->
         Message
     ),
     
-    lager:info("RESULT ~p", [Result]),
-
     %% if message was sent, collect metrics
     case Result of
         ok ->
