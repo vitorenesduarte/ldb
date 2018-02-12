@@ -389,10 +389,11 @@ handle_call(memory, _From, State) ->
         C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
 
         %% delta buffer + ack map
-        R = ldb_util:plus(
-            ldb_util:plus(R0, ldb_util:size(ack_map, AckMap)),
+        R = ldb_util:plus([
+            R0,
+            ldb_util:size(ack_map, AckMap),
             ldb_util:size(delta_buffer, DeltaBuffer)
-        ),
+        ]),
 
         {C, R}
     end,

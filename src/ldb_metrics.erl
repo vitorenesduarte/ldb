@@ -28,7 +28,7 @@
 -export([start_link/0,
          get_time_series/0,
          get_latency/0,
-         record_message/2,
+         record_transmission/1,
          record_latency/2]).
 
 %% gen_server callbacks
@@ -63,9 +63,9 @@ get_time_series() ->
 get_latency() ->
     gen_server:call(?MODULE, get_latency, infinity).
 
--spec record_message(term(), size_metric()) -> ok.
-record_message(MessageType, Size) ->
-    gen_server:cast(?MODULE, {message, MessageType, Size}).
+-spec record_transmission(size_metric()) -> ok.
+record_transmission(Size) ->
+    gen_server:cast(?MODULE, {transmission, Size}).
 
 %% @doc Record latency of:
 %%          - `local': creating a message locally
@@ -93,11 +93,11 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({message, MessageType, Size},
+handle_cast({transmission, Size},
             #state{time_series=TimeSeries0}=State) ->
 
     Timestamp = ldb_util:unix_timestamp(),
-    TMetric = {Timestamp, transmission, {MessageType, Size}},
+    TMetric = {Timestamp, transmission, Size},
     TimeSeries1 = lists:append(TimeSeries0, [TMetric]),
 
     {noreply, State#state{time_series=TimeSeries1}};
