@@ -29,6 +29,7 @@
          binary_to_atom/1,
          unix_timestamp/0,
          size/2,
+         plus/1,
          plus/2]).
 
 -export([qs/1]).
@@ -86,19 +87,22 @@ size(ack_map, AckMap) ->
 size(delta_buffer, DeltaBuffer) ->
     lists:foldl(
         fun({_Sequence, {_From, CRDT}}, Acc) ->
-            plus(
-                plus(Acc, size(crdt, CRDT)),
+            plus([
+                Acc,
+                size(crdt, CRDT),
                 %% +1 for the From and Sequence
                 {1, 0}
-            )
+            ])
         end,
         {0, 0},
         DeltaBuffer
     ).
 
 %% @doc sum
-plus({A1, B1}, {A2, B2}) -> {A1 + A2, B1 + B2};
-plus(A, B) -> A + B.
+plus(L) ->
+    lists:foldl(fun(E, Acc) -> plus(E, Acc) end, {0, 0}, L).
+plus({A1, B1}, {A2, B2}) ->
+    {A1 + A2, B1 + B2}.
 
 %% @private
 extract_args({Type, Args}) ->

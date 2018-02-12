@@ -135,6 +135,7 @@ handle_info(state_sync, #state{members=LDBIds,
 
                 Message = do_make(MessageMakerFun, Key, Value, LDBId, Metrics),
 
+
                 %% send message if there's a message to send
                 case Message of
                     nothing ->
@@ -219,47 +220,43 @@ should_record_metrics(true, LDBId, Set) ->
 
 %% @private
 %% state-based
--spec metrics(term()) -> list({atom(), {non_neg_integer(), non_neg_integer()}}).
+-spec metrics(term()) -> {non_neg_integer(), non_neg_integer()}.
 metrics({_Key, state, CRDT}) ->
-    M = {state, ldb_util:size(crdt, CRDT)},
-    [M];
+    ldb_util:size(crdt, CRDT);
 metrics({_Key, digest, _From, _Bottom, {state, CRDT}}) ->
-    M = {state, ldb_util:size(crdt, CRDT)},
-    [M];
+    ldb_util:size(crdt, CRDT);
 metrics({_Key, digest, _From, _Bottom, {mdata, Digest}}) ->
-    M = {digest, ldb_util:size(digest, Digest)},
-    [M];
+    ldb_util:size(digest, Digest);
 metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
-    M1 = {state, ldb_util:size(crdt, Delta)},
-    M2 = {digest, ldb_util:size(digest, Digest)},
-    [M1, M2];
+    ldb_util:plus(
+        ldb_util:size(crdt, Delta),
+        ldb_util:size(digest, Digest)
+    );
 %% delta-based
 metrics({_Key, delta, _From, _Sequence, Delta}) ->
-    M1 = {delta_ack, {1, 0}},
-    M2 = {delta, ldb_util:size(crdt, Delta)},
-    [M1, M2];
+    ldb_util:plus(
+        {1, 0},
+        ldb_util:size(crdt, Delta)
+    );
 metrics({_Key, delta_ack, _From, _Sequence}) ->
-    M = {delta_ack, {1, 0}},
-    [M];
+    {1, 0};
 metrics({_Key, digest, _From, _Sequence, _Bottom, {state, CRDT}}) ->
-    M1 = {delta_ack, {1, 0}},
-    M2 = {state, ldb_util:size(crdt, CRDT)},
-    [M1, M2];
+    ldb_util:plus(
+        {1, 0},
+        ldb_util:size(crdt, CRDT)
+    );
 metrics({_Key, digest, _From, _Sequence, _Bottom, {mdata, Digest}}) ->
-    M1 = {delta_ack, {1, 0}},
-    M2 = {digest, ldb_util:size(digest, Digest)},
-    [M1, M2];
+    ldb_util:plus(
+        {1, 0},
+        ldb_util:size(digest, Digest)
+    );
 metrics({_Key, digest_and_state, _From, _Sequence, Delta, {mdata, Digest}}) ->
-    M1 = {delta_ack, {1, 0}},
-    M2 = {state, ldb_util:size(crdt, Delta)},
-    M3 = {digest, ldb_util:size(digest, Digest)},
-    [M1, M2, M3].
+    ldb_util:plus([
+        {1, 0},
+        ldb_util:size(crdt, Delta),
+        ldb_util:size(digest, Digest)
+    ]).
 
 %% @private
-record(L) ->
-    lists:foreach(
-        fun({Type, Size}) ->
-            ldb_metrics:record_message(Type, Size)
-        end,
-        L
-    ).
+record(Size) ->
+    ldb_metrics:record_transmission(Size).
