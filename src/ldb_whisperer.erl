@@ -139,10 +139,8 @@ handle_info(state_sync, #state{members=LDBIds,
                 %% send message if there's a message to send
                 case Message of
                     nothing ->
-                        lager:info("TO ~p. Nothing", [LDBId]),
                         ok;
                     _ ->
-                        lager:info("TO ~p. Something", [LDBId]),
                         do_send(LDBId, Message, Metrics, MetricsMembers)
                 end
 
@@ -194,16 +192,14 @@ do_send(LDBId, Message, Metrics, MetricsMembers) ->
         ldb_listener,
         Message
     ),
-    
+
     %% if message was sent, collect metrics
     case Result of
         ok ->
             case should_record_metrics(Metrics, LDBId, MetricsMembers) of
                 true ->
-                    lager:info("METRICS YES"),
                     record(metrics(Message));
                 false ->
-                    lager:info("METRICS NO"),
                     ok
             end;
         Error ->
