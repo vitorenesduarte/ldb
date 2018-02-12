@@ -218,6 +218,7 @@ should_record_metrics(true, _, all) ->
 should_record_metrics(true, LDBId, Set) ->
     sets:is_element(LDBId, Set).
 
+-define(SEQ, {0, 0}).
 %% @private
 %% state-based
 -spec metrics(term()) -> {non_neg_integer(), non_neg_integer()}.
@@ -235,24 +236,24 @@ metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
 %% delta-based
 metrics({_Key, delta, _From, _Sequence, Delta}) ->
     ldb_util:plus(
-        {1, 0},
+        ?SEQ,
         ldb_util:size(crdt, Delta)
     );
 metrics({_Key, delta_ack, _From, _Sequence}) ->
-    {1, 0};
+    ?SEQ;
 metrics({_Key, digest, _From, _Sequence, _Bottom, {state, CRDT}}) ->
     ldb_util:plus(
-        {1, 0},
+        ?SEQ,
         ldb_util:size(crdt, CRDT)
     );
 metrics({_Key, digest, _From, _Sequence, _Bottom, {mdata, Digest}}) ->
     ldb_util:plus(
-        {1, 0},
+        ?SEQ,
         ldb_util:size(digest, Digest)
     );
 metrics({_Key, digest_and_state, _From, _Sequence, Delta, {mdata, Digest}}) ->
     ldb_util:plus([
-        {1, 0},
+        ?SEQ,
         ldb_util:size(crdt, Delta),
         ldb_util:size(digest, Digest)
     ]).
