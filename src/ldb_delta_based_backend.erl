@@ -30,6 +30,7 @@
          create/2,
          query/1,
          update/2,
+         update_members/1,
          message_maker/0,
          message_handler/1,
          memory/0]).
@@ -59,6 +60,10 @@ query(Key) ->
 -spec update(key(), operation()) -> ok | not_found() | error().
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
+
+-spec update_members(list(ldb_node_id())) -> ok.
+update_members(Members) ->
+    gen_server:cast(?MODULE, {update_members, Members}).
 
 -spec message_maker() -> function().
 message_maker() ->
@@ -338,7 +343,12 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    %schedule_dbuffer_shrink(),
+    %% configure members callback
+    MembersFun = fun(Membership) ->
+        Members = ldb_util:parse_membership(Membership),
+        ldb_delta_based_backend:update_members(Members)
+    end,
+    partisan_peer_service:add_sup_callback(MembersFun),
 
     lager:info("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
@@ -408,14 +418,8 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
-    {noreply, State}.
-
-handle_info(dbuffer_shrink, State) ->
-    ldb_util:qs("DELTA BACKEND dbuffer_shrink"),
-
-    Peers = ldb_whisperer:members(),
+handle_cast({update_members, Peers}, State) ->
+    ldb_util:qs("DELTA BACKEND update_members"),
 
     ShrinkFun = fun({_Key, {LocalCRDT, Sequence, DeltaBuffer0, AckMap0}}) ->
         %% only keep in the ack map entries from current peers
@@ -457,9 +461,11 @@ handle_info(dbuffer_shrink, State) ->
     end,
 
     ldb_store:update_all(ShrinkFun),
-
-    schedule_dbuffer_shrink(),
     {noreply, State};
+
+handle_cast(Msg, State) ->
+    lager:warning("Unhandled cast message: ~p", [Msg]),
+    {noreply, State}.
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -496,9 +502,3 @@ buffer_shrink(Min, [{Seq, _}|T]) when Seq < Min ->
     buffer_shrink(Min, T);
 buffer_shrink(_, L) ->
     L.
-
-%% @private
-schedule_dbuffer_shrink() ->
-    Interval = 5000,
-    %% tell the backend to try to shrink the dbuffer
-    timer:send_after(Interval, dbuffer_shrink).
