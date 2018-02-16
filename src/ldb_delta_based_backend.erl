@@ -221,16 +221,19 @@ message_handler({_, delta_ack, _, _}) ->
     fun({Key, delta_ack, From, N}) ->
         ldb_store:update(
             Key,
-            fun({LocalCRDT, Sequence, DeltaBuffer, AckMap0}) ->
+            fun({LocalCRDT, Sequence, DeltaBuffer0, AckMap0}) ->
                 LastAck = last_ack(From, AckMap0),
 
                 %% when a new ack is received,
                 %% update the number of rounds without
                 %% receiving an ack to 0
                 MaxAck = max(LastAck, N),
-
                 AckMap1 = orddict:store(From, MaxAck, AckMap0),
-                StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap1},
+
+                %% and try to shrink the delta-buffer immediately
+                DeltaBuffer1 = buffer_shrink(min_seq_ack_map(AckMap1), DeltaBuffer0),
+
+                StoreValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
                 {ok, StoreValue}
             end
         )
@@ -335,7 +338,7 @@ init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
 
-    schedule_dbuffer_shrink(),
+    %schedule_dbuffer_shrink(),
 
     lager:info("ldb_delta_based_backend initialized!"),
     {ok, #state{actor=Actor}}.
@@ -440,18 +443,14 @@ handle_info(dbuffer_shrink, State) ->
                         min_seq_ack_map(AckMap1)
                 end,
 
-                orddict:filter(
-                    fun(EntrySequence, {_Actor, _Delta}) ->
-                        EntrySequence >= Min
-                    end,
-                    DeltaBuffer0
-                );
+                buffer_shrink(Min, DeltaBuffer0);
             false ->
                 DeltaBuffer0
         end,
 
         ?DEBUG("Delta-buffer size before/after: ~p/~p",
-             [orddict:size(DeltaBuffer0), orddict:size(DeltaBuffer1)]),
+               [orddict:size(DeltaBuffer0),
+                orddict:size(DeltaBuffer1)]),
 
         NewValue = {LocalCRDT, Sequence, DeltaBuffer1, AckMap1},
         {ok, NewValue}
@@ -480,14 +479,9 @@ get_entry(Bottom) ->
 
     {Bottom, Sequence, DeltaBuffer, AckMap}.
 
-%% @private
-min_seq_buffer(DeltaBuffer) ->
-    case orddict:fetch_keys(DeltaBuffer) of
-        [] ->
-            0;
-        Keys ->
-            lists:nth(1, Keys)
-    end.
+%% @private Use the fact that the buffer is ordered.
+min_seq_buffer([]) -> 0;
+min_seq_buffer([{Seq, _}|_]) -> Seq.
 
 %% @private
 min_seq_ack_map(AckMap) ->
@@ -496,6 +490,12 @@ min_seq_ack_map(AckMap) ->
 %% @private
 last_ack(NodeName, AckMap) ->
     orddict_ext:fetch(NodeName, AckMap, 0).
+
+%% @private Drop all entries with `Seq < Min'.
+buffer_shrink(Min, [{Seq, _}|T]) when Seq < Min ->
+    buffer_shrink(Min, T);
+buffer_shrink(_, L) ->
+    L.
 
 %% @private
 schedule_dbuffer_shrink() ->
