@@ -79,8 +79,7 @@ binary_to_atom(Binary) ->
 %% @doc
 -spec unix_timestamp() -> timestamp().
 unix_timestamp() ->
-    {Mega, Sec, _Micro} = erlang:timestamp(),
-    Mega * 1000000 + Sec.
+    erlang:system_time(second).
 
 %% @doc
 -spec size(crdt | digest | ack_map | delta_buffer, term()) -> {non_neg_integer(), non_neg_integer()}.
