@@ -27,8 +27,8 @@
 %% ldb_whisperer callbacks
 -export([start_link/0,
          members/0,
-         update_membership/1,
-         update_metrics_membership/1,
+         update_members/1,
+         update_metrics_members/1,
          send/2]).
 
 %% gen_server callbacks
@@ -55,13 +55,13 @@ start_link() ->
 members() ->
     gen_server:call(?MODULE, members, infinity).
 
--spec update_membership(list(node_spec())) -> ok.
-update_membership(Membership) ->
-    gen_server:cast(?MODULE, {update_membership, Membership}).
+-spec update_members(list(ldb_node_id())) -> ok.
+update_members(Members) ->
+    gen_server:cast(?MODULE, {update_members, Members}).
 
--spec update_metrics_membership(list(node_spec())) -> ok.
-update_metrics_membership(Membership) ->
-    gen_server:cast(?MODULE, {update_metrics_membership, Membership}).
+-spec update_metrics_members(list(ldb_node_id())) -> ok.
+update_metrics_members(Members) ->
+    gen_server:cast(?MODULE, {update_metrics_members, Members}).
 
 -spec send(ldb_node_id(), term()) -> ok.
 send(LDBId, Message) ->
@@ -78,11 +78,12 @@ init([]) ->
             ok
     end,
 
-    %% configure membership callback
-    MembershipFun = fun(Membership) ->
-        ldb_whisperer:update_membership(Membership)
+    %% configure members callback
+    MembersFun = fun(Membership) ->
+        Members = ldb_util:parse_membership(Membership),
+        ldb_whisperer:update_members(Members)
     end,
-    partisan_peer_service:add_sup_callback(MembershipFun),
+    partisan_peer_service:add_sup_callback(MembersFun),
 
     lager:info("ldb_whisperer initialized!"),
     {ok, #state{members=[],
@@ -98,20 +99,17 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({update_membership, Membership}, State) ->
-    ldb_util:qs("WHISPERER update_membership"),
-    Members = [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()],
-
+handle_cast({update_members, Members}, State) ->
+    ldb_util:qs("WHISPERER update_members"),
     lager:info("NEW MEMBERS ~p\n", [Members]),
 
     {noreply, State#state{members=Members}};
 
-handle_cast({update_metrics_membership, Membership}, State) ->
-    ldb_util:qs("WHISPERER update_metrics_membership"),
+handle_cast({update_metrics_members, Members}, State) ->
+    ldb_util:qs("WHISPERER update_metrics_members"),
+    lager:info("NEW METRICS MEMBERS ~p\n", [Members]),
 
-    lager:info("NEW METRICS MEMBERS ~p\n", [Membership]),
-
-    {noreply, State#state{metrics_members=sets:from_list(Membership)}};
+    {noreply, State#state{metrics_members=sets:from_list(Members)}};
 
 handle_cast({send, LDBId, Message}, #state{metrics=Metrics,
                                            metrics_members=MetricsMembers}=State) ->
