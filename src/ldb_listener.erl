@@ -58,8 +58,14 @@ handle_cast(Message, State) ->
         [Message]
     ),
 
-    %% record latency applying this message
-    ldb_metrics:record_latency(remote, MicroSeconds),
+    case element(2, Message) of
+        delta_ack ->
+            %% ignore delta acks
+            ok;
+        _ ->
+            %% record latency applying this message
+            ldb_metrics:record_latency(remote, MicroSeconds)
+    end,
 
     {noreply, State}.
 
