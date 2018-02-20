@@ -73,6 +73,7 @@ message_maker() ->
         Actor = ldb_config:id(),
         Mode = ldb_config:get(ldb_driven_mode),
         BP = ldb_config:get(ldb_dgroup_back_propagation, false),
+        RR = ldb_config:get(ldb_redundant_dgroups, false),
 
         MinSeq = min_seq_buffer(DeltaBuffer),
         LastAck = last_ack(NodeName, AckMap),
@@ -122,7 +123,7 @@ message_maker() ->
                                 end
                         end;
                     false ->
-                        DeltaGroup = orddict:fold(
+                        DeltaGroup0 = orddict:fold(
                             fun(N, {From, D}, Acc) ->
                                 ShouldSendDelta0 = LastAck =< N andalso N < Sequence,
                                 ShouldSendDelta1 = case BP of
@@ -144,10 +145,18 @@ message_maker() ->
                             DeltaBuffer
                         ),
 
-                        case Type:is_bottom(DeltaGroup) of
+                        case Type:is_bottom(DeltaGroup0) of
                             true ->
                                 nothing;
                             false ->
+                                %% if RR, decompose before sending
+                                DeltaGroup = case RR of
+                                    true ->
+                                        {decomposition, Type:join_decomposition(DeltaGroup0)};
+                                    false ->
+                                        DeltaGroup0
+                                end,
+
                                 {
                                     Key,
                                     delta,
@@ -166,44 +175,45 @@ message_maker() ->
 
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
-    fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
-
-        %% config
+    fun({Key, delta, From, N, Remote}) ->
         Actor = ldb_config:id(),
-        RR = ldb_config:get(ldb_redundant_dgroups, false),
 
         %% create bottom entry
-        Bottom = ldb_util:new_crdt(state, RemoteCRDT),
+        %% - if decomposition use the any state in the decomposition
+        {Type, _}=Bottom = case Remote of
+            {decomposition, [H|_]} -> ldb_util:new_crdt(state, H);
+            _ -> ldb_util:new_crdt(state, Remote)
+        end,
         Default = get_entry(Bottom),
 
         ldb_store:update(
             Key,
-            fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
-                Merged = Type:merge(LocalCRDT, RemoteCRDT),
-
-                {Sequence, DeltaBuffer} = case RR of
-                    true ->
-                        Delta = Type:delta(RemoteCRDT, {state, LocalCRDT}),
+            fun({LocalCRDT0, Sequence0, DeltaBuffer0, AckMap}) ->
+                {LocalCRDT, Sequence, DeltaBuffer} = case Remote of
+                    {decomposition, _} ->
+                        %% RR
+                        Delta = Type:delta(Remote, {state, LocalCRDT0}),
 
                         %% If what we received, inflates the local state
                         case not Type:is_bottom(Delta) of
                             true ->
                                 DeltaBuffer1 = orddict:store(Sequence0, {From, Delta}, DeltaBuffer0),
                                 Sequence1 = Sequence0 + 1,
-                                {Sequence1, DeltaBuffer1};
+                                {Type:merge(LocalCRDT0, Delta), Sequence1, DeltaBuffer1};
                             false ->
-                                {Sequence0, DeltaBuffer0}
+                                {LocalCRDT0, Sequence0, DeltaBuffer0}
                         end;
                     false ->
+                        Merged = Type:merge(LocalCRDT0, Remote),
 
                         %% If what we received, inflates the local state
-                        case Type:is_strict_inflation(LocalCRDT, Merged) of
-                            true ->
-                                DeltaBuffer1 = orddict:store(Sequence0, {From, RemoteCRDT}, DeltaBuffer0),
-                                Sequence1 = Sequence0 + 1,
-                                {Sequence1, DeltaBuffer1};
+                        case Type:equal(LocalCRDT0, Merged) of
                             false ->
-                                {Sequence0, DeltaBuffer0}
+                                DeltaBuffer1 = orddict:store(Sequence0, {From, Remote}, DeltaBuffer0),
+                                Sequence1 = Sequence0 + 1,
+                                {Merged, Sequence1, DeltaBuffer1};
+                            true ->
+                                {LocalCRDT0, Sequence0, DeltaBuffer0}
                         end
                 end,
 
@@ -216,7 +226,7 @@ message_handler({_, delta, _, _, _}) ->
                 },
                 ldb_whisperer:send(From, Ack),
 
-                StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
+                StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end,
             Default
