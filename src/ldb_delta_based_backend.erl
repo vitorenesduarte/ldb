@@ -192,7 +192,8 @@ message_handler({_, delta, _, _, _}) ->
                 {LocalCRDT, Sequence, DeltaBuffer} = case Remote of
                     {decomposition, _} ->
                         %% RR
-                        Delta = Type:delta(Remote, {state, LocalCRDT0}),
+                        %% TODO add this option to all `Type'
+                        Delta = state_type:delta(Remote, {state, LocalCRDT0}),
 
                         %% If what we received, inflates the local state
                         case not Type:is_bottom(Delta) of
