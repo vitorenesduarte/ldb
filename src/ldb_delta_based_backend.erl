@@ -196,9 +196,9 @@ message_handler({_, delta, _, _, _}) ->
                         Delta = state_type:delta(Remote, {state, LocalCRDT0}),
 
                         case Type:is_bottom(Delta) of
-                            false ->
-                                {LocalCRDT0, Sequence0, DeltaBuffer0};
                             true ->
+                                {LocalCRDT0, Sequence0, DeltaBuffer0};
+                            false ->
                                 %% If what we received, inflates the local state
                                 DeltaBuffer1 = orddict:store(Sequence0, {From, Delta}, DeltaBuffer0),
                                 Sequence1 = Sequence0 + 1,
