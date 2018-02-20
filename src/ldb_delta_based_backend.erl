@@ -191,30 +191,30 @@ message_handler({_, delta, _, _, _}) ->
             fun({LocalCRDT0, Sequence0, DeltaBuffer0, AckMap}) ->
                 {LocalCRDT, Sequence, DeltaBuffer} = case Remote of
                     {decomposition, _} ->
-                        %% RR
+                        %% if RR
                         %% TODO add this option to all `Type'
                         Delta = state_type:delta(Remote, {state, LocalCRDT0}),
 
-                        %% If what we received, inflates the local state
-                        case not Type:is_bottom(Delta) of
+                        case Type:is_bottom(Delta) of
+                            false ->
+                                {LocalCRDT0, Sequence0, DeltaBuffer0};
                             true ->
+                                %% If what we received, inflates the local state
                                 DeltaBuffer1 = orddict:store(Sequence0, {From, Delta}, DeltaBuffer0),
                                 Sequence1 = Sequence0 + 1,
-                                {Type:merge(LocalCRDT0, Delta), Sequence1, DeltaBuffer1};
-                            false ->
-                                {LocalCRDT0, Sequence0, DeltaBuffer0}
+                                {Type:merge(LocalCRDT0, Delta), Sequence1, DeltaBuffer1}
                         end;
-                    false ->
+                    _ ->
                         Merged = Type:merge(LocalCRDT0, Remote),
 
-                        %% If what we received, inflates the local state
                         case Type:equal(LocalCRDT0, Merged) of
+                            true ->
+                                {LocalCRDT0, Sequence0, DeltaBuffer0};
                             false ->
+                                %% If what we received, inflates the local state
                                 DeltaBuffer1 = orddict:store(Sequence0, {From, Remote}, DeltaBuffer0),
                                 Sequence1 = Sequence0 + 1,
-                                {Merged, Sequence1, DeltaBuffer1};
-                            true ->
-                                {LocalCRDT0, Sequence0, DeltaBuffer0}
+                                {Merged, Sequence1, DeltaBuffer1}
                         end
                 end,
 
