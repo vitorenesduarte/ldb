@@ -234,7 +234,7 @@ metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
 %% delta-based
 metrics({_Key, delta, _From, _Sequence, {decomposition, Decomp}}) ->
     lists:foldl(
-        fun(S, Acc) -> ldb_util:plus(Acc, ldb_util:crdt_size(crdt, S)) end,
+        fun(S, Acc) -> ldb_util:plus(Acc, ldb_util:size(crdt, S)) end,
         ?SEQ,
         Decomp
     );
