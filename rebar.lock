@@ -10,8 +10,8 @@
  {<<"rand_compat">>,{pkg,<<"rand_compat">>,<<"0.0.1">>},0},
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
  {<<"types">>,
-  {git,"https://github.com/lasp-lang/types",
-       {ref,"555c0143598f625503e6330e779dca489c8614f6"}},
+  {git,"https://github.com/vitorenesduarte/types",
+       {ref,"8ad775153def5c76e13f95e87a16b26bef48b43e"}},
   0}]}.
 [
 {pkg_hash,[
