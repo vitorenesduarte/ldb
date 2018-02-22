@@ -179,7 +179,7 @@ message_handler({_, delta, _, _, _}) ->
             fun({LocalCRDT0, Sequence0, DeltaBuffer0, AckMap}) ->
                 {LocalCRDT, Sequence, DeltaBuffer} = case RR of
                     true ->
-                        Delta = state_type:delta(RemoteCRDT, {state, LocalCRDT0}),
+                        Delta = Type:delta(RemoteCRDT, {state, LocalCRDT0}),
 
                         case Type:is_bottom(Delta) of
                             true ->
