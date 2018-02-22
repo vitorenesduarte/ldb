@@ -73,7 +73,6 @@ message_maker() ->
         Actor = ldb_config:id(),
         Mode = ldb_config:get(ldb_driven_mode),
         BP = ldb_config:get(ldb_dgroup_back_propagation, false),
-        RR = ldb_config:get(ldb_redundant_dgroups, false),
 
         MinSeq = min_seq_buffer(DeltaBuffer),
         LastAck = last_ack(NodeName, AckMap),
@@ -123,7 +122,7 @@ message_maker() ->
                                 end
                         end;
                     false ->
-                        DeltaGroup0 = orddict:fold(
+                        DeltaGroup = orddict:fold(
                             fun(N, {From, D}, Acc) ->
                                 ShouldSendDelta0 = LastAck =< N andalso N < Sequence,
                                 ShouldSendDelta1 = case BP of
@@ -145,18 +144,10 @@ message_maker() ->
                             DeltaBuffer
                         ),
 
-                        case Type:is_bottom(DeltaGroup0) of
+                        case Type:is_bottom(DeltaGroup) of
                             true ->
                                 nothing;
                             false ->
-                                %% if RR, decompose before sending
-                                DeltaGroup = case RR of
-                                    true ->
-                                        {decomposition, Type:join_decomposition(DeltaGroup0)};
-                                    false ->
-                                        DeltaGroup0
-                                end,
-
                                 {
                                     Key,
                                     delta,
@@ -175,25 +166,20 @@ message_maker() ->
 
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
-    fun({Key, delta, From, N, Remote}) ->
+    fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
         Actor = ldb_config:id(),
+        RR = ldb_config:get(ldb_redundant_dgroups, false),
 
         %% create bottom entry
-        %% - if decomposition use the any state in the decomposition
-        {Type, _}=Bottom = case Remote of
-            {decomposition, [H|_]} -> ldb_util:new_crdt(state, H);
-            _ -> ldb_util:new_crdt(state, Remote)
-        end,
+        Bottom = ldb_util:new_crdt(state, RemoteCRDT),
         Default = get_entry(Bottom),
 
         ldb_store:update(
             Key,
             fun({LocalCRDT0, Sequence0, DeltaBuffer0, AckMap}) ->
-                {LocalCRDT, Sequence, DeltaBuffer} = case Remote of
-                    {decomposition, _} ->
-                        %% if RR
-                        %% TODO add this option to all `Type'
-                        Delta = state_type:delta(Remote, {state, LocalCRDT0}),
+                {LocalCRDT, Sequence, DeltaBuffer} = case RR of
+                    true ->
+                        Delta = state_type:delta(RemoteCRDT, {state, LocalCRDT0}),
 
                         case Type:is_bottom(Delta) of
                             true ->
@@ -204,15 +190,15 @@ message_handler({_, delta, _, _, _}) ->
                                 Sequence1 = Sequence0 + 1,
                                 {Type:merge(LocalCRDT0, Delta), Sequence1, DeltaBuffer1}
                         end;
-                    _ ->
-                        Merged = Type:merge(LocalCRDT0, Remote),
+                    false ->
+                        Merged = Type:merge(LocalCRDT0, RemoteCRDT),
 
                         case Type:equal(LocalCRDT0, Merged) of
                             true ->
                                 {LocalCRDT0, Sequence0, DeltaBuffer0};
                             false ->
                                 %% If what we received, inflates the local state
-                                DeltaBuffer1 = orddict:store(Sequence0, {From, Remote}, DeltaBuffer0),
+                                DeltaBuffer1 = orddict:store(Sequence0, {From, RemoteCRDT}, DeltaBuffer0),
                                 Sequence1 = Sequence0 + 1,
                                 {Merged, Sequence1, DeltaBuffer1}
                         end
