@@ -233,10 +233,7 @@ metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
     );
 %% delta-based
 metrics({_Key, delta, _From, _Sequence, Delta}) ->
-    ldb_util:plus(
-        ?SEQ,
-        ldb_util:size(crdt, Delta)
-    );
+    ldb_util:plus(?SEQ, ldb_util:size(crdt, Delta));
 metrics({_Key, delta_ack, _From, _Sequence}) ->
     ?SEQ;
 metrics({_Key, digest, _From, _Sequence, _Bottom, {state, CRDT}}) ->

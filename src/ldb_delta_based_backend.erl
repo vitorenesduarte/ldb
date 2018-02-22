@@ -167,8 +167,6 @@ message_maker() ->
 -spec message_handler(term()) -> function().
 message_handler({_, delta, _, _, _}) ->
     fun({Key, delta, From, N, {Type, _}=RemoteCRDT}) ->
-
-        %% config
         Actor = ldb_config:id(),
         RR = ldb_config:get(ldb_redundant_dgroups, false),
 
@@ -178,32 +176,31 @@ message_handler({_, delta, _, _, _}) ->
 
         ldb_store:update(
             Key,
-            fun({LocalCRDT, Sequence0, DeltaBuffer0, AckMap}) ->
-                Merged = Type:merge(LocalCRDT, RemoteCRDT),
-
-                {Sequence, DeltaBuffer} = case RR of
+            fun({LocalCRDT0, Sequence0, DeltaBuffer0, AckMap}) ->
+                {LocalCRDT, Sequence, DeltaBuffer} = case RR of
                     true ->
-                        Delta = Type:delta(RemoteCRDT, {state, LocalCRDT}),
+                        Delta = Type:delta(RemoteCRDT, {state, LocalCRDT0}),
 
-                        %% If what we received, inflates the local state
-                        case not Type:is_bottom(Delta) of
+                        case Type:is_bottom(Delta) of
                             true ->
+                                {LocalCRDT0, Sequence0, DeltaBuffer0};
+                            false ->
+                                %% If what we received, inflates the local state
                                 DeltaBuffer1 = orddict:store(Sequence0, {From, Delta}, DeltaBuffer0),
                                 Sequence1 = Sequence0 + 1,
-                                {Sequence1, DeltaBuffer1};
-                            false ->
-                                {Sequence0, DeltaBuffer0}
+                                {Type:merge(LocalCRDT0, Delta), Sequence1, DeltaBuffer1}
                         end;
                     false ->
+                        Merged = Type:merge(LocalCRDT0, RemoteCRDT),
 
-                        %% If what we received, inflates the local state
-                        case Type:is_strict_inflation(LocalCRDT, Merged) of
+                        case Type:equal(LocalCRDT0, Merged) of
                             true ->
+                                {LocalCRDT0, Sequence0, DeltaBuffer0};
+                            false ->
+                                %% If what we received, inflates the local state
                                 DeltaBuffer1 = orddict:store(Sequence0, {From, RemoteCRDT}, DeltaBuffer0),
                                 Sequence1 = Sequence0 + 1,
-                                {Sequence1, DeltaBuffer1};
-                            false ->
-                                {Sequence0, DeltaBuffer0}
+                                {Merged, Sequence1, DeltaBuffer1}
                         end
                 end,
 
@@ -216,7 +213,7 @@ message_handler({_, delta, _, _, _}) ->
                 },
                 ldb_whisperer:send(From, Ack),
 
-                StoreValue = {Merged, Sequence, DeltaBuffer, AckMap},
+                StoreValue = {LocalCRDT, Sequence, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end,
             Default
