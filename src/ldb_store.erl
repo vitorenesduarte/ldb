@@ -1,6 +1,5 @@
 %%
 %% Copyright (c) 2016-2018 Vitor Enes.  All Rights Reserved.
-%% Copyright (c) 2016 Christopher Meiklejohn.  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -23,6 +22,9 @@
 
 -include("ldb.hrl").
 
+-behaviour(gen_server).
+
+%% ldb_store callbacks
 -export([start_link/0,
          keys/0,
          get/1,
@@ -31,57 +33,148 @@
          update_all/1,
          fold/2]).
 
-%% @doc Returns list of keys.
--callback keys() -> list(key()).
+%% gen_server callbacks
+-export([init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3]).
 
-%% @doc Returns the value associated with a given `key()'.
--callback get(key()) -> {ok, value()} | not_found().
-
-%% @doc Applies a given `function()' to a given `key()'.
--callback update(key(), function()) -> ok | not_found() | error().
-
-%% @doc Applies a given `function()' to a given `key()'.
-%%      If key not present, use the default `value()'.
--callback update(key(), function(), value()) -> ok | error().
-
-%% @doc Applies a given `function()' to all `key()'s.
--callback update_all(function()) -> ok.
-
-%% @doc Folds the store.
-%%      The first argument is the function to be passed to the fold.
-%%      The second argument is the initial value for the accumulator.
--callback fold(function(), term()) -> term().
+-record(state, {key_to_data :: maps:map()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
-    do(start_link, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 -spec keys() -> list(key()).
 keys() ->
-    do(keys, []).
+    gen_server:call(?MODULE, keys, infinity).
 
 -spec get(key()) -> {ok, value()} | not_found().
 get(Key) ->
-    do(get, [Key]).
+    gen_server:call(?MODULE, {get, Key}, infinity).
 
--spec update(key(), function()) -> ok | not_found() | error.
+-spec update(key(), function()) -> ok | not_found() | error().
 update(Key, Function) ->
-    do(update, [Key, Function]).
+    gen_server:call(?MODULE, {update, Key, Function}, infinity).
 
--spec update(key(), function(), value()) -> ok | error.
+-spec update(key(), function(), value()) -> ok | error().
 update(Key, Function, Default) ->
-    do(update, [Key, Function, Default]).
+    gen_server:call(?MODULE, {update, Key, Function, Default}, infinity).
 
 -spec update_all(function()) -> ok.
 update_all(Function) ->
-    do(update_all, [Function]).
+    gen_server:call(?MODULE, {update_all, Function}, infinity).
 
 -spec fold(function(), term()) -> term().
 fold(Function, Acc) ->
-    do(fold, [Function, Acc]).
+    gen_server:call(?MODULE, {fold, Function, Acc}, infinity).
 
-%% @private Execute call to the proper store.
-do(Function, Args) ->
-    %Store = ldb_config:get(ldb_store, ?DEFAULT_STORE),
-    Store = ?DEFAULT_STORE,
-    erlang:apply(Store, Function, Args).
+%% gen_server callbacks
+init([]) ->
+
+    lager:info("ldb_actor_store initialized!"),
+    {ok, #state{key_to_data=maps:new()}}.
+
+handle_call(keys, _From, #state{key_to_data=Map}=State) ->
+    ldb_util:qs("STORE keys"),
+    Result = maps:keys(Map),
+    {reply, Result, State};
+
+handle_call({get, Key}, _From, #state{key_to_data=Map}=State) ->
+    ldb_util:qs("STORE get"),
+    Result = do_get(Key, Map),
+    {reply, Result, State};
+
+handle_call({update, Key, Function}, _From, #state{key_to_data=Map0}=State) ->
+    ldb_util:qs("STORE update/2"),
+    {Result, Map} = case do_get(Key, Map0) of
+        {ok, Value} ->
+            case Function(Value) of
+                {ok, NewValue} ->
+                    {ok, do_put(Key, NewValue, Map0)};
+                Error ->
+                    {Error, Map0}
+            end;
+        Error ->
+            {Error, Map0}
+    end,
+
+    {reply, Result, State#state{key_to_data=Map}};
+
+handle_call({update, Key, Function, Default}, _From, #state{key_to_data=Map0}=State) ->
+    ldb_util:qs("STORE update/3"),
+
+    %% get the current value
+    Value = do_get(Key, Map0, Default),
+
+    {Result, Map} = case Function(Value) of
+        {ok, NewValue} ->
+            {ok, do_put(Key, NewValue, Map0)};
+        Error ->
+            {Error, Map0}
+    end,
+
+    {reply, Result, State#state{key_to_data=Map}};
+
+handle_call({update_all, Function}, _From, #state{key_to_data=Map0}=State) ->
+    ldb_util:qs("STORE update_all"),
+
+    Map = maps:map(
+        fun(Key, Value) ->
+            case Function({Key, Value}) of
+                {ok, NewValue} ->
+                    %% if okay, update
+                    NewValue;
+                _ ->
+                    %% otherwise, keep the same value
+                    Value
+            end
+        end,
+        Map0
+    ),
+
+    Result = ok,
+
+    {reply, Result,  State#state{key_to_data=Map}};
+
+handle_call({fold, Function, Acc}, _From, #state{key_to_data=Map}=State) ->
+    ldb_util:qs("STORE fold"),
+    Result = maps:fold(Function, Acc, Map),
+    {reply, Result, State};
+
+handle_call(Msg, _From, State) ->
+    lager:warning("Unhandled call message: ~p", [Msg]),
+    {noreply, State}.
+
+handle_cast(Msg, State) ->
+    lager:warning("Unhandled cast message: ~p", [Msg]),
+    {noreply, State}.
+
+handle_info(Msg, State) ->
+    lager:warning("Unhandled info message: ~p", [Msg]),
+    {noreply, State}.
+
+terminate(_Reason, _State) ->
+    ok.
+
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
+%% @private Attemts to retrieve a certain value from the map.
+do_get(Key, Map) ->
+    case maps:find(Key, Map) of
+        {ok, Value} ->
+            {ok, Value};
+        error ->
+            {error, not_found}
+    end.
+
+%% @private Retrieve a certain value from the map.
+do_get(Key, Map, Default) ->
+    maps:get(Key, Map, Default).
+
+%% @private Inserts a value in the store (replacing if exists)
+do_put(Key, Value, Map) ->
+    maps:put(Key, Value, Map).
