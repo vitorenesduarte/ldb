@@ -98,7 +98,7 @@ stable_test() ->
     %% nodes
     A = 0,
     B = 1,
-    
+
     %% dots
     A1 = {A, 1},
     A2 = {A, 2},
