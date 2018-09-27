@@ -30,14 +30,18 @@
 -endif.
 
 -export([new/1,
+         matrix/1,
          update/3,
+         union_matrix/2,
          stable/1]).
 
 -export_type([m/0]).
 
+-type matrix_st() :: maps:map(ldb_node_id(), vclock()).
+
 -record(state, {node_number :: non_neg_integer(),
                 stable :: vclock(),
-                matrix :: maps:map(ldb_node_id(), vclock())}).
+                matrix :: matrix_st()}).
 -type m() :: #state{}.
 
 
@@ -47,6 +51,11 @@ new(NodeNumber) ->
     #state{node_number=NodeNumber,
            stable=vclock:new(),
            matrix=maps:new()}.
+
+%% @doc Extract matrix.
+-spec matrix(m()) -> matrix_st().
+matrix(#state{matrix=Matrix}) ->
+    Matrix.
 
 %% @doc Update clock for a given sender.
 -spec update(ldb_node_id(), vclock(), m()) -> m().
@@ -61,6 +70,26 @@ update(Id, Clock, #state{matrix=Matrix0}=State) ->
         Matrix0
     ),
     State#state{matrix=Matrix}.
+
+%% @doc Union two matrix.
+-spec union_matrix(m(), matrix_st()) -> m().
+union_matrix(#state{matrix=MatrixA}=State, MatrixB) ->
+    %% merge A with B
+    %% (what's in B that's not in A won't be in `Matrix0')
+    Matrix0 = maps:fold(
+        fun(Id, VVA, Acc) ->
+            VVB = maps:get(Id, MatrixB, vclock:new()),
+            VV = vclock:union(VVA, VVB),
+            maps:put(Id, VV, Acc)
+        end,
+        maps:new(),
+        MatrixA
+    ),
+    %% merge B with `Matrix0'
+    Matrix1 = maps:merge(MatrixB, Matrix0),
+
+    %% update state
+    State#state{matrix=Matrix1}.
 
 %% @doc Get list of stable dots.
 -spec stable(m()) -> {list(dot()), m()}.
