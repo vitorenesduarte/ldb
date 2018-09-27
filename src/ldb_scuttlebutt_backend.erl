@@ -63,7 +63,7 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {CRDT, _VV, _DeltaBuffer, Matrix}, _NodeName) ->
-        
+
         %% config
         Actor = ldb_config:id(),
 
@@ -83,7 +83,7 @@ message_maker() ->
 -spec message_handler(term()) -> function().
 message_handler({_, digest, _, _, _}) ->
     fun({Key, digest, From, Bottom, RemoteMatrix}) ->
-        
+
         %% store it, in case it's new
         Default = get_entry(Bottom),
         {ok, {_, DeltaBuffer, _, _}} = ldb_store:update(
@@ -119,7 +119,7 @@ message_handler({_, digest, _, _, _}) ->
             [],
             DeltaBuffer
         ),
-        
+
         %% send buffer
         Message = {
             Key,
