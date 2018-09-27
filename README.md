@@ -29,6 +29,7 @@ as well as the optimizations removal of redundant delta-groups and avoiding back
 
 |||||
 |---------------------------------|-------------------------------------------|-------------------------------------------|---------------|
+| __NODE_NUMBER__                 | `0..`                                     | `0..`                                     | `0..`
 | __LDB_MODE__                    | `state_based`                             | `delta_based`                             | `scuttlebutt` |
 | __LDB_DRIVEN_MODE__             | `none` / `state_driven` / `digest_driven` | `none` / `state_driven` / `digest_driven` | __NA__        |
 | __LDB_STATE_SYNC_INTERVAL__     | `0..`                                     | `0..`                                     | `0..`

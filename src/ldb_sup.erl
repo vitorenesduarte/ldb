@@ -60,6 +60,11 @@ init([]) ->
 
 %% @private
 configure() ->
+    %% configure node number
+    configure_int("NODE_NUMBER",
+                  node_number,
+                  1),
+
     %% configure mode
     configure_var("LDB_MODE",
                   ldb_mode,
