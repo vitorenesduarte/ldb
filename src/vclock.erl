@@ -31,6 +31,7 @@
 
 -export([new/0,
          next_dot/2,
+         is_element/2,
          union/2,
          intersection/2,
          subtract/2]).
@@ -51,6 +52,12 @@ next_dot(Id, Clock) ->
     NewSeq = Seq + 1,
     Dot = {Id, NewSeq},
     {Dot, maps:put(Id, NewSeq, Clock)}.
+
+%% @doc Check if a dot is in the clock.
+-spec is_element(dot(), v()) -> boolean().
+is_element({Id, Seq}, Clock) ->
+    CurrentSeq = maps:get(Id, Clock, 0),
+    Seq =< CurrentSeq.
 
 %% @doc Union clocks.
 -spec union(v(), v()) ->v().
