@@ -46,7 +46,7 @@ new() ->
     maps:new().
 
 %% @doc Return the next dot for a given id.
--spec next_dot(ldb_node_id(), v()) -> {dot(), vv()}.
+-spec next_dot(ldb_node_id(), v()) -> {dot(), v()}.
 next_dot(Id, Clock) ->
     Seq = maps:get(Id, Clock, 0),
     NewSeq = Seq + 1,
