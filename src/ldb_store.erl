@@ -55,11 +55,11 @@ keys() ->
 get(Key) ->
     gen_server:call(?MODULE, {get, Key}, infinity).
 
--spec update(key(), function()) -> ok | not_found() | error().
+-spec update(key(), function()) -> {ok, value()} | not_found() | error().
 update(Key, Function) ->
     gen_server:call(?MODULE, {update, Key, Function}, infinity).
 
--spec update(key(), function(), value()) -> ok | error().
+-spec update(key(), function(), value()) -> {ok, value()} | not_found() | error().
 update(Key, Function, Default) ->
     gen_server:call(?MODULE, {update, Key, Function, Default}, infinity).
 
@@ -73,8 +73,7 @@ fold(Function, Acc) ->
 
 %% gen_server callbacks
 init([]) ->
-
-    lager:info("ldb_actor_store initialized!"),
+    lager:info("ldb_store initialized!"),
     {ok, #state{key_to_data=maps:new()}}.
 
 handle_call(keys, _From, #state{key_to_data=Map}=State) ->
@@ -93,7 +92,7 @@ handle_call({update, Key, Function}, _From, #state{key_to_data=Map0}=State) ->
         {ok, Value} ->
             case Function(Value) of
                 {ok, NewValue} ->
-                    {ok, do_put(Key, NewValue, Map0)};
+                    {{ok, NewValue}, do_put(Key, NewValue, Map0)};
                 Error ->
                     {Error, Map0}
             end;
@@ -111,7 +110,7 @@ handle_call({update, Key, Function, Default}, _From, #state{key_to_data=Map0}=St
 
     {Result, Map} = case Function(Value) of
         {ok, NewValue} ->
-            {ok, do_put(Key, NewValue, Map0)};
+            {{ok, NewValue}, do_put(Key, NewValue, Map0)};
         Error ->
             {Error, Map0}
     end,

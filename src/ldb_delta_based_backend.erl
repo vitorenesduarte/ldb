@@ -250,13 +250,11 @@ message_handler({_, digest, _, _, _, _}) ->
         Actor = ldb_config:id(),
 
         Default = get_entry(Bottom),
-        ldb_store:update(
+        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:update(
             Key,
             fun(V) -> {ok, V} end,
             Default
         ),
-
-        {ok, {LocalCRDT, LocalSequence, _, _}} = ldb_store:get(Key),
 
         %% compute delta
         Delta = Type:delta(LocalCRDT, Remote),

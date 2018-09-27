@@ -86,7 +86,7 @@ message_handler({_, digest, _, _, _}) ->
         
         %% store it, in case it's new
         Default = get_entry(Bottom),
-        ldb_store:update(
+        {ok, {_, DeltaBuffer, _, _}} = ldb_store:update(
             Key,
             fun({CRDT, VV, DeltaBuffer0, Matrix0}) ->
                 Matrix1 = m_vclock:union_matrix(Matrix0, RemoteMatrix),
@@ -104,11 +104,6 @@ message_handler({_, digest, _, _, _}) ->
             end,
             Default
         ),
-
-        %% TODO this could be optimized if ldb_store:update
-        %% would return the current value
-        %% - this pattern seems to occur in other backends as well
-        {ok, {_, DeltaBuffer, _, _}} = ldb_store:get(Key),
 
         %% extract remote vv
         RemoteVV = maps:get(From, RemoteMatrix),
