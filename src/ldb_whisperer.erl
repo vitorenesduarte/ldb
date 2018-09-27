@@ -69,12 +69,8 @@ send(LDBId, Message) ->
 
 %% gen_server callbacks
 init([]) ->
-    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
-        state_based ->
-            schedule_state_sync();
-        delta_based ->
-            schedule_state_sync()
-    end,
+    %% always schedule state sync
+    schedule_state_sync(),
 
     %% configure members callback
     MembersFun = fun(Membership) ->
