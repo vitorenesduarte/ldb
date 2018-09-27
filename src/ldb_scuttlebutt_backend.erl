@@ -205,22 +205,23 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 
 handle_call(memory, _From, State) ->
     ldb_util:qs("SCUTTLEBUTT BACKEND memory"),
-    FoldFunction = fun(_Key, Value, {C0, R0}) ->
-        {CRDT, _Sequence, DeltaBuffer, AckMap} = Value,
-
-        C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
-
-        %% delta buffer + ack map
-        R = ldb_util:plus([
-            R0,
-            ldb_util:size(ack_map, AckMap),
-            ldb_util:size(delta_buffer, DeltaBuffer)
-        ]),
-
-        {C, R}
-    end,
-
-    Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
+    %% FoldFunction = fun(_Key, Value, {C0, R0}) ->
+    %%     {CRDT, _Sequence, DeltaBuffer, AckMap} = Value,
+    %%
+    %%     C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
+    %%
+    %%     %% delta buffer + ack map
+    %%     R = ldb_util:plus([
+    %%         R0,
+    %%         ldb_util:size(ack_map, AckMap),
+    %%         ldb_util:size(delta_buffer, DeltaBuffer)
+    %%     ]),
+    %%
+    %%     {C, R}
+    %% end,
+    %%
+    %% Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
+    Result = {{0, 0}, {0, 0}},
     {reply, Result, State};
 
 handle_call(Msg, _From, State) ->
