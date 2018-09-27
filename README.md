@@ -10,13 +10,13 @@ LDB supports different CRDT replication models:
 - __LDB_MODE__:
   - `state_based`
   - `delta_based`
+  - `scuttlebutt`
 - __LDB_DRIVEN_MODE__: see [this](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
 for details on `state_driven` and `digest_driven` algorithms
   - `none`
   - `state_driven`
   - `digest_driven`
-- __LDB_STATE_SYNC_INTERVAL__: in `state_based` and `delta_based`
-modes, state is propagated every `X` milliseconds
+- __LDB_STATE_SYNC_INTERVAL__: state is propagated every `X` milliseconds
 - __LDB_REDUNDANT_DGROUPS__: when set to `true`,
 removes redundant state that may be present in the received
 delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
@@ -27,13 +27,13 @@ avoids back-propagation of delta-groups
 State-based, delta-based, state-driven and digest-driven modes are described [here](http://vitorenesduarte.github.io/page/other/msc-thesis.pdf),
 as well as the optimizations removal of redundant delta-groups and avoiding back-propagation of delta-groups.
 
-||||
-|---------------------------------|-------------------------------------------|-------------------------------------------|
-| __LDB_MODE__                    | `state_based`                             | `delta_based`                             |
-| __LDB_DRIVEN_MODE__             | `none` / `state_driven` / `digest_driven` | `none` / `state_driven` / `digest_driven` |
-| __LDB_STATE_SYNC_INTERVAL__     | `0..`                                     | `0..`                                     |
-| __LDB_REDUNDANT_DGROUPS__       | __NA__                                    | `true` / `false`                          |
-| __LDB_DGROUP_BACK_PROPAGATION__ | __NA__                                    | `true` / `false`                          |
+|||||
+|---------------------------------|-------------------------------------------|-------------------------------------------|---------------|
+| __LDB_MODE__                    | `state_based`                             | `delta_based`                             | `scuttlebutt` |
+| __LDB_DRIVEN_MODE__             | `none` / `state_driven` / `digest_driven` | `none` / `state_driven` / `digest_driven` | __NA__        |
+| __LDB_STATE_SYNC_INTERVAL__     | `0..`                                     | `0..`                                     | `0..`
+| __LDB_REDUNDANT_DGROUPS__       | __NA__                                    | `true` / `false`                          | __NA__        |
+| __LDB_DGROUP_BACK_PROPAGATION__ | __NA__                                    | `true` / `false`                          | __NA__        |
 
 #### Defaults
 - __LDB_MODE__: `state_based`

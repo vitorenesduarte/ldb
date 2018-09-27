@@ -2,6 +2,7 @@
 -type not_found() :: {error, not_found}.
 -type error() :: {error, atom()}.
 
+
 %% ldb
 -type key() :: string().
 -type type() :: term().
@@ -19,6 +20,11 @@
 
 %% size metric: metadata size, payload size
 -type size_metric() :: {non_neg_integer(), non_neg_integer()}.
+
+%% clocks
+-type dot() :: {ldb_node_id(), non_neg_integer()}.
+-type vclock() :: vclock:v().
+-type m_vclock() :: m_vclock:m().
 
 %% space server
 -define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
