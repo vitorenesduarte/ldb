@@ -73,9 +73,7 @@ init([]) ->
         state_based ->
             schedule_state_sync();
         delta_based ->
-            schedule_state_sync();
-        pure_op_based ->
-            ok
+            schedule_state_sync()
     end,
 
     %% configure members callback

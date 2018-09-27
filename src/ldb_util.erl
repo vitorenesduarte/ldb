@@ -61,9 +61,7 @@ get_backend() ->
         state_based ->
             ldb_state_based_backend;
         delta_based ->
-            ldb_delta_based_backend;
-        pure_op_based ->
-            ldb_pure_op_based_backend
+            ldb_delta_based_backend
     end.
 
 %% @doc
@@ -123,35 +121,7 @@ get_type([]) ->
 get_type([H|T]) ->
     [get_type(H) | get_type(T)];
 get_type(Type) ->
-    {State, Op} = orddict:fetch(Type, types_map()),
-    case ldb_config:get(ldb_mode, ?DEFAULT_MODE) of
-        state_based ->
-            State;
-        delta_based ->
-            State;
-        pure_op_based ->
-            Op
-    end.
-
-%% @private
-types_map() ->
-    Types = [{awset, {state_awset, pure_awset}},
-             {boolean, {state_boolean, undefined}},
-             {dwflag, {state_dwflag, pure_dwflag}},
-             {ewflag, {state_ewflag, pure_ewflag}},
-             {gcounter, {state_gcounter, pure_gcounter}},
-             {gmap, {state_gmap, undefined}},
-             {gset, {state_gset, pure_gset}},
-             {lexcounter, {state_lexcounter, undefined}},
-             {lwwregister, {state_lwwregister, undefined}},
-             {max_int, {state_max_int, undefined}},
-             {mvregister, {state_mvregister, pure_mvregister}},
-             {mvmap, {state_mvmap, undefined}},
-             {ormap, {state_ormap, undefined}},
-             {pair, {state_pair, undefined}},
-             {pncounter, {state_pncounter, undefined}},
-             {twopset, {state_twopset, pure_twopset}}],
-    orddict:from_list(Types).
+    list_to_atom("state_" ++ atom_to_list(Type)).
 
 %% @doc Log Process queue length.
 qs(_ID) ->

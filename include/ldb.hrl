@@ -23,10 +23,6 @@
 %% space server
 -define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
 
-%% pure_op
--type vclock() :: orddict:orddict().
--type mclock() :: orddict:orddict().
-
 %% defaults
 -define(DEFAULT_STATE_SYNC_INTERVAL, 1000).
 -define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
