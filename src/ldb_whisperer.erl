@@ -252,7 +252,12 @@ metrics({_Key, digest_and_state, _From, _Sequence, Delta, {mdata, Digest}}) ->
         ?SEQ,
         ldb_util:size(crdt, Delta),
         ldb_util:size(digest, Digest)
-    ]).
+    ]);
+%% scuttlebutt
+metrics({_Key, matrix, _From, _Bottom, Matrix}) ->
+    ldb_util:size(matrix, Matrix);
+metrics({_Key, buffer, Buffer}) ->
+    ldb_util:size(buffer, Buffer).
 
 %% @private
 record(Size) ->
