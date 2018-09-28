@@ -108,7 +108,7 @@ stable(#state{node_number=NodeNumber, stable=CurrentStable, matrix=Matrix}=State
 
 %% @doc Size of matrix.
 -spec size(m()) -> non_neg_integer().
-size(Matrix) ->
+size(#state{matrix=Matrix}) ->
     maps:size(Matrix).
 
 %% @private Assumes map is non-empty.
