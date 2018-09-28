@@ -31,6 +31,7 @@
 
 -export([new/0,
          next_dot/2,
+         add_dot/2,
          is_element/2,
          union/2,
          intersection/2,
@@ -46,12 +47,18 @@ new() ->
     maps:new().
 
 %% @doc Return the next dot for a given id.
--spec next_dot(ldb_node_id(), v()) -> {dot(), v()}.
+-spec next_dot(ldb_node_id(), v()) -> dot().
 next_dot(Id, Clock) ->
     Seq = maps:get(Id, Clock, 0),
     NewSeq = Seq + 1,
-    Dot = {Id, NewSeq},
-    {Dot, maps:put(Id, NewSeq, Clock)}.
+    {Id, NewSeq}.
+
+%% @doc Add a dot to the vv.
+-spec add_dot(dot(), v()) -> v().
+add_dot({Id, Seq}, Clock) ->
+    CurrentSeq = maps:get(Id, Clock, 0),
+    NewSeq = max(Seq, CurrentSeq),
+    maps:put(Id, NewSeq, Clock).
 
 %% @doc Check if a dot is in the clock.
 -spec is_element(dot(), v()) -> boolean().
