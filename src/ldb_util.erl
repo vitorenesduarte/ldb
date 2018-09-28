@@ -108,7 +108,7 @@ size(matrix, Matrix) ->
     %% matrix size is the sum of all vector sizes
     %% (ignoring the indexing key)
     Dots = maps:fold(
-        fun(_, VV, Acc) -> Acc + maps:size(VV) end,
+        fun(_, VV, Acc) -> Acc + vclock:size(VV) end,
         0,
         Matrix
     ),

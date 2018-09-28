@@ -35,7 +35,8 @@
          is_element/2,
          union/2,
          intersection/2,
-         subtract/2]).
+         subtract/2,
+         size/1]).
 
 -export_type([v/0]).
 
@@ -119,6 +120,10 @@ subtract(ClockA, ClockB) ->
         ClockA
     ).
 
+%% @doc Size of clock.
+-spec size(v()) -> non_neg_integer().
+size(Clock) ->
+    maps:size(Clock).
 
 -ifdef(TEST).
 

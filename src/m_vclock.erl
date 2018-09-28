@@ -33,7 +33,8 @@
          matrix/1,
          update/3,
          union_matrix/2,
-         stable/1]).
+         stable/1,
+         size/1]).
 
 -export_type([m/0]).
 
@@ -104,6 +105,11 @@ stable(#state{node_number=NodeNumber, stable=CurrentStable, matrix=Matrix}=State
 
     StableDots = vclock:subtract(NewStable, CurrentStable),
     {StableDots, State#state{stable=NewStable}}.
+
+%% @doc Size of matrix.
+-spec size(m()) -> non_neg_integer().
+size(Matrix) ->
+    maps:size(Matrix).
 
 %% @private Assumes map is non-empty.
 -spec intersect_all(maps:map(ldb_node_id(), vclock())) -> vclock().

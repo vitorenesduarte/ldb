@@ -63,21 +63,26 @@ update(Key, Operation) ->
 -spec message_maker() -> function().
 message_maker() ->
     fun(Key, {CRDT, _VV, _DeltaBuffer, Matrix}, _NodeName) ->
+        case m_vclock:size(Matrix) of
+            0 ->
+                nothing;
+            _ ->
 
-        %% config
-        Actor = ldb_config:id(),
+                %% config
+                Actor = ldb_config:id(),
 
-        %% compute bottom
-        Bottom = ldb_util:new_crdt(state, CRDT),
+                %% compute bottom
+                Bottom = ldb_util:new_crdt(state, CRDT),
 
-        %% message
-        {
-            Key,
-            matrix,
-            Actor,
-            Bottom,
-            m_vclock:matrix(Matrix)
-        }
+                %% message
+                {
+                    Key,
+                    matrix,
+                    Actor,
+                    Bottom,
+                    m_vclock:matrix(Matrix)
+                }
+        end
     end.
 
 -spec message_handler(term()) -> function().
@@ -88,7 +93,7 @@ message_handler({_, matrix, _, _, _}) ->
         %% store it, in case it's new
         %% otherwise, prune what's stable
         Default = get_entry(Bottom),
-        {ok, {_, DeltaBuffer, _, _}} = ldb_store:update(
+        {ok, {_, _, DeltaBuffer, _}} = ldb_store:update(
             Key,
             fun({CRDT, VV, DeltaBuffer0, Matrix0}) ->
                 lager:info("matrix: Current matrix ~p", [m_vclock:matrix(Matrix0)]),
