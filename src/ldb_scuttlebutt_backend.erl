@@ -118,7 +118,7 @@ message_handler({_, matrix, _, _, _}) ->
         ),
 
         %% extract remote vv
-        RemoteVV = maps:get(From, RemoteMatrix),
+        RemoteVV = maps:get(From, RemoteMatrix, vclock:new()),
         lager:info("matrix: Remote vv ~p", [RemoteVV]),
         lager:info("matrix: Current dots ~p", [maps:keys(DeltaBuffer)]),
 
