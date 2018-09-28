@@ -114,8 +114,8 @@ size(matrix, Matrix) ->
     ),
     {Dots, 0};
 size(buffer, Buffer) ->
-    lists:foldl(
-        fun({_Dot, Delta}, Acc) ->
+    maps:fold(
+        fun(_Dot, Delta, Acc) ->
             plus([
                 Acc,
                 size(crdt, Delta),

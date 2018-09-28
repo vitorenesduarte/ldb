@@ -106,11 +106,8 @@ message_handler({_, matrix, _, _, _}) ->
                 %% lager:info("matrix: Stable dots ~p", [StableDots]),
 
                 %% prune these stable dots
-                DeltaBuffer1 = lists:foldl(
-                    fun(StableDot, Acc) -> maps:remove(StableDot, Acc) end,
-                    DeltaBuffer0,
-                    StableDots
-                ),
+                DeltaBuffer1 = maps:without(StableDots, DeltaBuffer0),
+
                 %% lager:info("matrix: Delta buffer size before ~p after ~p", [maps:size(DeltaBuffer0), maps:size(DeltaBuffer1)]),
                 {ok, {CRDT, VV, DeltaBuffer1, Matrix2}}
             end,
@@ -123,17 +120,11 @@ message_handler({_, matrix, _, _, _}) ->
         %% lager:info("matrix: Current dots ~p", [maps:keys(DeltaBuffer)]),
 
         %% find dots that do not exist in the remote node
-        Result = maps:fold(
-            fun(Dot, Delta, Acc) ->
-                case vclock:is_element(Dot, RemoteVV) of
-                    true -> Acc;
-                    false -> [{Dot, Delta} | Acc]
-                end
-            end,
-            [],
+        Result = maps:filter(
+            fun(Dot, _) -> not vclock:is_element(Dot, RemoteVV) end,
             DeltaBuffer
         ),
-        %% lager:info("matrix: Dots to send ~p", [element(1, lists:unzip(Result))]),
+        %% lager:info("matrix: Dots to send ~p", [maps:keys(Result)]),
 
         %% send buffer
         Message = {
