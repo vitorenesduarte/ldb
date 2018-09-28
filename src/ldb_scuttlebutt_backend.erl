@@ -62,8 +62,8 @@ update(Key, Operation) ->
 
 -spec message_maker() -> function().
 message_maker() ->
-    fun(Key, {CRDT, _VV, _DeltaBuffer, Matrix}, _NodeName) ->
-        case m_vclock:size(Matrix) of
+    fun(Key, {CRDT, _VV, DeltaBuffer, Matrix}, _NodeName) ->
+        case maps:size(DeltaBuffer) of
             0 ->
                 nothing;
             _ ->
