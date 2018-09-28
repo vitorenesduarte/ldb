@@ -88,7 +88,7 @@ message_maker() ->
 -spec message_handler(term()) -> function().
 message_handler({_, matrix, _, _, _}) ->
     fun({Key, matrix, From, Bottom, RemoteMatrix}) ->
-        lager:info("matrix: Received ~p from ~p", [RemoteMatrix, From]),
+        %% lager:info("matrix: Received ~p from ~p", [RemoteMatrix, From]),
 
         %% store it, in case it's new
         %% otherwise, prune what's stable
@@ -96,14 +96,14 @@ message_handler({_, matrix, _, _, _}) ->
         {ok, {_, _, DeltaBuffer, _}} = ldb_store:update(
             Key,
             fun({CRDT, VV, DeltaBuffer0, Matrix0}) ->
-                lager:info("matrix: Current matrix ~p", [m_vclock:matrix(Matrix0)]),
+                %% lager:info("matrix: Current matrix ~p", [m_vclock:matrix(Matrix0)]),
                 Matrix1 = m_vclock:union_matrix(Matrix0, RemoteMatrix),
-                lager:info("matrix: Resulting matrix ~p", [m_vclock:matrix(Matrix1)]),
+                %% lager:info("matrix: Resulting matrix ~p", [m_vclock:matrix(Matrix1)]),
 
                 %% get new stable dots
                 {StableDots, Matrix2} = m_vclock:stable(Matrix1),
 
-                lager:info("matrix: Stable dots ~p", [StableDots]),
+                %% lager:info("matrix: Stable dots ~p", [StableDots]),
 
                 %% prune these stable dots
                 DeltaBuffer1 = lists:foldl(
@@ -111,7 +111,7 @@ message_handler({_, matrix, _, _, _}) ->
                     DeltaBuffer0,
                     StableDots
                 ),
-                lager:info("matrix: Delta buffer size before ~p after ~p", [maps:size(DeltaBuffer0), maps:size(DeltaBuffer1)]),
+                %% lager:info("matrix: Delta buffer size before ~p after ~p", [maps:size(DeltaBuffer0), maps:size(DeltaBuffer1)]),
                 {ok, {CRDT, VV, DeltaBuffer1, Matrix2}}
             end,
             Default
@@ -119,8 +119,8 @@ message_handler({_, matrix, _, _, _}) ->
 
         %% extract remote vv
         RemoteVV = maps:get(From, RemoteMatrix, vclock:new()),
-        lager:info("matrix: Remote vv ~p", [RemoteVV]),
-        lager:info("matrix: Current dots ~p", [maps:keys(DeltaBuffer)]),
+        %% lager:info("matrix: Remote vv ~p", [RemoteVV]),
+        %% lager:info("matrix: Current dots ~p", [maps:keys(DeltaBuffer)]),
 
         %% find dots that do not exist in the remote node
         Result = maps:fold(
@@ -133,7 +133,7 @@ message_handler({_, matrix, _, _, _}) ->
             [],
             DeltaBuffer
         ),
-        lager:info("matrix: Dots to send ~p", [element(1, lists:unzip(Result))]),
+        %% lager:info("matrix: Dots to send ~p", [element(1, lists:unzip(Result))]),
 
         %% send buffer
         Message = {
@@ -150,7 +150,7 @@ message_handler({_, buffer, _}) ->
         %% config
         Actor = ldb_config:id(),
 
-        lager:info("buffer: Received dots ~p", [element(1, lists:unzip(Buffer))]),
+        %% lager:info("buffer: Received dots ~p", [element(1, lists:unzip(Buffer))]),
         ldb_store:update(
             Key,
             fun(StoreValue0) ->
@@ -273,7 +273,7 @@ store_delta(Actor, Dot, Delta, {{Type, _}=CRDT0, VV0, DeltaBuffer0, Matrix0}) ->
     VV1 = vclock:add_dot(Dot, VV0),
     DeltaBuffer1 = maps:put(Dot, Delta, DeltaBuffer0),
     Matrix1 = m_vclock:update(Actor, VV1, Matrix0),
-    lager:info("store_delta: Current vv ~p new vv ~p", [VV0, VV1]),
-    lager:info("store_delta: Current matrix ~p new matrix ~p", [Matrix0, Matrix1]),
-    lager:info("store_delta: Delta buffer size before ~p after ~p", [maps:size(DeltaBuffer0), maps:size(DeltaBuffer1)]),
+    %% lager:info("store_delta: Current vv ~p new vv ~p", [VV0, VV1]),
+    %% lager:info("store_delta: Current matrix ~p new matrix ~p", [Matrix0, Matrix1]),
+    %% lager:info("store_delta: Delta buffer size before ~p after ~p", [maps:size(DeltaBuffer0), maps:size(DeltaBuffer1)]),
     {CRDT1, VV1, DeltaBuffer1, Matrix1}.

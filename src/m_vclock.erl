@@ -103,9 +103,6 @@ stable(#state{node_number=NodeNumber, stable=CurrentStable, matrix=Matrix}=State
             vclock:new()
     end,
 
-    lager:info("m_vclock: Node number ~p current stable ~p new stable ~p",
-               [NodeNumber, CurrentStable, NewStable]),
-
     StableDots = vclock:subtract(NewStable, CurrentStable),
     {StableDots, State#state{stable=NewStable}}.
 

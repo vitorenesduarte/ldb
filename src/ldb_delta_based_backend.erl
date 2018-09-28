@@ -233,7 +233,7 @@ message_handler({_, delta_ack, _, _}) ->
                 %% update the number of rounds without
                 %% receiving an ack to 0
                 MaxAck = max(LastAck, N),
-                AckMap1 = orddict:store(From, MaxAck, AckMap0),
+                AckMap1 = maps:put(From, MaxAck, AckMap0),
 
                 %% and try to shrink the delta-buffer immediately
                 DeltaBuffer1 = buffer_shrink(min_seq_ack_map(AckMap1), DeltaBuffer0),
@@ -421,12 +421,12 @@ handle_cast({update_members, Peers}, State) ->
 
     ShrinkFun = fun({_Key, {LocalCRDT, Sequence, DeltaBuffer0, AckMap0}}) ->
         %% only keep in the ack map entries from current peers
-        AckMap1 = [Entry || {Peer, _}=Entry <- AckMap0, lists:member(Peer, Peers)],
+        AckMap1 = maps:with(Peers, AckMap0),
 
         %% ensure all current peers have an entry in the ack map
         AllPeersInAckMap = lists:all(
             fun(Peer) ->
-                orddict:is_key(Peer, AckMap1)
+                maps:is_key(Peer, AckMap1)
             end,
             Peers
         ),
@@ -479,7 +479,7 @@ code_change(_OldVsn, State, _Extra) ->
 get_entry(Bottom) ->
     Sequence = 0,
     DeltaBuffer = orddict:new(),
-    AckMap = orddict:new(),
+    AckMap = maps:new(),
 
     {Bottom, Sequence, DeltaBuffer, AckMap}.
 
@@ -489,11 +489,11 @@ min_seq_buffer([{Seq, _}|_]) -> Seq.
 
 %% @private
 min_seq_ack_map(AckMap) ->
-    lists:min([Ack || {_, Ack} <- AckMap]).
+    lists:min(maps:values(AckMap)).
 
 %% @private
 last_ack(NodeName, AckMap) ->
-    orddict_ext:fetch(NodeName, AckMap, 0).
+    maps:get(NodeName, AckMap, 0).
 
 %% @private Drop all entries with `Seq < Min'.
 buffer_shrink(Min, [{Seq, _}|T]) when Seq < Min ->

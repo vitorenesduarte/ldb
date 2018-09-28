@@ -120,17 +120,11 @@ handle_info(state_sync, #state{members=LDBIds,
                                metrics=Metrics,
                                metrics_members=MetricsMembers}=State) ->
     ldb_util:qs("WHISPERER state_sync"),
-    lager:info("state_sync: Members ~p", [LDBIds]),
 
     FoldFunction = fun(Key, Value, _) ->
-        lager:info("state_sync: Key ~p", [Key]),
         lists:foreach(
             fun(LDBId) ->
-
                 Message = do_make(MessageMakerFun, Key, Value, LDBId, Metrics),
-
-                lager:info("state_sync: Message for ~p is ~p", [LDBId, Message]),
-
 
                 %% send message if there's a message to send
                 case Message of

@@ -89,7 +89,7 @@ size(crdt, CRDT) ->
 size(digest, Digest) ->
     {state_type:digest_size(Digest), 0};
 size(ack_map, AckMap) ->
-    {orddict:size(AckMap), 0};
+    {maps:size(AckMap), 0};
 size(delta_buffer, DeltaBuffer) ->
     lists:foldl(
         fun({_Sequence, {_From, CRDT}}, Acc) ->
@@ -106,9 +106,9 @@ size(delta_buffer, DeltaBuffer) ->
 %% scuttlebutt
 size(matrix, Matrix) ->
     %% matrix size is the sum of all vector sizes
-    %% (ignoring the indexing key)
+    %% plus the number of entries in the matrix
     Dots = maps:fold(
-        fun(_, VV, Acc) -> Acc + vclock:size(VV) end,
+        fun(_, VV, Acc) -> Acc + 1 + vclock:size(VV) end,
         0,
         Matrix
     ),
