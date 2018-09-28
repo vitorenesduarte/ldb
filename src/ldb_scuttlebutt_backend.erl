@@ -277,4 +277,3 @@ store_delta(Actor, Dot, Delta, {{Type, _}=CRDT0, VV0, DeltaBuffer0, Matrix0}) ->
     lager:info("store_delta: Current matrix ~p new matrix ~p", [Matrix0, Matrix1]),
     lager:info("store_delta: Delta buffer size before ~p after ~p", [maps:size(DeltaBuffer0), maps:size(DeltaBuffer1)]),
     {CRDT1, VV1, DeltaBuffer1, Matrix1}.
-
