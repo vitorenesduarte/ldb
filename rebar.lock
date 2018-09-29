@@ -11,7 +11,7 @@
  {<<"time_compat">>,{pkg,<<"time_compat">>,<<"0.0.1">>},0},
  {<<"types">>,
   {git,"https://github.com/vitorenesduarte/types",
-       {ref,"f2eec9f0818e93f230f07f992fbeaa104fb4281e"}},
+       {ref,"088209bd9d489fc9013a707435e2516c05960a18"}},
   0}]}.
 [
 {pkg_hash,[
