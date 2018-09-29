@@ -70,19 +70,11 @@ is_element({Id, Seq}, Clock) ->
 %% @doc Union clocks.
 -spec union(v(), v()) ->v().
 union(ClockA, ClockB) ->
-    %% merge A with B
-    %% (what's in B that's not in A won't be in `Clock0')
-    Clock0 = maps:fold(
-        fun(Id, SeqA, Acc) ->
-            SeqB = maps:get(Id, ClockB, 0),
-            Seq = max(SeqA, SeqB),
-            maps:put(Id, Seq, Acc)
-        end,
-        maps:new(),
-        ClockA
-    ),
-    %% merge B with `Clock0'
-    maps:merge(ClockB, Clock0).
+    maps_ext:merge_all(
+        fun(_, SeqA, SeqB) -> max(SeqA, SeqB) end,
+        ClockA,
+        ClockB
+    ).
 
 %% @doc Intersect clocks.
 -spec intersection(v(), v()) -> v().

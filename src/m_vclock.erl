@@ -75,22 +75,13 @@ update(Id, Clock, #state{matrix=Matrix0}=State) ->
 %% @doc Union two matrix.
 -spec union_matrix(m(), matrix_st()) -> m().
 union_matrix(#state{matrix=MatrixA}=State, MatrixB) ->
-    %% merge A with B
-    %% (what's in B that's not in A won't be in `Matrix0')
-    Matrix0 = maps:fold(
-        fun(Id, VVA, Acc) ->
-            VVB = maps:get(Id, MatrixB, vclock:new()),
-            VV = vclock:union(VVA, VVB),
-            maps:put(Id, VV, Acc)
-        end,
-        maps:new(),
-        MatrixA
+    Matrix = maps_ext:merge_all(
+        fun(_, VVA, VVB) -> vclock:union(VVA, VVB) end,
+        MatrixA,
+        MatrixB
     ),
-    %% merge B with `Matrix0'
-    Matrix1 = maps:merge(MatrixB, Matrix0),
-
     %% update state
-    State#state{matrix=Matrix1}.
+    State#state{matrix=Matrix}.
 
 %% @doc Get list of stable dots.
 -spec stable(m()) -> {list(dot()), m()}.
