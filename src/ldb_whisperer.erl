@@ -29,6 +29,7 @@
          members/0,
          update_members/1,
          update_metrics_members/1,
+         update_ignore_keys/1,
          send/2]).
 
 %% gen_server callbacks
@@ -45,7 +46,8 @@
                 %% if the following is different that `all',
                 %% transmission metrics will only be recorded
                 %% for peers with ids in the set
-                metrics_members :: all | sets:set(ldb_node_id())}).
+                metrics_members :: all | sets:set(ldb_node_id()),
+                ignore_keys :: sets:set(string())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -62,6 +64,10 @@ update_members(Members) ->
 -spec update_metrics_members(list(ldb_node_id())) -> ok.
 update_metrics_members(Members) ->
     gen_server:cast(?MODULE, {update_metrics_members, Members}).
+
+-spec update_ignore_keys(sets:set(string())) -> ok.
+update_ignore_keys(IgnoreKeys) ->
+    gen_server:call(?MODULE, {update_ignore_keys, IgnoreKeys}, infinity).
 
 -spec send(ldb_node_id(), term()) -> ok.
 send(LDBId, Message) ->
@@ -83,11 +89,16 @@ init([]) ->
     {ok, #state{members=[],
                 mm_fun=ldb_backend:message_maker(),
                 metrics=ldb_config:get(ldb_metrics),
-                metrics_members=all}}.
+                metrics_members=all,
+                ignore_keys=sets:new()}}.
 
 handle_call(members, _From, #state{members=Members}=State) ->
     ldb_util:qs("WHISPERER members"),
     {reply, Members, State};
+
+handle_call({update_ignore_keys, IgnoreKeys}, _Fromm, State) ->
+    ldb_util:qs("WHISPERER update_ignore_keys"),
+    {reply, ok, State#state{ignore_keys=IgnoreKeys}};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
@@ -117,21 +128,22 @@ handle_cast(Msg, State) ->
 
 handle_info(state_sync, #state{members=LDBIds,
                                mm_fun=MessageMakerFun,
-                               metrics=Metrics,
-                               metrics_members=MetricsMembers}=State) ->
+                               metrics=Metrics0,
+                               metrics_members=MetricsMembers,
+                               ignore_keys=IgnoreKeys}=State) ->
     ldb_util:qs("WHISPERER state_sync"),
 
     FoldFunction = fun(Key, Value, _) ->
+        %% if metrics and shouldn't ignore the key
+        Metrics = Metrics0 andalso should_save_key(Key, IgnoreKeys),
         lists:foreach(
             fun(LDBId) ->
                 Message = do_make(MessageMakerFun, Key, Value, LDBId, Metrics),
 
                 %% send message if there's a message to send
                 case Message of
-                    nothing ->
-                        ok;
-                    _ ->
-                        do_send(LDBId, Message, Metrics, MetricsMembers)
+                    nothing -> ok;
+                    _ -> do_send(LDBId, Message, Metrics, MetricsMembers)
                 end
 
             end,
@@ -186,11 +198,10 @@ do_send(LDBId, Message, Metrics, MetricsMembers) ->
     %% if message was sent, collect metrics
     case Result of
         ok ->
-            case should_record_metrics(Metrics, LDBId, MetricsMembers) of
-                true ->
-                    record(metrics(Message));
-                false ->
-                    ok
+            RecordMetrics = Metrics andalso should_save_member(LDBId, MetricsMembers),
+            case RecordMetrics of
+                true -> record(metrics(Message));
+                false -> ok
             end;
         Error ->
             lager:info("Error trying to send message ~p to node ~p. Reason ~p",
@@ -199,14 +210,16 @@ do_send(LDBId, Message, Metrics, MetricsMembers) ->
     ok.
 
 %% @private
--spec should_record_metrics(boolean(), ldb_node_id(), all | sets:set(ldb_node_id())) ->
-    boolean().
-should_record_metrics(false, _, _) ->
-    false;
-should_record_metrics(true, _, all) ->
+-spec should_save_member(ldb_node_id(), all | sets:set(ldb_node_id())) -> boolean().
+should_save_member(_LDBId, all) ->
     true;
-should_record_metrics(true, LDBId, Set) ->
+should_save_member(LDBId, Set) ->
     sets:is_element(LDBId, Set).
+
+%% @private
+-spec should_save_key(string(), sets:set(string())) -> boolean().
+should_save_key(Key, IgnoreKeys) ->
+    not sets:is_element(Key, IgnoreKeys).
 
 -define(SEQ, {0, 0}).
 %% @private

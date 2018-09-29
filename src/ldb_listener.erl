@@ -25,7 +25,8 @@
 -behaviour(gen_server).
 
 %% ldb_listener callbacks
--export([start_link/0]).
+-export([start_link/0,
+         update_ignore_keys/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -35,22 +36,30 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {ignore_keys :: sets:set(string())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+-spec update_ignore_keys(sets:set(string())) -> ok.
+update_ignore_keys(IgnoreKeys) ->
+    gen_server:call(?MODULE, {update_ignore_keys, IgnoreKeys}, infinity).
+
 %% gen_server callbacks
 init([]) ->
     lager:info("ldb_listener initialized!"),
-    {ok, #state{}}.
+    {ok, #state{ignore_keys=sets:new()}}.
+
+handle_call({update_ignore_keys, IgnoreKeys}, _Fromm, State) ->
+    ldb_util:qs("LISTENER update_ignore_keys"),
+    {reply, ok, State#state{ignore_keys=IgnoreKeys}};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast(Message, State) ->
+handle_cast(Message, #state{ignore_keys=IgnoreKeys}=State) ->
     ldb_util:qs("LISTENER message cast"),
     MessageHandler = ldb_backend:message_handler(Message),
     {MicroSeconds, _Result} = timer:tc(
@@ -58,13 +67,13 @@ handle_cast(Message, State) ->
         [Message]
     ),
 
-    case element(2, Message) of
-        delta_ack ->
-            %% ignore delta acks
-            ok;
-        _ ->
-            %% record latency applying this message
-            ldb_metrics:record_latency(remote, MicroSeconds)
+    %% record latency applying this message but
+    %% ignore some keys and delta acks
+    ShouldIgnore = sets:is_element(element(1, Message), IgnoreKeys)
+            orelse element(2, Message) == delta_ack,
+    case ShouldIgnore of
+        true -> ok;
+        false -> ldb_metrics:record_latency(remote, MicroSeconds)
     end,
 
     {noreply, State}.

@@ -32,7 +32,7 @@
          update/2,
          message_maker/0,
          message_handler/1,
-         memory/0]).
+         memory/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -148,9 +148,9 @@ message_handler({_, buffer, _}) ->
         )
     end.
 
--spec memory() -> {size_metric(), size_metric()}.
-memory() ->
-    gen_server:call(?MODULE, memory, infinity).
+-spec memory(sets:set(string())) -> {size_metric(), size_metric()}.
+memory(IgnoreKeys) ->
+    gen_server:call(?MODULE, {memory, IgnoreKeys}, infinity).
 
 %% gen_server callbacks
 init([]) ->
@@ -200,22 +200,26 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     Result = ldb_store:update(Key, Function),
     {reply, Result, State};
 
-handle_call(memory, _From, State) ->
+handle_call({memory, IgnoreKeys}, _From, State) ->
     ldb_util:qs("SCUTTLEBUTT BACKEND memory"),
-    FoldFunction = fun(_Key,
+    FoldFunction = fun(Key,
                        {CRDT, _VV, DeltaBuffer, Matrix},
                        {C0, R0}) ->
+        case sets:is_element(Key, IgnoreKeys) of
+            true ->
+                {C0, R0};
+            false ->
+                C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
 
-        C = ldb_util:plus(C0, ldb_util:size(crdt, CRDT)),
+                %% delta buffer + ack map
+                R = ldb_util:plus([
+                    R0,
+                    ldb_util:size(matrix, m_vclock:matrix(Matrix)),
+                    ldb_util:size(buffer, DeltaBuffer)
+                ]),
 
-        %% delta buffer + ack map
-        R = ldb_util:plus([
-            R0,
-            ldb_util:size(matrix, m_vclock:matrix(Matrix)),
-            ldb_util:size(buffer, DeltaBuffer)
-        ]),
-
-        {C, R}
+                {C, R}
+        end
     end,
 
     Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
