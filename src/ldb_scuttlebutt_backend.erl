@@ -135,8 +135,8 @@ message_handler({_, buffer, _}) ->
         ldb_store:update(
             Key,
             fun(StoreValue0) ->
-                StoreValue = lists:foldl(
-                    fun({Dot, Delta}, StoreValueAcc) ->
+                StoreValue = maps:fold(
+                    fun(Dot, Delta, StoreValueAcc) ->
                         store_delta(Actor, Dot, Delta, StoreValueAcc)
                     end,
                     StoreValue0,
