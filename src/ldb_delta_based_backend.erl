@@ -135,7 +135,7 @@ message_maker() ->
 
                                 case ShouldSendDelta1 of
                                     true ->
-                                        Type:merge(Acc, D);
+                                        Type:merge(D, Acc);
                                     false ->
                                         Acc
                                 end
@@ -180,31 +180,17 @@ message_handler({_, delta, _, _, _}) ->
             Key,
             fun({LocalCRDT0, Sequence0, DeltaBuffer0, AckMap}) ->
 
-                {LocalCRDT, Sequence, DeltaBuffer} = case RR of
+                {Delta, LocalCRDT} = Type:delta_and_merge(RemoteCRDT, LocalCRDT0),
+                {Sequence, DeltaBuffer} = case not Type:is_bottom(Delta) of
                     true ->
-                        Delta = Type:delta(RemoteCRDT, {state, LocalCRDT0}),
-
                         %% If what we received, inflates the local state
-                        case not Type:is_bottom(Delta) of
-                            true ->
-                                DeltaBuffer1 = orddict:store(Sequence0, {From, Delta}, DeltaBuffer0),
-                                Sequence1 = Sequence0 + 1,
-                                {Type:merge(LocalCRDT0, Delta), Sequence1, DeltaBuffer1};
-                            false ->
-                                {LocalCRDT0, Sequence0, DeltaBuffer0}
-                        end;
+                        ToStore = case RR of
+                            true -> Delta;
+                            false -> RemoteCRDT
+                        end,
+                        {Sequence0 + 1, orddict:store(Sequence0, {From, ToStore}, DeltaBuffer0)};
                     false ->
-                        Merged = Type:merge(LocalCRDT0, RemoteCRDT),
-
-                        %% If what we received, inflates the local state
-                        case Type:equal(LocalCRDT0, Merged) of
-                            false ->
-                                DeltaBuffer1 = orddict:store(Sequence0, {From, RemoteCRDT}, DeltaBuffer0),
-                                Sequence1 = Sequence0 + 1,
-                                {Merged, Sequence1, DeltaBuffer1};
-                            true ->
-                                {LocalCRDT0, Sequence0, DeltaBuffer0}
-                        end
+                        {Sequence0, DeltaBuffer0}
                 end,
 
                 %% send ack
@@ -380,7 +366,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     Function = fun({{Type, _}=CRDT0, Sequence, DeltaBuffer0, AckMap}) ->
         case Type:delta_mutate(Operation, Actor, CRDT0) of
             {ok, Delta} ->
-                CRDT1 = Type:merge(CRDT0, Delta),
+                CRDT1 = Type:merge(Delta, CRDT0),
                 DeltaBuffer1 = orddict:store(Sequence, {Actor, Delta}, DeltaBuffer0),
                 StoreValue = {CRDT1, Sequence + 1, DeltaBuffer1, AckMap},
                 {ok, StoreValue};

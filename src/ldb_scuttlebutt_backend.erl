@@ -234,7 +234,7 @@ get_entry(Bottom) ->
 
 %% @private
 store_delta(Actor, Dot, Delta, {{Type, _}=CRDT0, VV0, DeltaBuffer0, Matrix0}) ->
-    CRDT1 = Type:merge(CRDT0, Delta),
+    CRDT1 = Type:merge(Delta, CRDT0),
     VV1 = vclock:add_dot(Dot, VV0),
     DeltaBuffer1 = maps:put(Dot, Delta, DeltaBuffer0),
     Matrix1 = m_vclock:update(Actor, VV1, Matrix0),
