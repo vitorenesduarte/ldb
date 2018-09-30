@@ -136,6 +136,7 @@ handle_info(state_sync, #state{members=LDBIds,
     FoldFunction = fun(Key, Value, _) ->
         %% if metrics and shouldn't ignore the key
         Metrics = Metrics0 andalso should_save_key(Key, IgnoreKeys),
+        lager:info("state_sync: Key ~p IgnoreKeys ~p Metrics ~p", [Key, sets:to_list(IgnoreKeys), Metrics]),
         lists:foreach(
             fun(LDBId) ->
                 Message = do_make(MessageMakerFun, Key, Value, LDBId, Metrics),

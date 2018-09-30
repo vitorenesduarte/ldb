@@ -136,6 +136,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
 
 handle_call({memory, IgnoreKeys}, _From, State) ->
     FoldFunction = fun(Key, CRDT, {C0, R}) ->
+        lager:info("memory: Key ~p IgnoreKeys ~p Metrics ~p", [Key, sets:to_list(IgnoreKeys), not sets:is_element(Key, IgnoreKeys)]),
         case sets:is_element(Key, IgnoreKeys) of
             true ->
                 {C0, R};
