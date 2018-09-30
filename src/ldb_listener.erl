@@ -36,7 +36,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {ignore_keys :: sets:set(string())}).
+-record(state, {backend_state :: backend_state(),
+                ignore_keys :: sets:set(string())}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -49,7 +50,8 @@ update_ignore_keys(IgnoreKeys) ->
 %% gen_server callbacks
 init([]) ->
     lager:info("ldb_listener initialized!"),
-    {ok, #state{ignore_keys=sets:new()}}.
+    {ok, #state{backend_state=ldb_backend:backend_state(),
+                ignore_keys=sets:new()}}.
 
 handle_call({update_ignore_keys, IgnoreKeys}, _Fromm, State) ->
     ldb_util:qs("LISTENER update_ignore_keys"),
@@ -59,9 +61,10 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast(Message, #state{ignore_keys=IgnoreKeys}=State) ->
+handle_cast(Message, #state{backend_state=BackendState,
+                            ignore_keys=IgnoreKeys}=State) ->
     ldb_util:qs("LISTENER message cast"),
-    MessageHandler = ldb_backend:message_handler(Message),
+    MessageHandler = ldb_backend:message_handler(Message, BackendState),
     {MicroSeconds, _Result} = timer:tc(
         MessageHandler,
         [Message]

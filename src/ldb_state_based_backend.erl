@@ -30,9 +30,10 @@
          create/2,
          query/1,
          update/2,
-         message_maker/0,
-         message_handler/1,
-         memory/1]).
+         message_maker/1,
+         message_handler/2,
+         memory/1,
+         backend_state/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -43,6 +44,7 @@
          code_change/3]).
 
 -record(state, {actor :: ldb_node_id()}).
+-type st() :: #state{}.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -60,54 +62,19 @@ query(Key) ->
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
--spec message_maker() -> function().
-message_maker() ->
-    fun(Key, {Type, _}=CRDT, NodeName) ->
-        Actor = ldb_config:id(),
-        ShouldStart = Actor < NodeName,
-
-        Mode = ldb_config:get(ldb_driven_mode),
-
-        case Mode of
-            none ->
-                %% send local state
-                {
-                    Key,
-                    state,
-                    CRDT
-                };
-            _ ->
-                case ShouldStart of
-                    true ->
-                        %% compute bottom
-                        Bottom = ldb_util:new_crdt(state, CRDT),
-
-                        %% compute digest
-                        Digest = case Mode of
-                            state_driven ->
-                                {state, CRDT};
-                            digest_driven ->
-                                %% this can still be a CRDT state
-                                %% if implemented like that
-                                %% by the data type
-                                Type:digest(CRDT)
-                        end,
-
-                        {
-                            Key,
-                            digest,
-                            Actor,
-                            Bottom,
-                            Digest
-                        };
-                    false ->
-                        nothing
-                end
-        end
+-spec message_maker(st()) -> function().
+message_maker(_State) ->
+    fun(Key, CRDT, _NodeName) ->
+        %% send local state
+        {
+            Key,
+            state,
+            CRDT
+        }
     end.
 
--spec message_handler(term()) -> function().
-message_handler({_, state, _}) ->
+-spec message_handler(term(), st()) -> function().
+message_handler({_, state, _}, _State) ->
     fun({Key, state, {Type, _}=RemoteCRDT}) ->
 
         %% create bottom entry
@@ -122,81 +89,15 @@ message_handler({_, state, _}) ->
             end,
             Bottom
         )
-    end;
-message_handler({_, digest, _, _, _}) ->
-    fun({Key, digest, From, {Type, _}=Bottom, Remote}) ->
-
-        ldb_store:update(
-            Key,
-            fun(LocalCRDT) ->
-                %% compute delta
-                Delta = Type:delta(LocalCRDT, Remote),
-
-                {ToSend, Updated} = case Remote of
-                    {state, RemoteCRDT} ->
-
-                        %% send delta
-                        Message = {
-                            Key,
-                            state,
-                            Delta
-                        },
-
-                        %% merge received state
-                        Merged = Type:merge(LocalCRDT, RemoteCRDT),
-
-                        {Message, Merged};
-
-                    {mdata, _} ->
-
-                        LocalDigest = Type:digest(LocalCRDT),
-
-                        Actor = ldb_config:id(),
-                        Message = {
-                            Key,
-                            digest_and_state,
-                            Actor,
-                            Delta,
-                            LocalDigest
-                        },
-
-                        {Message, LocalCRDT}
-                end,
-
-                ldb_whisperer:send(From, ToSend),
-                {ok, Updated}
-            end,
-            Bottom
-        )
-    end;
-message_handler({_, digest_and_state, _, _, _}) ->
-    fun({Key, digest_and_state, From, {Type, _}=RemoteDelta,
-         RemoteDigest}) ->
-
-        ldb_store:update(
-            Key,
-            fun(LocalCRDT) ->
-                %% compute delta
-                LocalDelta = Type:delta(LocalCRDT, RemoteDigest),
-
-                %% send delta
-                Message = {
-                    Key,
-                    state,
-                    LocalDelta
-                },
-                ldb_whisperer:send(From, Message),
-
-                %% merge receive state
-                Merged = Type:merge(LocalCRDT, RemoteDelta),
-                {ok, Merged}
-            end
-        )
     end.
 
 -spec memory(sets:set(string())) -> {size_metric(), size_metric()}.
 memory(IgnoreKeys) ->
     gen_server:call(?MODULE, {memory, IgnoreKeys}, infinity).
+
+-spec backend_state() -> st().
+backend_state() ->
+    gen_server:call(?MODULE, backend_state, infinity).
 
 %% gen_server callbacks
 init([]) ->
@@ -246,6 +147,9 @@ handle_call({memory, IgnoreKeys}, _From, State) ->
 
     Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
     {reply, Result, State};
+
+handle_call(backend_state, _From, State) ->
+    {reply, State, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),

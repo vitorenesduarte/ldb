@@ -9,6 +9,9 @@
 -type value() :: term().
 -type operation() :: term().
 
+%% backend
+-type backend_state() :: term().
+
 %% peer service
 -type ldb_node_id() :: node().
 -type node_ip() :: inet:ip_address().
@@ -34,7 +37,6 @@
 -define(DEFAULT_STATE_SYNC_INTERVAL, 1000).
 -define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
 -define(DEFAULT_MODE, state_based).
--define(DEFAULT_DRIVEN_MODE, none).
 -define(DEFAULT_STORE, ldb_actor_store).
 
 %% logging

@@ -82,27 +82,12 @@ unix_timestamp() ->
     erlang:system_time(second).
 
 %% @doc
--spec size(crdt | digest | ack_map | delta_buffer | matrix | buffer, term()) ->
+-spec size(crdt | ack_map | matrix | dotted_buffer, term()) ->
     {non_neg_integer(), non_neg_integer()}.
 size(crdt, CRDT) ->
     state_type:crdt_size(CRDT);
-size(digest, Digest) ->
-    {state_type:digest_size(Digest), 0};
 size(ack_map, AckMap) ->
     {maps:size(AckMap), 0};
-size(delta_buffer, DeltaBuffer) ->
-    lists:foldl(
-        fun({_Sequence, {_From, CRDT}}, Acc) ->
-            plus([
-                Acc,
-                size(crdt, CRDT),
-                %% +1 for the From and Sequence
-                {1, 0}
-            ])
-        end,
-        {0, 0},
-        DeltaBuffer
-    );
 %% scuttlebutt
 size(matrix, Matrix) ->
     %% matrix size is the sum of all vector sizes
@@ -113,7 +98,7 @@ size(matrix, Matrix) ->
         Matrix
     ),
     {Dots, 0};
-size(buffer, Buffer) ->
+size(dotted_buffer, Buffer) ->
     maps:fold(
         fun(_Dot, Delta, Acc) ->
             plus([

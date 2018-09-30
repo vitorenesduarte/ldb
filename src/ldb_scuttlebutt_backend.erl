@@ -30,9 +30,10 @@
          create/2,
          query/1,
          update/2,
-         message_maker/0,
-         message_handler/1,
-         memory/1]).
+         message_maker/1,
+         message_handler/2,
+         memory/1,
+         backend_state/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -42,7 +43,9 @@
          terminate/2,
          code_change/3]).
 
--record(state, {actor :: ldb_node_id()}).
+-record(state, {actor :: ldb_node_id(),
+                node_number :: non_neg_integer()}).
+-type st() :: #state{}.
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -60,16 +63,13 @@ query(Key) ->
 update(Key, Operation) ->
     gen_server:call(?MODULE, {update, Key, Operation}, infinity).
 
--spec message_maker() -> function().
-message_maker() ->
+-spec message_maker(st()) -> function().
+message_maker(#state{actor=Actor}) ->
     fun(Key, {CRDT, _VV, DeltaBuffer, Matrix}, _NodeName) ->
         case maps:size(DeltaBuffer) of
             0 ->
                 nothing;
             _ ->
-
-                %% config
-                Actor = ldb_config:id(),
 
                 %% compute bottom
                 Bottom = ldb_util:new_crdt(state, CRDT),
@@ -85,13 +85,13 @@ message_maker() ->
         end
     end.
 
--spec message_handler(term()) -> function().
-message_handler({_, matrix, _, _, _}) ->
+-spec message_handler(term(), st()) -> function().
+message_handler({_, matrix, _, _, _}, #state{node_number=NodeNumber}) ->
     fun({Key, matrix, From, Bottom, RemoteMatrix}) ->
 
         %% store it, in case it's new
         %% otherwise, prune what's stable
-        Default = get_entry(Bottom),
+        Default = get_entry(Bottom, NodeNumber),
         {ok, {_, _, DeltaBuffer, _}} = ldb_store:update(
             Key,
             fun({CRDT, VV, DeltaBuffer0, Matrix0}) ->
@@ -120,17 +120,14 @@ message_handler({_, matrix, _, _, _}) ->
         %% send buffer
         Message = {
             Key,
-            buffer,
+            dotted_buffer,
             Result
         },
         ldb_whisperer:send(From, Message)
 
     end;
-message_handler({_, buffer, _}) ->
-    fun({Key, buffer, Buffer}) ->
-
-        %% config
-        Actor = ldb_config:id(),
+message_handler({_, dotted_buffer, _}, #state{actor=Actor}) ->
+    fun({Key, dotted_buffer, Buffer}) ->
 
         ldb_store:update(
             Key,
@@ -152,18 +149,26 @@ message_handler({_, buffer, _}) ->
 memory(IgnoreKeys) ->
     gen_server:call(?MODULE, {memory, IgnoreKeys}, infinity).
 
+-spec backend_state() -> st().
+backend_state() ->
+    gen_server:call(?MODULE, backend_state, infinity).
+
+
 %% gen_server callbacks
 init([]) ->
     {ok, _Pid} = ldb_store:start_link(),
     Actor = ldb_config:id(),
+    NodeNumber = ldb_config:get(node_number),
 
     lager:info("ldb_scuttlebutt_backend initialized!"),
-    {ok, #state{actor=Actor}}.
+    {ok, #state{actor=Actor,
+                node_number=NodeNumber}}.
 
-handle_call({create, Key, LDBType}, _From, State) ->
+handle_call({create, Key, LDBType}, _From,
+            #state{node_number=NodeNumber}=State) ->
     ldb_util:qs("SCUTTLEBUTT BACKEND create"),
     Bottom = ldb_util:new_crdt(type, LDBType),
-    Default = get_entry(Bottom),
+    Default = get_entry(Bottom, NodeNumber),
 
     Result = ldb_store:update(
         Key,
@@ -215,7 +220,7 @@ handle_call({memory, IgnoreKeys}, _From, State) ->
                 R = ldb_util:plus([
                     R0,
                     ldb_util:size(matrix, m_vclock:matrix(Matrix)),
-                    ldb_util:size(buffer, DeltaBuffer)
+                    ldb_util:size(dotted_buffer, DeltaBuffer)
                 ]),
 
                 {C, R}
@@ -224,6 +229,9 @@ handle_call({memory, IgnoreKeys}, _From, State) ->
 
     Result = ldb_store:fold(FoldFunction, {{0, 0}, {0, 0}}),
     {reply, Result, State};
+
+handle_call(backend_state, _From, State) ->
+    {reply, State, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
@@ -244,8 +252,7 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-get_entry(Bottom) ->
-    NodeNumber = ldb_config:get(node_number),
+get_entry(Bottom, NodeNumber) ->
     VV = vclock:new(),
     DeltaBuffer = maps:new(),
     Matrix = m_vclock:new(NodeNumber),

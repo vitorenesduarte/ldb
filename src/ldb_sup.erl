@@ -70,11 +70,6 @@ configure() ->
                   ldb_mode,
                   ?DEFAULT_MODE),
 
-    %% configure driven mode
-    configure_var("LDB_DRIVEN_MODE",
-                  ldb_driven_mode,
-                  ?DEFAULT_DRIVEN_MODE),
-
     %% configure state sync interval
     configure_int("LDB_STATE_SYNC_INTERVAL",
                   ldb_state_sync_interval,

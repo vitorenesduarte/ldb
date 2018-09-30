@@ -87,7 +87,7 @@ init([]) ->
 
     lager:info("ldb_whisperer initialized!"),
     {ok, #state{members=[],
-                mm_fun=ldb_backend:message_maker(),
+                mm_fun=ldb_backend:message_maker(ldb_backend:backend_state()),
                 metrics=ldb_config:get(ldb_metrics),
                 metrics_members=all,
                 ignore_keys=sets:new()}}.
@@ -227,44 +227,25 @@ should_save_key(Key, IgnoreKeys) ->
 -spec metrics(term()) -> {non_neg_integer(), non_neg_integer()}.
 metrics({_Key, state, CRDT}) ->
     ldb_util:size(crdt, CRDT);
-metrics({_Key, digest, _From, _Bottom, {state, CRDT}}) ->
-    ldb_util:size(crdt, CRDT);
-metrics({_Key, digest, _From, _Bottom, {mdata, Digest}}) ->
-    ldb_util:size(digest, Digest);
-metrics({_Key, digest_and_state, _From, Delta, {mdata, Digest}}) ->
-    ldb_util:plus(
-        ldb_util:size(crdt, Delta),
-        ldb_util:size(digest, Digest)
-    );
 %% delta-based
-metrics({_Key, delta, _From, _Sequence, Delta}) ->
-    ldb_util:plus(
+metrics({_Key, delta, _From, _Sequence, Deltas}) ->
+    lists:foldl(
+        fun(Delta, Acc) ->
+            ldb_util:plus(
+                Acc,
+                ldb_util:size(crdt, Delta)
+            )
+        end,
         ?SEQ,
-        ldb_util:size(crdt, Delta)
+        Deltas
     );
 metrics({_Key, delta_ack, _From, _Sequence}) ->
     ?SEQ;
-metrics({_Key, digest, _From, _Sequence, _Bottom, {state, CRDT}}) ->
-    ldb_util:plus(
-        ?SEQ,
-        ldb_util:size(crdt, CRDT)
-    );
-metrics({_Key, digest, _From, _Sequence, _Bottom, {mdata, Digest}}) ->
-    ldb_util:plus(
-        ?SEQ,
-        ldb_util:size(digest, Digest)
-    );
-metrics({_Key, digest_and_state, _From, _Sequence, Delta, {mdata, Digest}}) ->
-    ldb_util:plus([
-        ?SEQ,
-        ldb_util:size(crdt, Delta),
-        ldb_util:size(digest, Digest)
-    ]);
 %% scuttlebutt
 metrics({_Key, matrix, _From, _Bottom, Matrix}) ->
     ldb_util:size(matrix, Matrix);
-metrics({_Key, buffer, Buffer}) ->
-    ldb_util:size(buffer, Buffer).
+metrics({_Key, dotted_buffer, Buffer}) ->
+    ldb_util:size(dotted_buffer, Buffer).
 
 %% @private
 record(Size) ->

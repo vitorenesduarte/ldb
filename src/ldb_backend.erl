@@ -27,9 +27,10 @@
 -export([create/2,
          query/1,
          update/2,
-         message_maker/0,
-         message_handler/1,
-         memory/1]).
+         message_maker/1,
+         message_handler/2,
+         memory/1,
+         backend_state/0]).
 
 %% @doc Create a `key()' in the store with a given `type()'.
 -callback create(key(), type()) -> ok.
@@ -47,14 +48,17 @@
 %%      decide what should be sent.
 %%      The function signature should be:
 %%         fun(key(), value(), node_name()) -> Message
-%%          - if `Message == undefined', no message is sent.
--callback message_maker() -> function().
+%%          - if `Message == nothing', no message is sent.
+-callback message_maker(backend_state()) -> function().
 
 %% @doc Returns a function that handles the message received.
--callback message_handler(term()) -> function().
+-callback message_handler(term(), backend_state()) -> function().
 
 %% @doc Returns memory consumption.
 -callback memory(sets:set(string())) -> {size_metric(), size_metric()}.
+
+%% @doc Returns backend config.
+-callback backend_state() -> backend_state().
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -74,17 +78,21 @@ query(Key) ->
 update(Key, Operation) ->
     do(update, [Key, Operation]).
 
--spec message_maker() -> function().
-message_maker() ->
-    do(message_maker, []).
+-spec message_maker(backend_state()) -> function().
+message_maker(BackendConfig) ->
+    do(message_maker, [BackendConfig]).
 
--spec message_handler(term()) -> function().
-message_handler(Message) ->
-    do(message_handler, [Message]).
+-spec message_handler(term(), backend_state()) -> function().
+message_handler(Message, BackendConfig) ->
+    do(message_handler, [Message, BackendConfig]).
 
 -spec memory(sets:set(string())) -> {non_neg_integer(), non_neg_integer()}.
 memory(IgnoreKeys) ->
     do(memory, [IgnoreKeys]).
+
+-spec backend_state() -> backend_state().
+backend_state() ->
+    do(backend_state, []).
 
 %% @private Execute call to the proper backend.
 do(Function, Args) ->
