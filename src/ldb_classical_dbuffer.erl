@@ -37,7 +37,8 @@
          is_empty/1,
          add_inflation/3,
          select/3,
-         prune/2]).
+         prune/2,
+         size/1]).
 
 -export_type([d/0]).
 
@@ -119,6 +120,23 @@ prune(AllAck, #dbuffer{buffer=Buffer0}=State) ->
         Buffer0
     ),
     State#dbuffer{min_seq=AllAck, buffer=Buffer}.
+
+%% @doc
+-spec size(d()) -> {non_neg_integer(), non_neg_integer()}.
+size(#dbuffer{buffer=Buffer}) ->
+    lists:foldl(
+        fun(_, #dbuffer_entry{value=CRDT}, Acc) ->
+            plus([
+                Acc,
+                ldb_util:size(crdt, CRDT),
+                %% +1 for the From and Sequence
+                {1, 0}
+            ])
+        end,
+        {0, 0},
+        Buffer
+    ).
+
 
 -ifdef(TEST).
 
