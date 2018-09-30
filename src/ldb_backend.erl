@@ -79,12 +79,12 @@ update(Key, Operation) ->
     do(update, [Key, Operation]).
 
 -spec message_maker(backend_state()) -> function().
-message_maker(BackendConfig) ->
-    do(message_maker, [BackendConfig]).
+message_maker(BackendState) ->
+    do(message_maker, [BackendState]).
 
 -spec message_handler(term(), backend_state()) -> function().
-message_handler(Message, BackendConfig) ->
-    do(message_handler, [Message, BackendConfig]).
+message_handler(Message, BackendState) ->
+    do(message_handler, [Message, BackendState]).
 
 -spec memory(sets:set(string())) -> {non_neg_integer(), non_neg_integer()}.
 memory(IgnoreKeys) ->
