@@ -76,8 +76,8 @@ message_maker(#state{actor=Actor, rr=RR}) ->
         %% get seq and last ack
         Seq = BufferType:seq(DeltaBuffer),
         LastAck = last_ack(NodeName, AckMap),
-        lager:info("message_maker: DeltaBuffer ~p", [BufferType:show(DeltaBuffer)]),
-        lager:info("message_maker: Seq ~p LastAck ~p NodeName ~p", [Seq, LastAck, NodeName]),
+        ?DEBUG("message_maker: DeltaBuffer ~p", [BufferType:show(DeltaBuffer)]),
+        ?DEBUG("message_maker: Seq ~p LastAck ~p NodeName ~p", [Seq, LastAck, NodeName]),
 
         case LastAck < Seq of
             true ->
@@ -106,7 +106,7 @@ message_maker(#state{actor=Actor, rr=RR}) ->
                         %% should send deltas
                         Deltas0 = BufferType:select(NodeName, LastAck, DeltaBuffer),
 
-                        lager:info("message_maker: Deltas0 ~p", [Deltas0]),
+                        ?DEBUG("message_maker: Deltas0 ~p", [Deltas0]),
 
                         case Deltas0 of
                             [] ->
@@ -143,7 +143,7 @@ message_maker(#state{actor=Actor, rr=RR}) ->
 -spec message_handler(term(), st()) -> function().
 message_handler({_, delta, _, _, _}, #state{actor=Actor, bp=BP, rr=RR}) ->
     fun({Key, delta, From, N, [{Type, _}=E|_]=Deltas}) ->
-        lager:info("delta: Deltas ~p From ~p N ~p", [Deltas, From, N]),
+        ?DEBUG("delta: Deltas ~p From ~p N ~p", [Deltas, From, N]),
 
         %% create bottom entry
         Bottom = ldb_util:new_crdt(state, E),
@@ -152,7 +152,7 @@ message_handler({_, delta, _, _, _}, #state{actor=Actor, bp=BP, rr=RR}) ->
         ldb_store:update(
             Key,
             fun({LocalCRDT0, {BufferType, DeltaBuffer0}, AckMap}) ->
-                lager:info("delta: DeltaBuffer0 ~p", [BufferType:show(DeltaBuffer0)]),
+                ?DEBUG("delta: DeltaBuffer0 ~p", [BufferType:show(DeltaBuffer0)]),
 
                 {InflationsOrChanged, LocalCRDT} = Type:delta_and_merge(RR, Deltas, LocalCRDT0),
 
@@ -176,7 +176,7 @@ message_handler({_, delta, _, _, _}, #state{actor=Actor, bp=BP, rr=RR}) ->
                         end
                 end,
 
-                lager:info("delta: DeltaBuffer ~p", [BufferType:show(DeltaBuffer)]),
+                ?DEBUG("delta: DeltaBuffer ~p", [BufferType:show(DeltaBuffer)]),
 
                 %% send ack
                 Ack = {
