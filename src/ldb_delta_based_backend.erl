@@ -87,12 +87,16 @@ message_maker(#state{actor=Actor, rr=RR}) ->
                     true ->
 
                         %% should send full state
+                        Deltas = case RR of
+                            true -> Type:join_decomposition(CRDT);
+                            false -> [CRDT]
+                        end,
                         {
                             Key,
                             delta,
                             Actor,
                             Seq,
-                            [CRDT]
+                            Deltas
                         };
                     false ->
 
@@ -108,11 +112,12 @@ message_maker(#state{actor=Actor, rr=RR}) ->
                                         Deltas0; %% do not compress
                                     false ->
                                         [First|Rest] = Deltas0,
-                                        lists:foldl(
+                                        Merged = lists:foldl(
                                             fun(Delta, Acc) -> Type:merge(Delta, Acc) end,
                                             First,
                                             Rest
-                                        )
+                                        ),
+                                        [Merged]
                                 end,
 
                                 {
