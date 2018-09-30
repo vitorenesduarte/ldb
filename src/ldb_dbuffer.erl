@@ -32,8 +32,14 @@
 %% @doc Create new buffer.
 -callback new(boolean(), function(), function()) -> buffer().
 
+%% @doc Retrieve seq.
+-callback seq(buffer()) -> sequence().
+
 %% @doc Retrieve min_seq.
 -callback min_seq(buffer()) -> sequence().
+
+%% @doc Check if buffer is empty.
+-callback is_empty(buffer()) -> boolean().
 
 %% @doc Add to buffer.
 -callback add_inflation(term(), ldb_node_id(), buffer()) -> buffer().

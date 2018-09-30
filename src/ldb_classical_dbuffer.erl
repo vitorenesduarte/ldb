@@ -32,7 +32,9 @@
 -endif.
 
 -export([new/3,
+         seq/1,
          min_seq/1,
+         is_empty/1,
          add_inflation/3,
          select/3,
          prune/2]).
@@ -57,10 +59,20 @@ new(AvoidBP, _ToKVFun, _FromKVFun) ->
              seq=0,
              buffer=maps:new()}.
 
+%% @doc Retrieve seq.
+-spec seq(d()) -> sequence().
+seq(#dbuffer{seq=Seq}) ->
+    Seq.
+
 %% @doc Retrieve min_seq.
 -spec min_seq(d()) -> sequence().
 min_seq(#dbuffer{min_seq=MinSeq}) ->
     MinSeq.
+
+%% @doc Check if buffer is empty.
+-spec is_empty(d()) -> boolean().
+is_empty(#dbuffer{buffer=Buffer}) ->
+    maps:size(Buffer) == 0.
 
 %% @doc Add to buffer.
 -spec add_inflation(term(), ldb_node_id(), d()) -> d().
