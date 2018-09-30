@@ -187,7 +187,7 @@ message_handler({_, delta, _, _, _}, #state{actor=Actor, bp=BP, rr=RR}) ->
                 },
                 ldb_whisperer:send(From, Ack),
 
-                StoreValue = {LocalCRDT, DeltaBuffer, AckMap},
+                StoreValue = {LocalCRDT, {BufferType, DeltaBuffer}, AckMap},
                 {ok, StoreValue}
             end,
             Default
