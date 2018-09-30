@@ -38,7 +38,8 @@
          add_inflation/3,
          select/3,
          prune/2,
-         size/1]).
+         size/1,
+         show/1]).
 
 -export_type([d/0]).
 
@@ -136,6 +137,17 @@ size(#dbuffer{buffer=Buffer}) ->
         {0, 0},
         Buffer
     ).
+
+%% @doc Pretty-print buffer.
+-spec show(d()) -> term().
+show(#dbuffer{min_seq=MinSeq, seq=Seq, buffer=Buffer}) ->
+    {MinSeq, Seq, lists:sort(maps:fold(
+        fun(EntrySeq, #dbuffer_entry{from=From, value={Type, _}=CRDT}, Acc) ->
+            [{EntrySeq, From, Type:query(CRDT)} | Acc]
+        end,
+        [],
+        Buffer
+    ))}.
 
 
 -ifdef(TEST).

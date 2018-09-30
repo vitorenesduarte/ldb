@@ -39,7 +39,8 @@
          add_inflation/3,
          select/3,
          prune/2,
-         size/1]).
+         size/1,
+         show/1]).
 
 -export_type([d/0]).
 
@@ -158,6 +159,18 @@ size(#dbuffer{from_kv_fun=FromKVFun,
         {0, 0},
         Buffer
     ).
+
+%% @doc Pretty-print buffer.
+-spec show(d()) -> term().
+show(#dbuffer{min_seq=MinSeq, seq=Seq, from_kv_fun=FromKVFun, buffer=Buffer}) ->
+    {MinSeq, Seq, lists:sort(maps:fold(
+        fun(Key, #dbuffer_entry{seq=EntrySeq, from=From, value=Value}, Acc) ->
+            {Type, _}=CRDT = FromKVFun(Key, Value),
+            [{EntrySeq, From, Type:query(CRDT)} | Acc]
+        end,
+        [],
+        Buffer
+    ))}.
 
 -ifdef(TEST).
 

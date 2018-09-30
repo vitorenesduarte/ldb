@@ -53,6 +53,9 @@
 %% @doc Size of buffer.
 -callback size(buffer()) -> {non_neg_integer(), non_neg_integer()}.
 
+%% @doc Pretty-print buffer.
+-callback show(buffer()) -> term().
+
 %% @doc Send if not seen (ack <= seq).
 %%      If BP, only send if not the origin (from != to)
 -spec should_send(ldb_node_id(), sequence(), ldb_node_id(), sequence(), boolean()) -> boolean().
