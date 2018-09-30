@@ -87,6 +87,7 @@ message_maker(#state{actor=Actor, rr=RR}) ->
                     true ->
 
                         %% should send full state
+                        %% - make sure that in RR only irreducibles are sent
                         Deltas = case RR of
                             true -> Type:join_decomposition(CRDT);
                             false -> [CRDT]
