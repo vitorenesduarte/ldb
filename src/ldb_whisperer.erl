@@ -229,6 +229,7 @@ metrics({_Key, state, CRDT}) ->
     ldb_util:size(crdt, CRDT);
 %% delta-based
 metrics({_Key, delta, _From, _Sequence, Deltas}) ->
+    lager:info("METRICS delta ~p", [Deltas]),
     lists:foldl(
         fun(Delta, Acc) ->
             ldb_util:plus(
