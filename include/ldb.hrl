@@ -22,7 +22,8 @@
 -type size_metric() :: {non_neg_integer(), non_neg_integer()}.
 
 %% clocks
--type dot() :: {ldb_node_id(), non_neg_integer()}.
+-type sequence() :: non_neg_integer().
+-type dot() :: {ldb_node_id(), sequence()}.
 -type vclock() :: vclock:v().
 -type m_vclock() :: m_vclock:m().
 
