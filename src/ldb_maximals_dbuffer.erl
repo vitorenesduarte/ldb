@@ -145,10 +145,10 @@ prune(AllAck, #dbuffer{buffer=Buffer0}=State) ->
 -spec size(d()) -> {non_neg_integer(), non_neg_integer()}.
 size(#dbuffer{from_kv_fun=FromKVFun,
               buffer=Buffer}) ->
-    lists:foldl(
+    maps:fold(
         fun(Key, #dbuffer_entry{value=Value}, Acc) ->
             Irreducible = FromKVFun(Key, Value),
-            plus([
+            ldb_util:plus([
                 Acc,
                 ldb_util:size(crdt, Irreducible),
                 %% +1 for the From and Sequence

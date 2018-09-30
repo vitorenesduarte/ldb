@@ -124,9 +124,9 @@ prune(AllAck, #dbuffer{buffer=Buffer0}=State) ->
 %% @doc
 -spec size(d()) -> {non_neg_integer(), non_neg_integer()}.
 size(#dbuffer{buffer=Buffer}) ->
-    lists:foldl(
+    maps:fold(
         fun(_, #dbuffer_entry{value=CRDT}, Acc) ->
-            plus([
+            ldb_util:plus([
                 Acc,
                 ldb_util:size(crdt, CRDT),
                 %% +1 for the From and Sequence
