@@ -154,23 +154,23 @@ message_handler({_, delta, _, _, _}, #state{actor=Actor, bp=BP, rr=RR}) ->
             fun({LocalCRDT0, {BufferType, DeltaBuffer0}, AckMap}) ->
                 ?DEBUG("delta: DeltaBuffer0 ~p", [BufferType:show(DeltaBuffer0)]),
 
-                {InflationsOrChanged, LocalCRDT} = Type:delta_and_merge(RR, Deltas, LocalCRDT0),
+                {IrreduciblesOrChanged, LocalCRDT} = Type:delta_and_merge(RR, Deltas, LocalCRDT0),
 
                 DeltaBuffer = case RR of
                     true ->
                         %% if RR, add all inflations to buffer
                         lists:foldl(
-                            fun(Inflation, Acc) ->
-                                BufferType:add_inflation(Inflation, From, Acc)
+                            fun(Irreducible, Acc) ->
+                                BufferType:add_inflation(Irreducible, From, Acc)
                             end,
                             DeltaBuffer0,
-                            InflationsOrChanged
+                            IrreduciblesOrChanged
                         );
 
                     false ->
                         %% if not, add the single remote CRDT received
                         %% (if something changed)
-                        case InflationsOrChanged of
+                        case IrreduciblesOrChanged of
                             true -> BufferType:add_inflation(E, From, DeltaBuffer0);
                             false -> DeltaBuffer0
                         end
@@ -270,13 +270,28 @@ handle_call({query, Key}, _From, State) ->
 
     {reply, Result, State};
 
-handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
+handle_call({update, Key, Operation}, _From, #state{actor=Actor, rr=RR}=State) ->
     ldb_util:qs("DELTA BACKEND update"),
     Function = fun({{Type, _}=CRDT0, {BufferType, DeltaBuffer0}, AckMap}) ->
         case Type:delta_mutate(Operation, Actor, CRDT0) of
             {ok, Delta} ->
                 CRDT1 = Type:merge(Delta, CRDT0),
-                DeltaBuffer1 = BufferType:add_inflation(Delta, Actor, DeltaBuffer0),
+
+                %% add to delta buffer
+                DeltaBuffer1 = case RR of
+                    true ->
+                        %% make sure we only add irreducibles in RR
+                        lists:foldl(
+                            fun(Irreducible, Acc) ->
+                                BufferType:add_inflation(Irreducible, Actor, Acc)
+                            end,
+                            DeltaBuffer0,
+                            Type:join_decomposition(Delta)
+                        );
+                    false ->
+                        BufferType:add_inflation(Delta, Actor, DeltaBuffer0)
+                end,
+
                 StoreValue = {CRDT1, {BufferType, DeltaBuffer1}, AckMap},
                 {ok, StoreValue};
             Error ->
