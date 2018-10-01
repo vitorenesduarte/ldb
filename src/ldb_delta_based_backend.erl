@@ -70,13 +70,13 @@ update_members(Members) ->
     gen_server:cast(?MODULE, {update_members, Members}).
 
 -spec message_maker(st()) -> function().
-message_maker(#state{actor=Actor, rr=RR}) ->
-    fun(Key, {{Type, _}=CRDT, {BufferType, DeltaBuffer}, AckMap}, NodeName) ->
+message_maker(#state{actor=Actor}) ->
+    fun(Key, {CRDT, DeltaBuffer, AckMap}, NodeName) ->
 
         %% get seq and last ack
-        Seq = BufferType:seq(DeltaBuffer),
+        Seq = ldb_dbuffer:seq(DeltaBuffer),
         LastAck = last_ack(NodeName, AckMap),
-        ?DEBUG("message_maker: DeltaBuffer ~p", [BufferType:show(DeltaBuffer)]),
+        ?DEBUG("message_maker: DeltaBuffer ~p", [ldb_dbuffer:show(DeltaBuffer)]),
         ?DEBUG("message_maker: Seq ~p LastAck ~p NodeName ~p", [Seq, LastAck, NodeName]),
 
         case LastAck < Seq of
@@ -84,53 +84,33 @@ message_maker(#state{actor=Actor, rr=RR}) ->
 
                 %% there's something missing in `NodeName'
                 %% get min seq
-                MinSeq = BufferType:min_seq(DeltaBuffer),
-                case BufferType:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
+                MinSeq = ldb_dbuffer:min_seq(DeltaBuffer),
+                case ldb_dbuffer:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
                     true ->
-
-                        %% should send full state
-                        %% - make sure that in RR only irreducibles are sent
-                        Deltas = case RR of
-                            true -> Type:join_decomposition(CRDT);
-                            false -> [CRDT]
-                        end,
                         {
                             Key,
                             delta,
                             Actor,
                             Seq,
-                            Deltas
+                            CRDT
                         };
                     false ->
 
                         %% should send deltas
-                        Deltas0 = BufferType:select(NodeName, LastAck, DeltaBuffer),
+                        Delta = ldb_dbuffer:select(NodeName, LastAck, DeltaBuffer),
 
                         ?DEBUG("message_maker: Deltas0 ~p", [Deltas0]),
 
-                        case Deltas0 of
-                            [] ->
+                        case Delta of
+                            undefined ->
                                 nothing;
                             _ ->
-                                Deltas = case RR of
-                                    true ->
-                                        Deltas0; %% do not compress
-                                    false ->
-                                        [First|Rest] = Deltas0,
-                                        Merged = lists:foldl(
-                                            fun(Delta, Acc) -> Type:merge(Delta, Acc) end,
-                                            First,
-                                            Rest
-                                        ),
-                                        [Merged]
-                                end,
-
                                 {
                                     Key,
                                     delta,
                                     Actor,
                                     Seq,
-                                    Deltas
+                                    Delta
                                 }
                         end
                 end;
@@ -142,41 +122,33 @@ message_maker(#state{actor=Actor, rr=RR}) ->
 
 -spec message_handler(term(), st()) -> function().
 message_handler({_, delta, _, _, _}, #state{actor=Actor, bp=BP, rr=RR}) ->
-    fun({Key, delta, From, N, [{Type, _}=E|_]=Deltas}) ->
-        ?DEBUG("delta: Deltas ~p From ~p N ~p", [Deltas, From, N]),
+    fun({Key, delta, From, N, {Type, _}=Remote}) ->
+        ?DEBUG("delta: Remote ~p From ~p N ~p", [Remote, From, N]),
 
         %% create bottom entry
-        Bottom = ldb_util:new_crdt(state, E),
-        Default = get_entry(Bottom, BP, RR),
+        Bottom = ldb_util:new_crdt(state, Remote),
+        Default = get_entry(Bottom, BP),
 
         ldb_store:update(
             Key,
-            fun({LocalCRDT0, {BufferType, DeltaBuffer0}, AckMap}) ->
-                ?DEBUG("delta: DeltaBuffer0 ~p", [BufferType:show(DeltaBuffer0)]),
+            fun({LocalCRDT0, DeltaBuffer0, AckMap}) ->
+                ?DEBUG("delta: DeltaBuffer0 ~p", [ldb_dbuffer:show(DeltaBuffer0)]),
 
-                {IrreduciblesOrChanged, LocalCRDT} = Type:delta_and_merge(RR, Deltas, LocalCRDT0),
+                {Delta, LocalCRDT} = Type:delta_and_merge(Remote, LocalCRDT0),
 
-                DeltaBuffer = case RR of
+                DeltaBuffer = case Type:is_bottom(Delta) of
                     true ->
-                        %% if RR, add all inflations to buffer
-                        lists:foldl(
-                            fun(Irreducible, Acc) ->
-                                BufferType:add_inflation(Irreducible, From, Acc)
-                            end,
-                            DeltaBuffer0,
-                            IrreduciblesOrChanged
-                        );
-
+                        %% no inflation
+                        DeltaBuffer0;
                     false ->
-                        %% if not, add the single remote CRDT received
-                        %% (if something changed)
-                        case IrreduciblesOrChanged of
-                            true -> BufferType:add_inflation(E, From, DeltaBuffer0);
-                            false -> DeltaBuffer0
+                        %% if inflation, add \Delta if RR, remote otherwise
+                        case RR of
+                            true -> ldb_dbuffer:add_inflation(Delta, From, DeltaBuffer0);
+                            false -> ldb_dbuffer:add_inflation(Remote, From, DeltaBuffer0)
                         end
                 end,
 
-                ?DEBUG("delta: DeltaBuffer ~p", [BufferType:show(DeltaBuffer)]),
+                ?DEBUG("delta: DeltaBuffer ~p", [ldb_dbuffer:show(DeltaBuffer)]),
 
                 %% send ack
                 Ack = {
@@ -187,7 +159,7 @@ message_handler({_, delta, _, _, _}, #state{actor=Actor, bp=BP, rr=RR}) ->
                 },
                 ldb_whisperer:send(From, Ack),
 
-                StoreValue = {LocalCRDT, {BufferType, DeltaBuffer}, AckMap},
+                StoreValue = {LocalCRDT, DeltaBuffer, AckMap},
                 {ok, StoreValue}
             end,
             Default
@@ -197,7 +169,7 @@ message_handler({_, delta_ack, _, _}, _State) ->
     fun({Key, delta_ack, From, N}) ->
         ldb_store:update(
             Key,
-            fun({LocalCRDT, {BufferType, DeltaBuffer0}, AckMap0}) ->
+            fun({LocalCRDT, DeltaBuffer0, AckMap0}) ->
                 LastAck = last_ack(From, AckMap0),
 
                 %% when a new ack is received,
@@ -207,9 +179,9 @@ message_handler({_, delta_ack, _, _}, _State) ->
                 AckMap1 = maps:put(From, MaxAck, AckMap0),
 
                 %% and try to shrink the delta-buffer immediately
-                DeltaBuffer1 = BufferType:prune(min_seq_ack_map(AckMap1), DeltaBuffer0),
+                DeltaBuffer1 = ldb_dbuffer:prune(min_seq_ack_map(AckMap1), DeltaBuffer0),
 
-                StoreValue = {LocalCRDT, {BufferType, DeltaBuffer1}, AckMap1},
+                StoreValue = {LocalCRDT, DeltaBuffer1, AckMap1},
                 {ok, StoreValue}
             end
         )
@@ -245,11 +217,10 @@ init([]) ->
                 bp=BP,
                 rr=RR}}.
 
-handle_call({create, Key, LDBType}, _From, #state{bp=BP,
-                                                  rr=RR}=State) ->
+handle_call({create, Key, LDBType}, _From, #state{bp=BP}=State) ->
     ldb_util:qs("DELTA BACKEND create"),
     Bottom = ldb_util:new_crdt(type, LDBType),
-    Default = get_entry(Bottom, BP, RR),
+    Default = get_entry(Bottom, BP),
 
     Result = ldb_store:update(
         Key,
@@ -270,29 +241,14 @@ handle_call({query, Key}, _From, State) ->
 
     {reply, Result, State};
 
-handle_call({update, Key, Operation}, _From, #state{actor=Actor, rr=RR}=State) ->
+handle_call({update, Key, Operation}, _From, #state{actor=Actor}=State) ->
     ldb_util:qs("DELTA BACKEND update"),
-    Function = fun({{Type, _}=CRDT0, {BufferType, DeltaBuffer0}, AckMap}) ->
+    Function = fun({{Type, _}=CRDT0, DeltaBuffer0, AckMap}) ->
         case Type:delta_mutate(Operation, Actor, CRDT0) of
             {ok, Delta} ->
                 CRDT1 = Type:merge(Delta, CRDT0),
-
-                %% add to delta buffer
-                DeltaBuffer1 = case RR of
-                    true ->
-                        %% make sure we only add irreducibles in RR
-                        lists:foldl(
-                            fun(Irreducible, Acc) ->
-                                BufferType:add_inflation(Irreducible, Actor, Acc)
-                            end,
-                            DeltaBuffer0,
-                            Type:join_decomposition(Delta)
-                        );
-                    false ->
-                        BufferType:add_inflation(Delta, Actor, DeltaBuffer0)
-                end,
-
-                StoreValue = {CRDT1, {BufferType, DeltaBuffer1}, AckMap},
+                DeltaBuffer1 = ldb_dbuffer:add_inflation(Delta, Actor, DeltaBuffer0),
+                StoreValue = {CRDT1, DeltaBuffer1, AckMap},
                 {ok, StoreValue};
             Error ->
                 Error
@@ -304,10 +260,7 @@ handle_call({update, Key, Operation}, _From, #state{actor=Actor, rr=RR}=State) -
 
 handle_call({memory, IgnoreKeys}, _From, State) ->
     ldb_util:qs("DELTA BACKEND memory"),
-    FoldFunction = fun(Key,
-                       {CRDT, {BufferType, DeltaBuffer}, AckMap},
-                       {C0, R0}) ->
-       ?DEBUG("memory: Key ~p IgnoreKeys ~p Metrics ~p", [Key, sets:to_list(IgnoreKeys), not sets:is_element(Key, IgnoreKeys)]),
+    FoldFunction = fun(Key, {CRDT, DeltaBuffer, AckMap}, {C0, R0}) ->
        case sets:is_element(Key, IgnoreKeys) of
            true ->
                {C0, R0};
@@ -318,7 +271,7 @@ handle_call({memory, IgnoreKeys}, _From, State) ->
                 R = ldb_util:plus([
                     R0,
                     ldb_util:size(ack_map, AckMap),
-                    BufferType:size(DeltaBuffer)
+                    ldb_dbuffer:size(DeltaBuffer)
                 ]),
 
                 {C, R}
@@ -338,9 +291,9 @@ handle_call(Msg, _From, State) ->
 handle_cast({update_members, Peers}, State) ->
     ldb_util:qs("DELTA BACKEND update_members"),
 
-    ShrinkFun = fun({_Key, {LocalCRDT, {BufferType, DeltaBuffer0}, AckMap0}}) ->
+    ShrinkFun = fun({_Key, {LocalCRDT, DeltaBuffer0, AckMap0}}) ->
         %% get buffer seq
-        Sequence = BufferType:seq(DeltaBuffer0),
+        Sequence = ldb_dbuffer:seq(DeltaBuffer0),
 
         %% only keep in the ack map entries from current peers
         AckMap1 = maps:with(Peers, AckMap0),
@@ -367,12 +320,12 @@ handle_cast({update_members, Peers}, State) ->
                         min_seq_ack_map(AckMap1)
                 end,
 
-                BufferType:prune(Min, DeltaBuffer0);
+                ldb_dbuffer:prune(Min, DeltaBuffer0);
             false ->
                 DeltaBuffer0
         end,
 
-        NewValue = {LocalCRDT, {BufferType, DeltaBuffer1}, AckMap1},
+        NewValue = {LocalCRDT, DeltaBuffer1, AckMap1},
         {ok, NewValue}
     end,
 
@@ -394,20 +347,14 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% @private
-get_entry({Type, _}=Bottom, BP, RR) ->
-    {ToKVFun, FromKVFun} = Type:indexing_funs(),
-
+get_entry(Bottom, BP) ->
     %% create buffer
-    BufferType = case RR of
-        true -> ldb_maximals_dbuffer;
-        false -> ldb_classical_dbuffer
-    end,
-    DeltaBuffer = BufferType:new(BP, ToKVFun, FromKVFun),
+    DeltaBuffer = ldb_dbuffer:new(BP),
 
     %% create ack map
     AckMap = maps:new(),
 
-    {Bottom, {BufferType, DeltaBuffer}, AckMap}.
+    {Bottom, DeltaBuffer, AckMap}.
 
 %% @private
 min_seq_ack_map(AckMap) ->

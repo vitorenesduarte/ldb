@@ -71,9 +71,8 @@ handle_cast(Message, #state{backend_state=BackendState,
     ),
 
     %% record latency applying this message but
-    %% ignore some keys and delta acks
-    ShouldIgnore = sets:is_element(element(1, Message), IgnoreKeys)
-            orelse element(2, Message) == delta_ack,
+    %% - ignore some keys
+    ShouldIgnore = sets:is_element(element(1, Message), IgnoreKeys),
     ?DEBUG("listener: Key ~p IgnoreKeys ~p Metrics ~p", [element(1, Message), sets:to_list(IgnoreKeys), not ShouldIgnore]),
     case ShouldIgnore of
         true -> ok;

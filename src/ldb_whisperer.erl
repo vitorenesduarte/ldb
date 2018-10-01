@@ -229,16 +229,10 @@ should_save_key(Key, IgnoreKeys) ->
 metrics({_Key, state, CRDT}) ->
     ldb_util:size(crdt, CRDT);
 %% delta-based
-metrics({_Key, delta, _From, _Sequence, Deltas}) ->
-    lists:foldl(
-        fun(Delta, Acc) ->
-            ldb_util:plus(
-                Acc,
-                ldb_util:size(crdt, Delta)
-            )
-        end,
+metrics({_Key, delta, _From, _Sequence, Delta}) ->
+    ldb_util:plus(
         ?SEQ,
-        Deltas
+        ldb_util:size(crdt, Delta)
     );
 metrics({_Key, delta_ack, _From, _Sequence}) ->
     ?SEQ;
