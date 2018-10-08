@@ -63,7 +63,9 @@ get_backend() ->
         delta_based ->
             ldb_delta_based_backend;
         scuttlebutt ->
-            ldb_scuttlebutt_backend
+            ldb_scuttlebutt_backend;
+        vanilla_scuttlebutt ->
+            ldb_vanilla_scuttlebutt_backend
     end.
 
 %% @doc
@@ -82,13 +84,15 @@ unix_timestamp() ->
     erlang:system_time(second).
 
 %% @doc
--spec size(crdt | ack_map | matrix | dotted_buffer, term()) ->
+-spec size(crdt | ack_map | vector | matrix | dotted_buffer, term()) ->
     {non_neg_integer(), non_neg_integer()}.
 size(crdt, CRDT) ->
     state_type:crdt_size(CRDT);
 size(ack_map, AckMap) ->
     {maps:size(AckMap), 0};
 %% scuttlebutt
+size(vector, VV) ->
+    {vclock:size(VV), 0};
 size(matrix, Matrix) ->
     %% matrix size is the sum of all vector sizes
     %% plus the number of entries in the matrix
