@@ -166,12 +166,12 @@ dbuffer_test() ->
     AvoidBP = true,
     Buffer0 =  new(AvoidBP),
 
-    Buffer1 = add_inflation({state_gcounter, [{a, 1}]}, a, Buffer0),
+    Buffer1 = add_inflation({state_gcounter, maps:from_list([{a, 1}])}, a, Buffer0),
     ToA0 = select(a, 0, Buffer1),
     ToA1 = select(a, 0, Buffer1#dbuffer{avoid_bp=false}),
     ToA2 = select(a, 1, Buffer1),
 
-    Buffer2 = add_inflation({state_gcounter, [{b, 1}]}, b, Buffer1),
+    Buffer2 = add_inflation({state_gcounter, maps:from_list([{b, 1}])}, b, Buffer1),
     ToA3 = select(a, 1, Buffer2),
     ToB0 = select(b, 0, Buffer2),
 
@@ -183,22 +183,22 @@ dbuffer_test() ->
     %% given that we pruned 2, select 1 shouldn't occur, but:
     ToA6 = select(a, 1, Buffer4),
 
-    Buffer5 = add_inflation({state_gcounter, [{c, 1}]}, c, Buffer4),
+    Buffer5 = add_inflation({state_gcounter, maps:from_list([{c, 1}])}, c, Buffer4),
     ToA7 = select(a, 2, Buffer5),
     ToB1 = select(b, 2, Buffer5),
     ToC0 = select(c, 2, Buffer5),
 
     ?assertEqual(undefined, ToA0),
-    ?assertEqual({state_gcounter, [{a, 1}]}, ToA1),
+    ?assertEqual({state_gcounter, maps:from_list([{a, 1}])}, ToA1),
     ?assertEqual(undefined, ToA2),
-    ?assertEqual({state_gcounter, [{b, 1}]}, ToA3),
-    ?assertEqual({state_gcounter, [{a, 1}]}, ToB0),
-    ?assertEqual({state_gcounter, [{a, 1}]}, ToB0),
-    ?assertEqual({state_gcounter, [{b, 1}]}, ToA4),
+    ?assertEqual({state_gcounter, maps:from_list([{b, 1}])}, ToA3),
+    ?assertEqual({state_gcounter, maps:from_list([{a, 1}])}, ToB0),
+    ?assertEqual({state_gcounter, maps:from_list([{a, 1}])}, ToB0),
+    ?assertEqual({state_gcounter, maps:from_list([{b, 1}])}, ToA4),
     ?assertEqual(undefined, ToA5),
     ?assertEqual(undefined, ToA6),
-    ?assertEqual({state_gcounter, [{c, 1}]}, ToA7),
-    ?assertEqual({state_gcounter, [{c, 1}]}, ToB1),
+    ?assertEqual({state_gcounter, maps:from_list([{c, 1}])}, ToA7),
+    ?assertEqual({state_gcounter, maps:from_list([{c, 1}])}, ToB1),
     ?assertEqual(undefined, ToC0),
     ok.
 
