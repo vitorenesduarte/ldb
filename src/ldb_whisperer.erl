@@ -237,6 +237,8 @@ metrics({_Key, delta, _From, _Sequence, Delta}) ->
 metrics({_Key, delta_ack, _From, _Sequence}) ->
     ?SEQ;
 %% scuttlebutt
+metrics({_Key, vector, _From, _Bottom, Vector}) ->
+    ldb_util:size(vector, Vector);
 metrics({_Key, matrix, _From, _Bottom, Matrix}) ->
     ldb_util:size(matrix, Matrix);
 metrics({_Key, dotted_buffer, Buffer}) ->
