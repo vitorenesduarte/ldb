@@ -136,7 +136,7 @@ handle_cast({msg, From, Key, Message}, #state{shard_name=ShardName,
 
     %% maybe save metrics
     case Metrics of
-        true -> ldb_metrics:record_latency(remote, MicroSeconds);
+        true -> ldb_metrics:record_processing(MicroSeconds);
         false -> ok
     end,
     {noreply, State#state{kv=KV}};
@@ -189,9 +189,8 @@ handle_info(?TIME_SERIES, #state{kv=KV,
     end,
     Result = maps:fold(FoldFun, {{0, 0}, {0, 0}}, KV),
 
-    %% notify metrics
-    Timestamp = ldb_util:unix_timestamp(),
-    ldb_metrics:record_memory(Timestamp, Result),
+    %% notify metrics, if there's something to notify
+    ldb_metrics:record_memory(Result),
     schedule_time_series(),
     {noreply, State};
 
@@ -208,8 +207,8 @@ do_make(Backend, BackendState, Stored, LDBId) ->
         [Stored, LDBId, BackendState]
     ),
 
-    %% record latency creating this message
-    ldb_metrics:record_latency(local, MicroSeconds),
+    %% record time creating this message
+    ldb_metrics:record_processing(MicroSeconds),
 
     Message.
 
