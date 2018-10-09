@@ -2,7 +2,7 @@
              [{description,"Conflict-free Replicated Data Types Database"},
               {vsn,"0.0.18"},
               {registered,[]},
-              {maintainers,["Vitor Enes Duarte","Georges Younes"]},
+              {maintainers,["Vitor Enes","Georges Younes"]},
               {applications,[kernel,stdlib,crypto,jsx,inets,lager,partisan,types]},
               {mod,{ldb_app,[]}},
               {modules,[]},

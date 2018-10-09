@@ -18,7 +18,7 @@
 %% -------------------------------------------------------------------
 
 -module(ldb_metrics).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
@@ -30,7 +30,7 @@
          get_latency/0,
          record_transmission/1,
          record_latency/2,
-         update_ignore_keys/1]).
+         record_memory/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -48,10 +48,7 @@
 -type latency() :: list({latency_type(), list(integer())}).
 
 -record(state, {time_series :: time_series(),
-                latency_type_to_latency :: orddict:orddict(),
-                ignore_keys :: sets:set(string())}).
-
--define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
+                latency_type_to_latency :: orddict:orddict()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
 start_link() ->
@@ -76,19 +73,15 @@ record_transmission(Size) ->
 record_latency(Type, MicroSeconds) ->
     gen_server:cast(?MODULE, {latency, Type, MicroSeconds}).
 
--spec update_ignore_keys(sets:set(string())) -> ok.
-update_ignore_keys(IgnoreKeys) ->
-    ldb_listener:update_ignore_keys(IgnoreKeys),
-    ldb_whisperer:update_ignore_keys(IgnoreKeys),
-    gen_server:call(?MODULE, {update_ignore_keys, IgnoreKeys}, infinity).
+-spec record_memory(timestamp(), two_size_metric()) -> ok.
+record_memory(Timestamp, Size) ->
+    gen_server:cast(?MODULE, {memory, Timestamp, Size}).
 
 %% gen_server callbacks
 init([]) ->
-    schedule_time_series(),
     lager:info("ldb_metrics initialized!"),
     {ok, #state{latency_type_to_latency=orddict:new(),
-                time_series=[],
-                ignore_keys=sets:new()}}.
+                time_series=[]}}.
 
 handle_call(get_time_series, _From,
             #state{time_series=TimeSeries}=State) ->
@@ -97,9 +90,6 @@ handle_call(get_time_series, _From,
 handle_call(get_latency, _From,
             #state{latency_type_to_latency=Map}=State) ->
     {reply, Map, State};
-
-handle_call({update_ignore_keys, IgnoreKeys}, _Fromm, State) ->
-    {reply, ok, State#state{ignore_keys=IgnoreKeys}};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
@@ -119,23 +109,14 @@ handle_cast({latency, Type, MicroSeconds},
     Map1 = orddict:append(Type, MicroSeconds, Map0),
     {noreply, State#state{latency_type_to_latency=Map1}};
 
+handle_cast({memory, Timestamp, Size}, #state{time_series=TimeSeries0}=State) ->
+    MMetric = {Timestamp, memory, Size},
+    TimeSeries1 = lists:append(TimeSeries0, [MMetric]),
+    {noreply, State#state{time_series=TimeSeries1}};
+
 handle_cast(Msg, State) ->
     lager:warning("Unhandled cast message: ~p", [Msg]),
     {noreply, State}.
-
-handle_info(time_series, #state{time_series=TimeSeries0,
-                                ignore_keys=IgnoreKeys}=State) ->
-    Timestamp = ldb_util:unix_timestamp(),
-
-    % transmission metrics are already recorded in `time_series'
-
-    % memory metrics
-    MMetric = {Timestamp, memory, ldb_backend:memory(IgnoreKeys)},
-    TimeSeries1 = lists:append(TimeSeries0, [MMetric]),
-
-    schedule_time_series(),
-
-    {noreply, State#state{time_series=TimeSeries1}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
@@ -146,7 +127,3 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%% @private
-schedule_time_series() ->
-    timer:send_after(?TIME_SERIES_INTERVAL, time_series).

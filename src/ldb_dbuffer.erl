@@ -124,7 +124,7 @@ prune(AllAck, #dbuffer{buffer=Buffer0}=State) ->
     State#dbuffer{min_seq=AllAck, buffer=Buffer}.
 
 %% @doc
--spec size(d()) -> {non_neg_integer(), non_neg_integer()}.
+-spec size(d()) -> size_metric().
 size(#dbuffer{buffer=Buffer}) ->
     maps:fold(
         fun(_, #dbuffer_entry{value=CRDT}, Acc) ->

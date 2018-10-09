@@ -1,7 +1,5 @@
 -define(APP, ldb).
--type not_found() :: {error, not_found}.
--type error() :: {error, atom()}.
-
+-type error() :: {error, term()}.
 
 %% ldb
 -type key() :: string().
@@ -10,7 +8,9 @@
 -type operation() :: term().
 
 %% backend
+-type backend_stored() :: term().
 -type backend_state() :: term().
+-type dbuffer() :: ldb_dbuffer:d().
 
 %% peer service
 -type ldb_node_id() :: node().
@@ -23,6 +23,7 @@
 
 %% size metric: metadata size, payload size
 -type size_metric() :: {non_neg_integer(), non_neg_integer()}.
+-type two_size_metric() :: {size_metric(), size_metric()}.
 
 %% clocks
 -type sequence() :: non_neg_integer().

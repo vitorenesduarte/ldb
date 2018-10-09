@@ -18,7 +18,7 @@
 %% -------------------------------------------------------------------
 
 -module(ldb_util).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
@@ -28,10 +28,12 @@
          get_backend/0,
          atom_to_binary/1,
          binary_to_atom/1,
+         integer_to_atom/1,
          unix_timestamp/0,
          size/2,
          plus/1,
-         plus/2]).
+         plus/2,
+         two_plus/2]).
 
 -export([qs/1]).
 
@@ -79,6 +81,11 @@ binary_to_atom(Binary) ->
     erlang:binary_to_atom(Binary, utf8).
 
 %% @doc
+-spec integer_to_atom(integer()) -> atom().
+integer_to_atom(Integer) ->
+    list_to_atom(integer_to_list(Integer)).
+
+%% @doc
 -spec unix_timestamp() -> timestamp().
 unix_timestamp() ->
     erlang:system_time(second).
@@ -117,10 +124,19 @@ size(dotted_buffer, Buffer) ->
     ).
 
 %% @doc sum
+-spec plus([size_metric()]) -> size_metric().
 plus(L) ->
     lists:foldl(fun(E, Acc) -> plus(E, Acc) end, {0, 0}, L).
+
+%% @doc
+-spec plus(size_metric(), size_metric()) -> size_metric().
 plus({A1, B1}, {A2, B2}) ->
     {A1 + A2, B1 + B2}.
+
+%% @doc
+-spec two_plus(two_size_metric(), two_size_metric()) -> two_size_metric().
+two_plus({A1, B1}, {A2, B2}) ->
+    {plus(A1, A2), plus(B1, B2)}.
 
 %% @private
 extract_args({Type, Args}) ->

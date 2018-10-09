@@ -18,7 +18,7 @@
 %% -------------------------------------------------------------------
 
 -module(ldb_sup).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
@@ -28,31 +28,22 @@
 
 -export([init/1]).
 
+-define(CHILD(Name, Mod, Args),
+        {Name, {Mod, start_link, Args}, permanent, 5000, worker, [Mod]}).
+-define(CHILD(I),
+        ?CHILD(I, I, [])).
+
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    BaseSpecs = configure(),
+    configure(),
+    BaseSpecs = [?CHILD(ldb_metrics)],
 
-    Backend = {ldb_backend,
-               {ldb_backend, start_link, []},
-               permanent, 5000, worker, [ldb_backend]},
+    ReplicationSpecs = [?CHILD(Shard, ldb_shard, [Shard])
+                        || Shard <- ldb_forward:all_shards()],
 
-    Whisperer = {ldb_whisperer,
-                 {ldb_whisperer, start_link, []},
-                 permanent, 5000, worker, [ldb_whisperer]},
-
-    Listener = {ldb_listener,
-                {ldb_listener, start_link, []},
-                permanent, 5000, worker, [ldb_listener]},
-
-    ReplicationSpecs = [Backend,
-                        Whisperer,
-                        Listener],
-
-    SpaceSpecs = space_specs(),
-
-    Children = BaseSpecs ++ ReplicationSpecs ++ SpaceSpecs,
+    Children = BaseSpecs ++ ReplicationSpecs,
 
     lager:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
@@ -86,33 +77,16 @@ configure() ->
                   false),
 
     %% configure metrics
-    Metrics = configure_var("LDB_METRICS",
-                            ldb_metrics,
-                            true),
+    configure_var("LDB_METRICS",
+                  ldb_metrics,
+                  true),
 
-    BaseSpecs = case Metrics of
-        true ->
-            [{ldb_metrics,
-              {ldb_metrics, start_link, []},
-              permanent, 5000, worker, [ldb_metrics]}];
-        false ->
-            []
+    %% configure members callback
+    MembersFun = fun(Membership) ->
+        Members = ldb_util:parse_membership(Membership),
+        ldb_forward:update_members(Members)
     end,
-
-    BaseSpecs.
-
-
-%% @private
-space_specs() ->
-    %% the space server is only started if LDB_SPACE_PORT is defined
-    case list_to_integer(os:getenv("LDB_SPACE_PORT", "-1")) of
-        -1 ->
-            [];
-        SpacePort ->
-            [{ldb_space_server,
-              {ldb_space_server, start_link, [SpacePort]},
-              permanent, 5000, worker, [ldb_space_server]}]
-    end.
+    partisan_peer_service:add_sup_callback(MembersFun).
 
 %% @private
 configure_var(Env, Var, Default) ->
