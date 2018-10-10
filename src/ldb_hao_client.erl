@@ -100,8 +100,8 @@ init([out, Ip, Port]) ->
 handle_call(Msg, _From, State) ->
     {stop, {unhandled, Msg}, State}.
 
-handle_cast({forward_message, _, _}=Data, #state{socket=Socket, spec=Spec}=State) ->
-    ldb_util:qs({socket, Spec}),
+handle_cast({forward_message, _, _}=Data, #state{socket=Socket}=State) ->
+    ldb_util:qs(do_send),
     Encoded = term_to_binary(Data),
     do_send(Encoded, Socket),
     {noreply, State}.
@@ -126,6 +126,7 @@ terminate(Reason, #state{socket=Socket, spec={Id, _, _}}) ->
 
 %% @private
 do_receive({forward_message, Mod, Message}, Socket) ->
+    ldb_util:qs(do_receive),
     %% forward to mod/actor
     gen_server:cast(Mod, Message),
 
