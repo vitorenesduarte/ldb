@@ -23,8 +23,7 @@
 -include("ldb.hrl").
 
 %% ldb_util callbacks
--export([parse_membership/1,
-         new_crdt/2,
+-export([new_crdt/2,
          get_backend/0,
          atom_to_binary/1,
          binary_to_atom/1,
@@ -36,11 +35,6 @@
          two_plus/2]).
 
 -export([qs/1]).
-
-%% @doc Parse membership from partisan.
--spec parse_membership(list(node_spec())) -> list(ldb_node_id()).
-parse_membership(Membership) ->
-    [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()].
 
 %% @doc Creates a bottom CRDT from a type
 %%      or from an existing state-based CRDT.

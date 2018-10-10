@@ -220,25 +220,19 @@ do_make(Backend, BackendState, Stored, LDBId) ->
 -spec do_send(atom(), atom(), ldb_node_id(), ldb_node_id(), key(), term(), boolean()) -> ok.
 do_send(Backend, ShardName, From, To, Key, Message, Metrics) ->
     %% try to send the message
-    Result = ldb_peer_service:forward_message(
+    ok = ldb_hao:forward_message(
         To,
         ShardName,
         {msg, From, Key, Message}
     ),
 
     %% if message was sent, collect metrics
-    case Result of
-        ok ->
-            case Metrics of
-                true ->
-                    Size = Backend:message_size(Message),
-                    ldb_metrics:record_transmission(Size);
-                false ->
-                    ok
-            end;
-        Error ->
-            lager:info("Error trying to send message ~p to node ~p. Reason ~p",
-                       [Message, To, Error])
+    case Metrics of
+        true ->
+            Size = Backend:message_size(Message),
+            ldb_metrics:record_transmission(Size);
+        false ->
+            ok
     end,
     ok.
 

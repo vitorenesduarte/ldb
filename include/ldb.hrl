@@ -31,14 +31,9 @@
 -type vclock() :: vclock:v().
 -type m_vclock() :: m_vclock:m().
 
-%% space server
--define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
-
 %% defaults
 -define(DEFAULT_STATE_SYNC_INTERVAL, 1000).
--define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
 -define(DEFAULT_MODE, state_based).
--define(DEFAULT_STORE, ldb_actor_store).
 
 %% logging
 -ifdef(debug).
