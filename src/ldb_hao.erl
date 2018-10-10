@@ -33,7 +33,7 @@
          join/1,
          members/0,
          forward_message/3,
-         exit/1]).
+         exit/2]).
 
 %% gen_server
 -export([init/1,
@@ -63,11 +63,13 @@ members() ->
 
 -spec forward_message(ldb_node_id(), atom(), message()) -> ok.
 forward_message(Id, Mod, Message) ->
-    gen_server:cast(Id, {forward_message, Mod, Message}).
+    %% pick a random connection
+    Name = ldb_util:connection_name(Id),
+    gen_server:cast(Name, {forward_message, Mod, Message}).
 
--spec exit(ldb_node_id()) -> ok.
-exit(Id) ->
-    gen_server:cast(?MODULE, {exit, Id}).
+-spec exit(ldb_node_id(), pid()) -> ok.
+exit(Id, Pid) ->
+    gen_server:cast(?MODULE, {exit, Id, Pid}).
 
 init([]) ->
     lager:info("ldb hao initialized!"),
@@ -83,12 +85,10 @@ handle_call({join, {Id, Ip, Port}=Spec}, _From,
     lager:info("Will connect to ~p", [Spec]),
 
     %% try to connect
-    {Result, NewMembers, Connections} = ldb_hao_connections:connect(Id,
-                                                                    Ip,
-                                                                    Port,
-                                                                    Connections0),
+    {Result, Connections} = ldb_hao_connections:connect(Id, Ip, Port,
+                                                        Connections0),
 
-    notify_app(NewMembers, Connections),
+    notify_app(true, Connections),
 
     {reply, Result, State#state{connections=Connections}};
 
@@ -96,11 +96,10 @@ handle_call(members, _From, #state{connections=Connections}=State) ->
     Members = ldb_hao_connections:members(Connections),
     {reply, {ok, Members}, State}.
 
-handle_cast({exit, Failed}, #state{connections=Connections0}=State) ->
+handle_cast({exit, Id, Pid}, #state{connections=Connections0}=State) -> 
+    lager:info("EXIT of ~p.", [Id]),
 
-    lager:info("EXIT of ~p.", [Failed]),
-
-    {NewMembers, Connections} = ldb_hao_connections:exit(Failed, Connections0),
+    {NewMembers, Connections} = ldb_hao_connections:exit(Id, Pid, Connections0),
 
     notify_app(NewMembers, Connections),
 

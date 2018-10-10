@@ -120,7 +120,7 @@ terminate(Reason, #state{socket=Socket, spec={Id, _, _}}) ->
     lager:info("Terminate. Reason ~p", [Reason]),
 
     ok = gen_tcp:close(Socket),
-    ldb_hao:exit(Id),
+    ldb_hao:exit(Id, self()),
 
     ok.
 

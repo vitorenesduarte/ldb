@@ -32,7 +32,9 @@
          size/2,
          plus/1,
          plus/2,
-         two_plus/2]).
+         two_plus/2,
+         connection_name/1,
+         connection_name/2]).
 
 -export([qs/1]).
 
@@ -131,6 +133,17 @@ plus({A1, B1}, {A2, B2}) ->
 -spec two_plus(two_size_metric(), two_size_metric()) -> two_size_metric().
 two_plus({A1, B1}, {A2, B2}) ->
     {plus(A1, A2), plus(B1, B2)}.
+
+%% @doc
+-spec connection_name(ldb_node_id()) -> atom().
+connection_name(Id) ->
+    RandomIndex = rand:uniform(?CONNECTIONS),
+    connection_name(Id, RandomIndex).
+
+%% @doc
+-spec connection_name(ldb_node_id(), non_neg_integer()) -> atom().
+connection_name(Id, Index) ->
+    list_to_atom(atom_to_list(Id) ++ "_" ++ integer_to_list(Index)).
 
 %% @private
 extract_args({Type, Args}) ->

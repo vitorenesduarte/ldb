@@ -29,7 +29,7 @@
 -export([new/0,
          connect/4,
          members/1,
-         exit/2]).
+         exit/3]).
 
 -export_type([connections/0]).
 
@@ -37,7 +37,7 @@
 %% connections
 -record(connection, {ip :: node_ip(),
                      port :: node_port(),
-                     pid :: pid() | undefined}).
+                     pids :: [pid()]}).
 -type connection() :: #connection{}.
 -type connections() :: maps:map(ldb_node_id(), connection()).
 
@@ -55,33 +55,18 @@ new() ->
 %%        - 2nd component: boolean indicating if the list of members changed
 %%        - 3nd component: connections
 -spec connect(ldb_node_id(), node_ip(), node_port(), connections()) ->
-    {ok | error(), boolean(), connections()}.
+    {ok | error(), connections()}.
 connect(Id, Ip, Port, Connections) ->
-
-    ShouldConnect = case maps:find(Id, Connections) of
-        {ok, #connection{pid=Pid}} ->
-            Pid =:= undefined;
-        error ->
-            true
-    end,
-
-    case ShouldConnect of
-        true ->
-            do_connect(Id, Ip, Port, Connections);
-        false ->
-            {ok, false, Connections}
-    end.
+    do_connect(Id, Ip, Port, Connections, ?CONNECTIONS).
 
 %% @doc Returns a list of connected members.
 -spec members(connections()) -> list(ldb_node_id()).
 members(Connections) ->
     maps:fold(
-        fun(Id, #connection{pid=Pid}, Result) ->
-            case Pid of
-                undefined ->
-                    Result;
-                _ ->
-                    [Id | Result]
+        fun(Id, #connection{pids=Pids}, Result) ->
+            case Pids of
+                [] -> Result;
+                _ -> [Id | Result]
             end
         end,
         [],
@@ -92,31 +77,30 @@ members(Connections) ->
 %%      It also informs if the set of members changed:
 %%        - if was already `undefined', it didn't (can this every happen?)
 %%        - if not, it did :)
--spec exit(ldb_node_id(), connections()) -> {boolean(), connections()}.
-exit(Id, Connections0) ->
-    case maps:find(Id, Connections0) of
-        {ok, #connection{pid=undefined}} ->
-            {false, Connections0};
-        {ok, _} ->
-            Connections = maps:update_with(
-                Id,
-                fun(Connection) -> Connection#connection{pid=undefined} end,
-                Connections0
-            ),
-            {true, Connections}
-    end.
+-spec exit(ldb_node_id(), pid(), connections()) -> {boolean(), connections()}.
+exit(Id, Pid, Connections0) ->
+    #connection{pids=Pids0}=Connection = maps:get(Id, Connections0),
+    Pids = Pids0 -- [Pid],
+    {Pids == [], maps:put(Id, Connection#connection{pids=Pids}, Connections0)}.
 
 %% @private
--spec do_connect(ldb_node_id(), node_ip(), node_port(), connections()) ->
-    {ok | error(), boolean(), connections()}.
-do_connect(Name, Ip, Port, Connections0) ->
+-spec do_connect(ldb_node_id(), node_ip(), node_port(), connections(), non_neg_integer()) ->
+    {ok | error(), connections()}.
+do_connect(_, _, _, Connections, 0) ->
+    {ok, Connections};
+do_connect(Id, Ip, Port, Connections0, N) ->
+    Name = ldb_util:connection_name(Id, N),
     case ldb_hao_client:start_link(Name, Ip, Port) of
         {ok, Pid} ->
-            Connection = #connection{ip=Ip,
-                                     port=Port,
-                                     pid=Pid},
-            Connections = maps:put(Name, Connection, Connections0),
-            {ok, true, Connections};
+            Connections = maps:update_with(
+                Id,
+                fun(#connection{pids=Pids}=Connection) ->
+                    Connection#connection{pids=[Pid | Pids]}
+                end,
+                #connection{ip=Ip, port=Port, pids=[Pid]},
+                Connections0
+            ),
+            do_connect(Id, Ip, Port, Connections, N - 1);
         Error ->
-            {Error, false, Connections0}
+            {Error, Connections0}
     end.

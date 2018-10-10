@@ -35,6 +35,9 @@
 -define(DEFAULT_STATE_SYNC_INTERVAL, 1000).
 -define(DEFAULT_MODE, state_based).
 
+%%
+-define(CONNECTIONS, 10).
+
 %% logging
 -ifdef(debug).
 -define(DEBUG(M), lager:info(M)).
