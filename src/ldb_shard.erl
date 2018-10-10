@@ -219,6 +219,7 @@ do_make(Backend, BackendState, Stored, LDBId) ->
 %% @private
 -spec do_send(atom(), atom(), ldb_node_id(), ldb_node_id(), key(), term(), boolean()) -> ok.
 do_send(Backend, ShardName, From, To, Key, Message, Metrics) ->
+    lager:info("sending from ~p to ~p about ~p", [From, To, Key]),
     %% try to send the message
     Result = ldb_peer_service:forward_message(
         To,

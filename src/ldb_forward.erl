@@ -30,7 +30,7 @@
          update_ignore_keys/1]).
 
 %% number of shards
--define(SHARD_NUMBER, 1024).
+-define(SHARD_NUMBER, 2).
 
 %% @doc
 -spec all_shards() -> list(atom()).
