@@ -52,7 +52,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec get_all() -> {transmission(), memory(), processing()}.
+-spec get_all() -> {transmission(), memory(), latency(), processing()}.
 get_all() ->
     gen_server:call(?MODULE, get_all, infinity).
 
