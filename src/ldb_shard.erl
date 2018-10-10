@@ -83,11 +83,15 @@ handle_call({create, Key, LDBType}, _From, #state{kv=KV0,
     KV = maps:put(Key, Default, KV0),
     {reply, ok, State#state{kv=KV}};
 
-handle_call({query, Key}, _From, #state{kv=KV,
+handle_call({query, Key, Args}, _From, #state{kv=KV,
                                         backend=Backend}=State) ->
     Stored = maps:get(Key, KV),
-    Result = {ok, Backend:query(Stored)},
-    {reply, Result, State};
+    {Type, _}=CRDT = Backend:crdt(Stored),
+    Result = case Args of
+        [] -> Type:query(CRDT);
+        _ -> Type:query(Args, CRDT)
+    end,
+    {reply, {ok, Result}, State};
 
 handle_call({update, Key, Operation}, _From, #state{kv=KV0,
                                                     backend=Backend,

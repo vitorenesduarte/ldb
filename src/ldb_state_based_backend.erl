@@ -27,7 +27,7 @@
 %% ldb_backend callbacks
 -export([backend_state/0,
          bottom_entry/2,
-         query/1,
+         crdt/1,
          update/3,
          memory/1,
          message_maker/3,
@@ -49,9 +49,9 @@ backend_state() ->
 bottom_entry(Bottom, _) ->
     Bottom.
 
--spec query(stored()) -> term().
-query({Type, _}=CRDT) ->
-    Type:query(CRDT).
+-spec crdt(stored()) -> term().
+crdt(CRDT) ->
+    CRDT.
 
 -spec update(stored(), operation(), st()) -> stored().
 update({Type, _}=CRDT, Operation, #state{actor=Actor}) ->

@@ -28,8 +28,8 @@
 %% @doc Returns a backend entry given a bottom CRDT value.
 -callback bottom_entry(term(), backend_state()) -> backend_stored().
 
-%% @doc Reads the value given a stored value.
--callback query(backend_stored()) -> term().
+%% @doc Return the CRDT value, to be used when reading.
+-callback crdt(backend_stored()) -> term().
 
 %% @doc Update a stored value applying a given `operation()'.
 -callback update(backend_stored(), operation(), backend_state()) -> backend_stored().

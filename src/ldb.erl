@@ -24,6 +24,7 @@
 
 -export([create/2,
          query/1,
+         query/2,
          update/2]).
 
 %% @doc Create a `Key' in the store with a given `Type'.
@@ -34,7 +35,13 @@ create(Key, Type) ->
 %% @doc Reads the value associated with a given `Key'.
 -spec query(key()) -> {ok, value()}.
 query(Key) ->
-    ldb_forward:query(Key).
+    ldb_forward:query(Key, []).
+
+%% @doc Reads the value associated with a given `Key',
+%%      and some additional arguments.
+-spec query(key(), list(term())) -> {ok, value()}.
+query(Key, Args) ->
+    ldb_forward:query(Key, Args).
 
 %% @doc Update the value associated with a given `Key',
 %%      applying a given `Operation'.

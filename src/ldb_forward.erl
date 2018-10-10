@@ -24,7 +24,7 @@
 
 -export([all_shards/0,
          create/2,
-         query/1,
+         query/2,
          update/2,
          update_members/1,
          update_ignore_keys/1]).
@@ -46,9 +46,9 @@ create(Key, Type) ->
     forward(Key, call, {create, Key, Type}).
 
 %% @doc Reads the value associated with a given `Key'.
--spec query(key()) -> {ok, value()}.
-query(Key) ->
-    forward(Key, call, {query, Key}).
+-spec query(key(), list(term())) -> {ok, value()}.
+query(Key, Args) ->
+    forward(Key, call, {query, Key, Args}).
 
 %% @doc Update the value associated with a given `Key',
 %%      applying a given `Operation'.

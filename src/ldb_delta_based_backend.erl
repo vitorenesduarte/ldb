@@ -27,7 +27,7 @@
 %% ldb_backend callbacks
 -export([backend_state/0,
          bottom_entry/2,
-         query/1,
+         crdt/1,
          update/3,
          memory/1,
          message_maker/3,
@@ -59,9 +59,9 @@ bottom_entry(Bottom, #state{bp=BP}) ->
     AckMap = maps:new(),
     {Bottom, DeltaBuffer, AckMap}.
 
--spec query(stored()) -> term().
-query({{Type, _}=CRDT, _, _}) ->
-    Type:query(CRDT).
+-spec crdt(stored()) -> term().
+crdt({CRDT, _, _}) ->
+    CRDT.
 
 -spec update(stored(), operation(), st()) -> stored().
 update({{Type, _}=CRDT0, DeltaBuffer0, AckMap}, Operation, #state{actor=Actor}) ->
