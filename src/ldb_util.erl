@@ -149,7 +149,6 @@ get_type(Type) ->
     list_to_atom("state_" ++ atom_to_list(Type)).
 
 %% @doc Log Process queue length.
-qs(_ID) ->
-    %{message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
-    %lager:info("MAILBOX - " ++ ID ++ " - REMAINING: ~p", [MessageQueueLen]).
-    ok.
+qs(ID) ->
+    {message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
+    lager:info("MAILBOX ~p REMAINING: ~p", [ID, MessageQueueLen]).
