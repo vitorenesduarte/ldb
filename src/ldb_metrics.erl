@@ -29,6 +29,7 @@
          get_all/0,
          record_transmission/1,
          record_memory/1,
+         record_latency/2,
          record_processing/1]).
 
 %% gen_server callbacks
@@ -39,10 +40,12 @@
 
 -type transmission() :: maps:map(timestamp(), size_metric()).
 -type memory() :: maps:map(timestamp(), two_size_metric()).
+-type latency() :: maps:map(atom(), list(non_neg_integer())).
 -type processing() :: non_neg_integer().
 
 -record(state, {transmission :: transmission(),
                 memory :: memory(),
+                latency :: latency(),
                 processing :: processing()}).
 
 -spec start_link() -> {ok, pid()} | ignore | {error, term()}.
@@ -65,6 +68,10 @@ record_memory({{0, 0}, {0, 0}}) ->
 record_memory(TwoSize) ->
     gen_server:cast(?MODULE, {memory, ldb_util:unix_timestamp(), TwoSize}).
 
+-spec record_latency(atom(), non_neg_integer()) -> ok.
+record_latency(Type, MicroSeconds) ->
+    gen_server:cast(?MODULE, {latency, Type, MicroSeconds}).
+
 -spec record_processing(processing()) -> ok.
 record_processing(0) ->
     ok;
@@ -76,12 +83,14 @@ init([]) ->
     lager:info("ldb_metrics initialized!"),
     {ok, #state{transmission=maps:new(),
                 memory=maps:new(),
+                latency=maps:new(),
                 processing=0}}.
 
 handle_call(get_all, _From, #state{transmission=Transmission,
                                    memory=Memory,
+                                   latency=Latency,
                                    processing=Processing}=State) ->
-    All = {Transmission, Memory, Processing},
+    All = {Transmission, Memory, Latency, Processing},
     {reply, All, State};
 
 handle_call(Msg, _From, State) ->
@@ -105,6 +114,15 @@ handle_cast({memory, Timestamp, TwoSize}, #state{memory=Memory0}=State) ->
         Memory0
     ),
     {noreply, State#state{memory=Memory}};
+
+handle_cast({latency, Type, MicroSeconds}, #state{latency=Latency0}=State) ->
+    Latency = maps:update_with(
+        Type,
+        fun(V) -> [MicroSeconds | V] end,
+        [MicroSeconds],
+        Latency0
+    ),
+    {noreply, State#state{latency=Latency}};
 
 handle_cast({processing, MicroSeconds}, #state{processing=Processing}=State) ->
     {noreply, State#state{processing=Processing + MicroSeconds}};
