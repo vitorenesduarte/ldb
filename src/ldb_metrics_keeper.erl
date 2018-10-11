@@ -37,12 +37,13 @@
 
 -type stored() :: term().
 -type args() :: term().
--record(state, {stored :: stored(),
+-record(state, {name :: atom(),
+                stored :: stored(),
                 update_fun :: function()}).
 
 -spec start_link(atom(), stored(), function()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(Name, Initial, UpdateFun) ->
-    gen_server:start_link({local, Name}, ?MODULE, [Initial, UpdateFun], []).
+    gen_server:start_link({local, Name}, ?MODULE, [Name, Initial, UpdateFun], []).
 
 -spec get(atom()) -> stored().
 get(Name) ->
@@ -53,9 +54,10 @@ record(Name, Args) ->
     gen_server:cast(Name, {record, Args}).
 
 %% gen_server callbacks
-init([Initial, UpdateFun]) ->
+init([Name, Initial, UpdateFun]) ->
     lager:info("ldb_metrics_keeper initialized!"),
-    {ok, #state{stored=Initial,
+    {ok, #state{name=Name,
+                stored=Initial,
                 update_fun=UpdateFun}}.
 
 handle_call(get, _From, #state{stored=Stored}=State) ->
@@ -65,9 +67,10 @@ handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
     {noreply, State}.
 
-handle_cast({record, Args}, #state{stored=Stored0,
+handle_cast({record, Args}, #state{name=Name,
+                                   stored=Stored0,
                                    update_fun=UpdateFun}=State) ->
-    ldb_util:qs(record),
+    ldb_util:qs(Name),
     Stored = UpdateFun(Args, Stored0),
     {noreply, State#state{stored=Stored}};
 
