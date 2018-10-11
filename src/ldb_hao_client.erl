@@ -126,7 +126,6 @@ terminate(Reason, #state{socket=Socket, spec={Id, _, _}}) ->
 
 %% @private
 do_receive({forward_message, Mod, Message}, Socket) ->
-    ldb_util:qs(do_receive),
     %% forward to mod/actor
     gen_server:cast(Mod, Message),
 
