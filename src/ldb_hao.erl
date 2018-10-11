@@ -96,7 +96,7 @@ handle_call(members, _From, #state{connections=Connections}=State) ->
     Members = ldb_hao_connections:members(Connections),
     {reply, {ok, Members}, State}.
 
-handle_cast({exit, Id, Pid}, #state{connections=Connections0}=State) -> 
+handle_cast({exit, Id, Pid}, #state{connections=Connections0}=State) ->
     lager:info("EXIT of ~p.", [Id]),
 
     {NewMembers, Connections} = ldb_hao_connections:exit(Id, Pid, Connections0),
