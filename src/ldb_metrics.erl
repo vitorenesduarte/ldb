@@ -79,8 +79,11 @@ merge_all([A, B | T]) ->
                latency=Latency,
                processing=Processing},
     merge_all([H | T]);
-merge_all([A]) ->
-    A.
+merge_all([#state{transmission=Transmission,
+                  memory=Memory,
+                  latency=Latency,
+                  processing=Processing}]) ->
+    {Transmission, Memory, Latency, Processing}.
 
 -spec record_transmission(size_metric(), st()) -> st().
 record_transmission({0, 0}, State) ->
