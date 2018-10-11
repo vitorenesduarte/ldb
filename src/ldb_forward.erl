@@ -68,10 +68,9 @@ update_ignore_keys(IgnoreKeys) ->
     forward(all, call, {update_ignore_keys, IgnoreKeys}).
 
 %% @doc Get metrics from all shards.
--spec get_metrics() -> term().
+-spec get_metrics() -> list(metrics()).
 get_metrics() ->
-    All = forward(all, call, get_metrics),
-    ldb_metrics:merge_all(All).
+    forward(all, call, get_metrics).
 
 %% @private
 -spec forward(key() | all, atom(), term()) -> term().
