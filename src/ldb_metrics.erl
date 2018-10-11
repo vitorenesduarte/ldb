@@ -125,6 +125,7 @@ handle_cast({latency, Type, MicroSeconds}, #state{latency=Latency0}=State) ->
     {noreply, State#state{latency=Latency}};
 
 handle_cast({processing, MicroSeconds}, #state{processing=Processing}=State) ->
+    ldb_util:qs(processing),
     {noreply, State#state{processing=Processing + MicroSeconds}};
 
 handle_cast(Msg, State) ->
