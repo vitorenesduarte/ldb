@@ -101,7 +101,7 @@ handle_call(Msg, _From, State) ->
     {stop, {unhandled, Msg}, State}.
 
 handle_cast({forward_message, _, _}=Data, #state{socket=Socket}=State) ->
-    ldb_util:qs(do_send),
+    %% ldb_util:qs(do_send),
     Encoded = term_to_binary(Data),
     do_send(Encoded, Socket),
     {noreply, State}.
