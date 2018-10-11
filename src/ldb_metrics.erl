@@ -23,91 +23,91 @@
 -include("ldb.hrl").
 
 %% ldb_metrics callbacks
--export([start/0,
-         get_all/0,
-         record_transmission/1,
-         record_memory/1,
-         record_latency/2,
-         record_processing/1]).
+-export([new/0,
+         merge_all/1,
+         record_transmission/2,
+         record_memory/2,
+         record_latency/3,
+         record_processing/2]).
 
 -type transmission() :: maps:map(timestamp(), size_metric()).
 -type memory() :: maps:map(timestamp(), two_size_metric()).
 -type latency() :: maps:map(atom(), list(non_neg_integer())).
 -type processing() :: non_neg_integer().
 
--define(PROCESSORS, 128).
+-record(state, {transmission :: transmission(),
+                memory :: memory(),
+                latency :: latency(),
+                processing :: processing()}).
+-type st() :: #state{}.
 
--spec start() -> ok.
-start() ->
-    %% create transmission keeper
-    {ok, _} = ldb_metrics_keeper:start_link(
-        transmission_keeper,
-        maps:new(),
-        fun update_transmission/2
+-spec new() -> st().
+new() ->
+    #state{transmission=maps:new(),
+           memory=maps:new(),
+           latency=maps:new(),
+           processing=0}.
+
+-spec merge_all(list(st())) -> {transmission(), memory(), latency(), processing()}.
+merge_all([A, B | T]) ->
+    #state{transmission=TransmissionA,
+           memory=MemoryA,
+           latency=LatencyA,
+           processing=ProcessingA} = A,
+    #state{transmission=TransmissionB,
+           memory=MemoryB,
+           latency=LatencyB,
+           processing=ProcessingB} = B,
+    Transmission = maps_ext:merge_all(
+        fun(_, VA, VB) -> ldb_util:plus(VA, VB) end,
+        TransmissionA,
+        TransmissionB
     ),
-    %% create memory keeper
-    {ok, _} = ldb_metrics_keeper:start_link(
-        memory_keeper,
-        maps:new(),
-        fun update_memory/2
+    Memory = maps_ext:merge_all(
+        fun(_, VA, VB) -> ldb_util:two_plus(VA, VB) end,
+        MemoryA,
+        MemoryB
     ),
-    %% create latency keeper
-    {ok, _} = ldb_metrics_keeper:start_link(
-        latency_keeper,
-        maps:new(),
-        fun update_latency/2
+    Latency = maps_ext:merge_all(
+        fun(_, VA, VB) -> VA ++ VB end,
+        LatencyA,
+        LatencyB
     ),
-    %% create ?PROCESSORS processing keepers
-    lists:foreach(
-        fun(Index) ->
-            {ok, _} = ldb_metrics_keeper:start_link(
-                processor(Index),
-                0,
-                fun update_processing/2
-            )
-        end,
-        all_processors()
-    ),
-    ok.
+    Processing = ProcessingA + ProcessingB,
+    H = #state{transmission=Transmission,
+               memory=Memory,
+               latency=Latency,
+               processing=Processing},
+    merge_all([H | T]);
+merge_all([A]) ->
+    A.
 
--spec get_all() -> {transmission(), memory(), latency(), processing()}.
-get_all() ->
-    Transmission = ldb_metrics_keeper:get(transmission_keeper),
-    Memory = ldb_metrics_keeper:get(memory_keeper),
-    Latency = ldb_metrics_keeper:get(latency_keeper),
-    Processing = lists:foldl(
-        fun(Index, Acc) -> Acc + ldb_metrics_keeper:get(processor(Index)) end,
-        0,
-        all_processors()
-    ),
-    {Transmission, Memory, Latency, Processing}.
+-spec record_transmission(size_metric(), st()) -> st().
+record_transmission({0, 0}, State) ->
+    State;
+record_transmission(Size, #state{transmission=Transmission0}=State) ->
+    Transmission = update_transmission(ldb_util:unix_timestamp(), Size, Transmission0),
+    State#state{transmission=Transmission}.
 
--spec record_transmission(size_metric()) -> ok.
-record_transmission({0, 0}) ->
-    ok;
-record_transmission(Size) ->
-    Args = {ldb_util:unix_timestamp(), Size},
-    ldb_metrics_keeper:record(transmission_keeper, Args).
+-spec record_memory(two_size_metric(), st()) -> st().
+record_memory({{0, 0}, {0, 0}}, State) ->
+    State;
+record_memory(TwoSize, #state{memory=Memory0}=State) ->
+    Memory = update_memory(ldb_util:unix_timestamp(), TwoSize, Memory0),
+    State#state{memory=Memory}.
 
--spec record_memory(two_size_metric()) -> ok.
-record_memory({{0, 0}, {0, 0}}) ->
-    ok;
-record_memory(TwoSize) ->
-    Args = {ldb_util:unix_timestamp(), TwoSize},
-    ldb_metrics_keeper:record(memory_keeper, Args).
+-spec record_latency(atom(), non_neg_integer(), st()) -> st().
+record_latency(Type, MicroSeconds, #state{latency=Latency0}=State) ->
+    Latency = update_latency(Type, MicroSeconds, Latency0),
+    State#state{latency=Latency}.
 
--spec record_latency(atom(), non_neg_integer()) -> ok.
-record_latency(Type, MicroSeconds) ->
-    Args = {Type, MicroSeconds},
-    ldb_metrics_keeper:record(latency_keeper, Args).
+-spec record_processing(processing(), st()) -> st().
+record_processing(0, State) ->
+    State;
+record_processing(MicroSeconds, #state{processing=Processing0}=State) ->
+    State#state{processing=Processing0 + MicroSeconds}.
 
--spec record_processing(processing()) -> ok.
-record_processing(0) ->
-    ok;
-record_processing(MicroSeconds) ->
-    ldb_metrics_keeper:record(processor(), MicroSeconds).
-
-update_transmission({Timestamp, Size}, Transmission0) ->
+update_transmission(Timestamp, Size, Transmission0) ->
     maps:update_with(
         Timestamp,
         fun(V) -> ldb_util:plus(V, Size) end,
@@ -115,7 +115,7 @@ update_transmission({Timestamp, Size}, Transmission0) ->
         Transmission0
     ).
 
-update_memory({Timestamp, TwoSize}, Memory0) ->
+update_memory(Timestamp, TwoSize, Memory0) ->
     maps:update_with(
         Timestamp,
         fun(V) -> ldb_util:two_plus(V, TwoSize) end,
@@ -123,22 +123,10 @@ update_memory({Timestamp, TwoSize}, Memory0) ->
         Memory0
     ).
 
-update_latency({Type, MicroSeconds}, Latency0) ->
+update_latency(Type, MicroSeconds, Latency0) ->
     maps:update_with(
         Type,
         fun(V) -> [MicroSeconds | V] end,
         [MicroSeconds],
         Latency0
     ).
-
-update_processing(MicroSeconds, Processing) ->
-    Processing + MicroSeconds.
-
-all_processors() ->
-    lists:seq(1, ?PROCESSORS).
-processor() ->
-    RandomIndex = rand:uniform(?PROCESSORS),
-    processor(RandomIndex).
-processor(Index) ->
-    list_to_atom("processing_keeper" ++ integer_to_list(Index)).
-

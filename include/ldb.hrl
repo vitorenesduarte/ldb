@@ -12,6 +12,9 @@
 -type backend_state() :: term().
 -type dbuffer() :: ldb_dbuffer:d().
 
+%% shard
+-type metrics() :: ldb_metrics:st().
+
 %% peer service
 -type ldb_node_id() :: node().
 -type node_ip() :: inet:ip_address().

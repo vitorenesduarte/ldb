@@ -54,9 +54,6 @@ init([]) ->
                                    ldb_hao_client,
                                    []),
 
-    %% start metrics
-    ldb_metrics:start(),
-
     %% hao
     BaseSpecs = [?CHILD(ldb_hao)],
 
@@ -96,11 +93,6 @@ configure() ->
     configure_var("LDB_DGROUP_BACK_PROPAGATION",
                   ldb_dgroup_back_propagation,
                   false),
-
-    %% configure metrics
-    configure_var("LDB_METRICS",
-                  ldb_metrics,
-                  true),
 
     %% configure server ip
     configure_ip("LDB_IP",

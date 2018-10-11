@@ -27,7 +27,8 @@
          query/2,
          update/2,
          update_members/1,
-         update_ignore_keys/1]).
+         update_ignore_keys/1,
+         get_metrics/0]).
 
 %% number of shards
 -define(SHARD_NUMBER, 1024).
@@ -66,10 +67,16 @@ update_members(Members) ->
 update_ignore_keys(IgnoreKeys) ->
     forward(all, call, {update_ignore_keys, IgnoreKeys}).
 
+%% @doc Get metrics from all shards.
+-spec get_metrics() -> term().
+get_metrics() ->
+    All = forward(all, call, get_metrics),
+    ldb_metrics:merge_all(All).
+
 %% @private
 -spec forward(key() | all, atom(), term()) -> term().
 forward(all, What, Msg) ->
-    lists:foreach(
+    lists:map(
         fun(Name) -> do_forward(Name, What, Msg) end,
         all_shards()
     );
