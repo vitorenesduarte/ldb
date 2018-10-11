@@ -54,9 +54,11 @@ init([]) ->
                                    ldb_hao_client,
                                    []),
 
-    %% metrics and hao
-    BaseSpecs = [?CHILD(ldb_metrics),
-                 ?CHILD(ldb_hao)],
+    %% start metrics
+    ldb_metrics:start(),
+
+    %% hao
+    BaseSpecs = [?CHILD(ldb_hao)],
 
     %% all the shards
     ReplicationSpecs = [?CHILD(Shard, ldb_shard, [Shard])
