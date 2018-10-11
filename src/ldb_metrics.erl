@@ -35,6 +35,8 @@
 -type latency() :: maps:map(atom(), list(non_neg_integer())).
 -type processing() :: non_neg_integer().
 
+-define(PROCESSORS, 128).
+
 -spec start() -> ok.
 start() ->
     %% create transmission keeper
@@ -55,11 +57,16 @@ start() ->
         maps:new(),
         fun update_latency/2
     ),
-    %% create processing keeper
-    {ok, _} = ldb_metrics_keeper:start_link(
-        processing_keeper,
-        0,
-        fun update_processing/2
+    %% create ?PROCESSORS processing keepers
+    lists:foreach(
+        fun(Index) ->
+            {ok, _} = ldb_metrics_keeper:start_link(
+                processor(Index),
+                0,
+                fun update_processing/2
+            )
+        end,
+        all_processors()
     ),
     ok.
 
@@ -68,7 +75,11 @@ get_all() ->
     Transmission = ldb_metrics_keeper:get(transmission_keeper),
     Memory = ldb_metrics_keeper:get(memory_keeper),
     Latency = ldb_metrics_keeper:get(latency_keeper),
-    Processing = ldb_metrics_keeper:get(processing_keeper),
+    Processing = lists:foldl(
+        fun(Index, Acc) -> Acc + ldb_metrics_keeper:get(processor(Index)) end,
+        0,
+        all_processors()
+    ),
     {Transmission, Memory, Latency, Processing}.
 
 -spec record_transmission(size_metric()) -> ok.
@@ -94,7 +105,7 @@ record_latency(Type, MicroSeconds) ->
 record_processing(0) ->
     ok;
 record_processing(MicroSeconds) ->
-    ldb_metrics_keeper:record(processing_keeper, MicroSeconds).
+    ldb_metrics_keeper:record(processor(), MicroSeconds).
 
 update_transmission({Timestamp, Size}, Transmission0) ->
     maps:update_with(
@@ -122,4 +133,12 @@ update_latency({Type, MicroSeconds}, Latency0) ->
 
 update_processing(MicroSeconds, Processing) ->
     Processing + MicroSeconds.
+
+all_processors() ->
+    lists:seq(1, ?PROCESSORS).
+processor() ->
+    RandomIndex = rand:uniform(?PROCESSORS),
+    processor(RandomIndex).
+processor(Index) ->
+    list_to_atom("processing_keeper" ++ integer_to_list(Index)).
 
