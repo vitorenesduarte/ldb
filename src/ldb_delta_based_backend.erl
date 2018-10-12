@@ -86,9 +86,9 @@ memory({CRDT, _, DeltaBuffer, AckMap}) ->
     {C, R}.
 
 -spec message_maker(stored(), ldb_node_id(), st()) -> message().
-message_maker({CRDT, Changed, DeltaBuffer, AckMap}, NodeName, _) ->
-    case Changed of
-        true ->
+message_maker({CRDT, _Changed, DeltaBuffer, AckMap}, NodeName, _) ->
+    %% case Changed of
+    %%     true ->
             %% get seq and last ack
             Seq = ldb_dbuffer:seq(DeltaBuffer),
             LastAck = last_ack(NodeName, AckMap),
@@ -125,9 +125,9 @@ message_maker({CRDT, Changed, DeltaBuffer, AckMap}, NodeName, _) ->
 
                 false ->
                     nothing
-            end;
-        false ->
-            nothing
+        %%     end;
+        %% false ->
+        %%     nothing
     end.
 
 -spec after_sync(stored()) -> stored().
