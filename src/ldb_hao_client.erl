@@ -38,7 +38,8 @@
          handle_info/2,
          terminate/2]).
 
--record(state, {socket :: inet:socket(),
+-record(state, {name :: atom(),
+                socket :: inet:socket(),
                 spec :: node_spec() | undefined}).
 
 
@@ -53,7 +54,7 @@ start_link(Ref, Socket, ranch_tcp, []) ->
 %% @doc To be used when connecting to a new actor
 %%      with IP address `Ip' on TCP port `Port'.
 start_link(Name, Ip, Port) ->
-    Arg = [out, Ip, Port],
+    Arg = [out, Name, Ip, Port],
     gen_server:start_link({local, Name},
                           ?MODULE,
                           Arg,
@@ -79,7 +80,7 @@ init([in, Ref, Socket]) ->
                           #state{socket=Socket,
                                  spec=Spec});
 
-init([out, Ip, Port]) ->
+init([out, Name, Ip, Port]) ->
     lager:info("Connecting to ~p on port ~p", [Ip, Port]),
 
     case ldb_socket:connect(Ip, Port) of
@@ -90,7 +91,8 @@ init([out, Ip, Port]) ->
             %% be nice and say hello
             say_hello(Socket),
 
-            {ok, #state{socket=Socket,
+            {ok, #state{name=Name,
+                        socket=Socket,
                         spec=undefined}};
 
         _Error ->
@@ -100,8 +102,9 @@ init([out, Ip, Port]) ->
 handle_call(Msg, _From, State) ->
     {stop, {unhandled, Msg}, State}.
 
-handle_cast({forward_message, _, _}=Data, #state{socket=Socket}=State) ->
-    %% ldb_util:qs(do_send),
+handle_cast({forward_message, _, _}=Data, #state{name=Name,
+                                                 socket=Socket}=State) ->
+    ldb_util:qs(Name),
     Encoded = term_to_binary(Data),
     do_send(Encoded, Socket),
     {noreply, State}.
