@@ -38,9 +38,9 @@
 %% tcp options
 -define(TCP_ACTIVE_OPTION, {active, once}).
 -define(TCP_OPTIONS,
-        [{packet, 4},
-         {nodelay, true},
-         {keepalive, true}]).
+        [{packet, 4}]).
+         %% {nodelay, true},
+         %% {keepalive, true}]).
 
 %% @doc Connect to a server on TCP port `Port'
 %%      on the host with IP address `Ip'.

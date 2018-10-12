@@ -39,7 +39,7 @@
 -define(DEFAULT_MODE, state_based).
 
 %%
--define(CONNECTIONS, 32).
+-define(CONNECTIONS, 1).
 
 %% logging
 -ifdef(debug).
