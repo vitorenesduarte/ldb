@@ -105,8 +105,6 @@ record_latency(Type, MicroSeconds, #state{latency=Latency0}=State) ->
     State#state{latency=Latency}.
 
 -spec record_processing(processing(), st()) -> st().
-record_processing(0, State) ->
-    State;
 record_processing(MicroSeconds, #state{processing=Processing0}=State) ->
     State#state{processing=Processing0 + MicroSeconds}.
 

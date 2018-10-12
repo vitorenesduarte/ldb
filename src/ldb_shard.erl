@@ -136,7 +136,7 @@ handle_cast({msg, From, Key, Message}, #state{shard_name=ShardName,
         [Message, From, Stored0, BackendState]
     ),
 
-    %% send reply
+    %% send reply, and measure its cost
     MetricsSt1 = case Reply of
         nothing -> MetricsSt0;
         _ -> do_send(Backend, ShardName, Actor, From, Key, Reply, Metrics, MetricsSt0)
@@ -148,7 +148,7 @@ handle_cast({msg, From, Key, Message}, #state{shard_name=ShardName,
     %% maybe save metrics
     MetricsSt = case Metrics of
         true -> ldb_metrics:record_processing(MicroSeconds, MetricsSt1);
-        false -> MetricsSt0
+        false -> MetricsSt1
     end,
     {noreply, State#state{kv=KV,
                           metrics_st=MetricsSt}};
@@ -183,9 +183,7 @@ handle_info(?STATE_SYNC, #state{shard_name=ShardName,
                     nothing -> MetricsStAcc2;
                     _ -> do_send(Backend, ShardName, Actor, LDBId, Key, Message,
                                  Metrics, MetricsStAcc2)
-                end,
-
-                MetricsStAcc2
+                end
             end,
             MetricsStAcc0,
             LDBIds
@@ -209,7 +207,7 @@ handle_info(?TIME_SERIES, #state{kv=KV,
     end,
     Result = maps:fold(FoldFun, {{0, 0}, {0, 0}}, KV),
 
-    %% notify metrics, if there's something to notify
+    %% notify metrics
     MetricsSt = ldb_metrics:record_memory(Result, MetricsSt0),
     schedule_time_series(),
     {noreply, State#state{metrics_st=MetricsSt}};
@@ -237,14 +235,14 @@ do_make(Backend, BackendState, Stored, LDBId, MetricsSt0) ->
 -spec do_send(atom(), atom(), ldb_node_id(), ldb_node_id(), key(), term(),
               boolean(), metrics()) -> metrics().
 do_send(Backend, ShardName, From, To, Key, Message, Metrics, MetricsSt0) ->
-    %% try to send the message
+    %% send the message
     ok = ldb_hao:forward_message(
         To,
         ShardName,
         {msg, From, Key, Message}
     ),
 
-    %% if message was sent, collect metrics
+    %% if should, collect metrics
     case Metrics of
         true ->
             Size = Backend:message_size(Message),
