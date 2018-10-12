@@ -31,6 +31,7 @@
          update/3,
          memory/1,
          message_maker/3,
+         after_sync/1,
          message_handler/4,
          message_size/1]).
 
@@ -83,6 +84,10 @@ message_maker({_CRDT, VV, DeltaBuffer}, _, _) ->
                 VV
             }
     end.
+
+-spec after_sync(stored()) -> stored().
+after_sync(Stored) ->
+    Stored.
 
 -spec message_handler(message(), ldb_node_id(), stored(), st()) ->
     {stored(), nothing | message()}.

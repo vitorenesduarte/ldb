@@ -31,6 +31,7 @@
          update/3,
          memory/1,
          message_maker/3,
+         after_sync/1,
          message_handler/4,
          message_size/1]).
 
@@ -39,8 +40,8 @@
                 rr :: boolean()}).
 -type st() :: #state{}.
 
-%% {crdt, buffer, ack map}
--type stored() :: {term(), dbuffer(), maps:map(ldb_node_id(), non_neg_integer())}.
+%% {crdt, changed, buffer, ack map}
+-type stored() :: {term(), boolean(), dbuffer(), maps:map(ldb_node_id(), non_neg_integer())}.
 
 -spec backend_state() -> st().
 backend_state() ->
@@ -57,24 +58,24 @@ bottom_entry(Bottom, #state{bp=BP}) ->
     DeltaBuffer = ldb_dbuffer:new(BP),
     %% create ack map
     AckMap = maps:new(),
-    {Bottom, DeltaBuffer, AckMap}.
+    {Bottom, false, DeltaBuffer, AckMap}.
 
 -spec crdt(stored()) -> term().
-crdt({CRDT, _, _}) ->
+crdt({CRDT, _, _, _}) ->
     CRDT.
 
 -spec update(stored(), operation(), st()) -> stored().
-update({{Type, _}=CRDT0, DeltaBuffer0, AckMap}, Operation, #state{actor=Actor}) ->
+update({{Type, _}=CRDT0, _, DeltaBuffer0, AckMap}, Operation, #state{actor=Actor}) ->
     %% create delta
     {ok, Delta} = Type:delta_mutate(Operation, Actor, CRDT0),
     %% merge it
     CRDT = Type:merge(Delta, CRDT0),
     %% and add it to the buffer
     DeltaBuffer = ldb_dbuffer:add_inflation(Delta, Actor, DeltaBuffer0),
-    {CRDT, DeltaBuffer, AckMap}.
+    {CRDT, true, DeltaBuffer, AckMap}.
 
 -spec memory(stored()) -> two_size_metric().
-memory({CRDT, DeltaBuffer, AckMap}) ->
+memory({CRDT, _, DeltaBuffer, AckMap}) ->
     %% crdt
     C = ldb_util:size(crdt, CRDT),
     %% rest = delta buffer + ack map
@@ -85,66 +86,76 @@ memory({CRDT, DeltaBuffer, AckMap}) ->
     {C, R}.
 
 -spec message_maker(stored(), ldb_node_id(), st()) -> message().
-message_maker({CRDT, DeltaBuffer, AckMap}, NodeName, _) ->
-    %% get seq and last ack
-    Seq = ldb_dbuffer:seq(DeltaBuffer),
-    LastAck = last_ack(NodeName, AckMap),
-
-    case LastAck < Seq of
+message_maker({CRDT, Changed, DeltaBuffer, AckMap}, NodeName, _) ->
+    case Changed of
         true ->
+            %% get seq and last ack
+            Seq = ldb_dbuffer:seq(DeltaBuffer),
+            LastAck = last_ack(NodeName, AckMap),
 
-            %% there's something missing in `NodeName'
-            %% get min seq
-            MinSeq = ldb_dbuffer:min_seq(DeltaBuffer),
-            case ldb_dbuffer:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
+            case LastAck < Seq of
                 true ->
-                    {
-                        delta,
-                        Seq,
-                        CRDT
-                    };
-                false ->
 
-                    %% should send deltas
-                    Delta = ldb_dbuffer:select(NodeName, LastAck, DeltaBuffer),
-
-                    case Delta of
-                        undefined ->
-                            nothing;
-                        _ ->
+                    %% there's something missing in `NodeName'
+                    %% get min seq
+                    MinSeq = ldb_dbuffer:min_seq(DeltaBuffer),
+                    case ldb_dbuffer:is_empty(DeltaBuffer) orelse MinSeq > LastAck of
+                        true ->
                             {
                                 delta,
                                 Seq,
-                                Delta
-                            }
-                    end
-            end;
+                                CRDT
+                            };
+                        false ->
 
+                            %% should send deltas
+                            Delta = ldb_dbuffer:select(NodeName, LastAck, DeltaBuffer),
+
+                            case Delta of
+                                undefined ->
+                                    nothing;
+                                _ ->
+                                    {
+                                        delta,
+                                        Seq,
+                                        Delta
+                                    }
+                            end
+                    end;
+
+                false ->
+                    nothing
+            end;
         false ->
             nothing
     end.
 
+-spec after_sync(stored()) -> stored().
+after_sync({LocalCRDT, _, DeltaBuffer, AckMap}) ->
+    {LocalCRDT, false, DeltaBuffer, AckMap}.
+
 -spec message_handler(message(), ldb_node_id(), stored(), st()) ->
     {stored(), nothing | message()}.
 message_handler({delta, N, {Type, _}=Remote}, From,
-                {LocalCRDT0, DeltaBuffer0, AckMap}, #state{rr=RR}) ->
+                {LocalCRDT0, Changed0, DeltaBuffer0, AckMap}, #state{rr=RR}) ->
 
     %% compute delta and merge
     {Delta, LocalCRDT} = Type:delta_and_merge(Remote, LocalCRDT0),
 
     %% add to buffer
-    DeltaBuffer = case Type:is_bottom(Delta) of
+    {Changed, DeltaBuffer} = case Type:is_bottom(Delta) of
         true ->
             %% no inflation
-            DeltaBuffer0;
+            {Changed0, DeltaBuffer0};
         false ->
             %% if inflation, add \Delta if RR, remote CRDT otherwise
-            case RR of
+            DeltaBuffer1 = case RR of
                 true -> ldb_dbuffer:add_inflation(Delta, From, DeltaBuffer0);
                 false -> ldb_dbuffer:add_inflation(Remote, From, DeltaBuffer0)
-            end
+            end,
+            {true, DeltaBuffer1}
     end,
-    Stored = {LocalCRDT, DeltaBuffer, AckMap},
+    Stored = {LocalCRDT, Changed, DeltaBuffer, AckMap},
 
     %% send ack
     Reply = {
@@ -155,19 +166,21 @@ message_handler({delta, N, {Type, _}=Remote}, From,
     {Stored, Reply};
 
 message_handler({delta_ack, N}, From,
-                {LocalCRDT, DeltaBuffer0, AckMap0}, _) ->
-    LastAck = last_ack(From, AckMap0),
-
+                {LocalCRDT, Changed, DeltaBuffer0, AckMap0}, _) ->
     %% when a new ack is received,
     %% update the number of rounds without
     %% receiving an ack to 0
-    MaxAck = max(LastAck, N),
-    AckMap1 = maps:put(From, MaxAck, AckMap0),
+    AckMap1 = maps:update_with(
+        From,
+        fun(LastAck) -> max(LastAck, N) end,
+        N,
+        AckMap0
+    ),
 
     %% and try to shrink the delta-buffer immediately
     DeltaBuffer1 = ldb_dbuffer:prune(min_seq_ack_map(AckMap1), DeltaBuffer0),
 
-    Stored = {LocalCRDT, DeltaBuffer1, AckMap1},
+    Stored = {LocalCRDT, Changed, DeltaBuffer1, AckMap1},
     {Stored, nothing}.
 
 -spec message_size(message()) -> size_metric().

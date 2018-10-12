@@ -42,6 +42,9 @@
 -callback message_maker(backend_stored(), ldb_node_id(), backend_state()) ->
     message() | nothing.
 
+%% @doc Updates backend state after sync.
+-callback after_sync(backend_stored()) -> backend_stored().
+
 %% @doc Returns a function that handles the message received.
 -callback message_handler(message(), ldb_node_id(), backend_stored(), backend_state()) ->
     {backend_stored(), message() | nothing}.
