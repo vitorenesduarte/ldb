@@ -102,9 +102,8 @@ init([out, Name, Ip, Port]) ->
 handle_call(Msg, _From, State) ->
     {stop, {unhandled, Msg}, State}.
 
-handle_cast({forward_message, _, _}=Data, #state{name=Name,
-                                                 socket=Socket}=State) ->
-    ldb_util:qs(Name),
+handle_cast({forward_message, _, _}=Data, #state{socket=Socket}=State) ->
+    %% ldb_util:qs(Name),
     Encoded = term_to_binary(Data),
     do_send(Encoded, Socket),
     {noreply, State}.

@@ -96,11 +96,13 @@ handle_call({query, Key, Args}, _From, #state{kv=KV,
     end,
     {reply, {ok, Result}, State};
 
-handle_call({update, Key, Operation}, _From, #state{kv=KV0,
+handle_call({update, Key, Operation}, _From, #state{shard_name=ShardName,
+                                                    kv=KV0,
                                                     backend=Backend,
                                                     backend_state=BackendState,
                                                     ignore_keys=IgnoreKeys,
                                                     metrics_st=MetricsSt0}=State) ->
+    ldb_util:qs(ShardName),
     %% metrics
     Metrics = should_save_key(Key, IgnoreKeys),
 
