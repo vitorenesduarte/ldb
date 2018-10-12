@@ -162,7 +162,7 @@ handle_cast(Msg, State) ->
 
 handle_info(?STATE_SYNC, #state{shard_name=ShardName,
                                 actor=Actor,
-                                kv=KV0,
+                                kv=KV,
                                 backend=Backend,
                                 backend_state=BackendState,
                                 state_sync_interval=Interval,
@@ -189,14 +189,10 @@ handle_info(?STATE_SYNC, #state{shard_name=ShardName,
             LDBIds
         )
     end,
-    MetricsSt = maps:fold(FoldFun, MetricsSt0, KV0),
-
-    %% for delta based
-    KV = maps:map(fun(_Key, Stored) -> Backend:after_sync(Stored) end, KV0),
+    MetricsSt = maps:fold(FoldFun, MetricsSt0, KV),
 
     schedule_state_sync(Interval),
-    {noreply, State#state{kv=KV,
-                          metrics_st=MetricsSt}};
+    {noreply, State#state{metrics_st=MetricsSt}};
 
 handle_info(?TIME_SERIES, #state{kv=KV,
                                  backend=Backend,
