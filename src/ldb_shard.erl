@@ -98,13 +98,33 @@ handle_call({query, Key, Args}, _From, #state{kv=KV,
 
 handle_call({update, Key, Operation}, _From, #state{kv=KV0,
                                                     backend=Backend,
-                                                    backend_state=BackendState}=State) ->
-    KV = maps:update_with(
-        Key,
-        fun(Stored) -> Backend:update(Stored, Operation, BackendState) end,
-        KV0
+                                                    backend_state=BackendState,
+                                                    ignore_keys=IgnoreKeys,
+                                                    metrics_st=MetricsSt0}=State) ->
+    %% metrics
+    Metrics = should_save_key(Key, IgnoreKeys),
+
+    %% get current value
+    Stored0 = maps:get(Key, KV0),
+
+    %% update it and measure time
+    {MicroSeconds, Stored} = timer:tc(
+        Backend,
+        update,
+        [Stored0, Operation, BackendState]
     ),
-    {reply, ok, State#state{kv=KV}};
+
+    %% update with new value
+    KV = maps:put(Key, Stored, KV0),
+
+    %% maybe save metrics
+    MetricsSt = case Metrics of
+        true -> ldb_metrics:record_processing(MicroSeconds, MetricsSt0);
+        false -> MetricsSt0
+    end,
+
+    {reply, ok, State#state{kv=KV,
+                            metrics_st=MetricsSt}};
 
 handle_call({update_ignore_keys, IgnoreKeys}, _From, State) ->
     {reply, ok, State#state{ignore_keys=IgnoreKeys}};
