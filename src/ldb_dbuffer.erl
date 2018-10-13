@@ -131,18 +131,14 @@ prune_list(_, L) ->
     L.
 
 %% @doc
--spec size(d()) -> size_metric().
+-spec size(d()) -> non_neg_integer().
 size(#dbuffer{buffer=Buffer}) ->
     orddict:fold(
         fun(_, #dbuffer_entry{value=CRDT}, Acc) ->
-            ldb_util:plus([
-                Acc,
-                ldb_util:size(crdt, CRDT),
-                %% +1 for the From and Sequence
-                {1, 0}
-            ])
+            %% +1 for the From and Sequence
+            Acc + 1 + ldb_util:size(crdt, CRDT)
         end,
-        {0, 0},
+        0,
         Buffer
     ).
 

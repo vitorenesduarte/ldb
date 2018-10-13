@@ -61,16 +61,11 @@ update({{Type, _}=CRDT0, VV0, _}=Stored, Operation, #state{actor=Actor}) ->
     Dot = vclock:next_dot(Actor, VV0),
     store_delta(Dot, Delta, Stored).
 
--spec memory(stored()) -> two_size_metric().
+-spec memory(stored()) -> size_metric().
 memory({CRDT, VV, DeltaBuffer}) ->
-    %% crdt
-    C = ldb_util:size(crdt, CRDT),
-    %% rest = delta buffer + vector
-    R = ldb_util:plus(
-        ldb_util:size(dotted_buffer, DeltaBuffer),
-        ldb_util:size(vector, VV)
-    ),
-    {C, R}.
+    {M, C} = message_size({dotted_buffer, DeltaBuffer}),
+    Alg = M + C + ldb_util:size(vector, VV),
+    {Alg, ldb_util:size(crdt, CRDT)}.
 
 -spec message_maker(stored(), ldb_node_id(), st()) -> message().
 message_maker({_CRDT, VV, DeltaBuffer}, _, _) ->
@@ -114,10 +109,10 @@ message_handler({dotted_buffer, Buffer}, _From,
     {Stored, nothing}.
 
 -spec message_size(message()) -> size_metric().
+message_size({dotted_buffer, _}=Buffer) ->
+    ldb_scuttlebutt_backend:message_size(Buffer);
 message_size({vector, Vector}) ->
-    ldb_util:size(vector, Vector);
-message_size({dotted_buffer, Buffer}) ->
-    ldb_util:size(dotted_buffer, Buffer).
+    {ldb_util:size(vector, Vector), 0}.
 
 %% @private
 store_delta(Dot, Delta, {{Type, _}=CRDT0, VV0, DeltaBuffer0}) ->

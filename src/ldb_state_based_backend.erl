@@ -58,13 +58,9 @@ update({Type, _}=CRDT, Operation, #state{actor=Actor}) ->
     {ok, Result} = Type:mutate(Operation, Actor, CRDT),
     Result.
 
--spec memory(stored()) -> two_size_metric().
+-spec memory(stored()) -> size_metric().
 memory(CRDT) ->
-    %% crdt
-    C = ldb_util:size(crdt, CRDT),
-    %% rest = nothing
-    R = {0, 0},
-    {C, R}.
+    {0, ldb_util:size(crdt, CRDT)}.
 
 -spec message_maker(stored(), ldb_node_id(), st()) -> message().
 message_maker(CRDT, _, _) ->
@@ -80,4 +76,4 @@ message_handler({state, {Type, _}=RemoteCRDT}, _,
 
 -spec message_size(message()) -> size_metric().
 message_size({state, CRDT}) ->
-    ldb_util:size(crdt, CRDT).
+    {0, ldb_util:size(crdt, CRDT)}.

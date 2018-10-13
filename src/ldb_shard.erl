@@ -221,11 +221,11 @@ handle_info(?TIME_SERIES, #state{kv=KV,
 
     FoldFun = fun(Key, Stored, Acc) ->
         case should_save_key(Key, IgnoreKeys) of
-            true -> ldb_util:two_plus(Acc, Backend:memory(Stored));
+            true -> ldb_util:plus(Acc, Backend:memory(Stored));
             false -> Acc
         end
     end,
-    Result = maps:fold(FoldFun, {{0, 0}, {0, 0}}, KV),
+    Result = maps:fold(FoldFun, {0, 0}, KV),
 
     %% notify metrics
     MetricsSt = ldb_metrics:record_memory(Result, MetricsSt0),

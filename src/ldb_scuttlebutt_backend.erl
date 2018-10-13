@@ -65,16 +65,11 @@ update({{Type, _}=CRDT0, VV0, _, _}=Stored, Operation, #state{actor=Actor}) ->
     Dot = vclock:next_dot(Actor, VV0),
     store_delta(Actor, Dot, Delta, Stored).
 
--spec memory(stored()) -> two_size_metric().
-memory({CRDT, _VV, DeltaBuffer, Matrix}) ->
-    %% crdt
-    C = ldb_util:size(crdt, CRDT),
-    %% rest = delta buffer + matrix
-    R = ldb_util:plus(
-        ldb_util:size(dotted_buffer, DeltaBuffer),
-        ldb_util:size(matrix, m_vclock:matrix(Matrix))
-    ),
-    {C, R}.
+-spec memory(stored()) -> size_metric().
+memory({CRDT, VV, DeltaBuffer, Matrix}) ->
+    {M, C} = message_size({dotted_buffer, DeltaBuffer}),
+    Alg = M + C + ldb_util:size(vector, VV) + ldb_util:size(matrix, m_vclock:matrix(Matrix)),
+    {Alg, ldb_util:size(crdt, CRDT)}.
 
 -spec message_maker(stored(), ldb_node_id(), st()) -> message().
 message_maker({_CRDT, _VV, DeltaBuffer, Matrix}, _, _) ->
@@ -132,10 +127,16 @@ message_handler({dotted_buffer, Buffer}, _From,
     {Stored, nothing}.
 
 -spec message_size(message()) -> size_metric().
-message_size({matrix, Matrix}) ->
-    ldb_util:size(matrix, Matrix);
 message_size({dotted_buffer, Buffer}) ->
-    ldb_util:size(dotted_buffer, Buffer).
+    maps:fold(
+        fun(_Dot, Delta, {M, C}) ->
+            {M + 1, C + ldb_util:size(crdt, Delta)}
+        end,
+        {0, 0},
+        Buffer
+    );
+message_size({matrix, Matrix}) ->
+    {ldb_util:size(matrix, Matrix), 0}.
 
 %% @private
 -spec store_delta(ldb_node_id(), dot(), term(), stored()) -> stored().
