@@ -231,7 +231,7 @@ handle_info(?TIME_SERIES, #state{kv=KV,
                 Acc
         end
     end,
-    {Size, TermSize} = maps:fold(FoldFun, {0, 0}, KV),
+    {Size, TermSize} = maps:fold(FoldFun, {{0, 0}, 0}, KV),
 
     %% notify metrics
     MetricsSt = ldb_metrics:record_memory(Size, TermSize, MetricsSt0),
