@@ -23,8 +23,7 @@
 -include("ldb.hrl").
 
 %% ldb_util callbacks
--export([parse_membership/1,
-         new_crdt/2,
+-export([new_crdt/2,
          get_backend/0,
          atom_to_binary/1,
          binary_to_atom/1,
@@ -33,14 +32,10 @@
          size/2,
          plus/1,
          plus/2,
-         two_plus/2]).
+         connection_name/1,
+         connection_name/2]).
 
 -export([qs/1]).
-
-%% @doc Parse membership from partisan.
--spec parse_membership(list(node_spec())) -> list(ldb_node_id()).
-parse_membership(Membership) ->
-    [Name || {Name, _, _} <- Membership, Name /= ldb_config:id()].
 
 %% @doc Creates a bottom CRDT from a type
 %%      or from an existing state-based CRDT.
@@ -91,36 +86,21 @@ unix_timestamp() ->
     erlang:system_time(second).
 
 %% @doc
--spec size(crdt | ack_map | vector | matrix | dotted_buffer, term()) ->
-    {non_neg_integer(), non_neg_integer()}.
+-spec size(crdt | ack_map | vector | matrix, term()) -> non_neg_integer().
 size(crdt, CRDT) ->
     state_type:crdt_size(CRDT);
 size(ack_map, AckMap) ->
-    {maps:size(AckMap), 0};
+    maps:size(AckMap);
 %% scuttlebutt
 size(vector, VV) ->
-    {vclock:size(VV), 0};
+    vclock:size(VV);
 size(matrix, Matrix) ->
     %% matrix size is the sum of all vector sizes
     %% plus the number of entries in the matrix
-    Dots = maps:fold(
+    maps:fold(
         fun(_, VV, Acc) -> Acc + 1 + vclock:size(VV) end,
         0,
         Matrix
-    ),
-    {Dots, 0};
-size(dotted_buffer, Buffer) ->
-    maps:fold(
-        fun(_Dot, Delta, Acc) ->
-            plus([
-                Acc,
-                size(crdt, Delta),
-                %% +1 for the dot
-                {1, 0}
-            ])
-        end,
-        {0, 0},
-        Buffer
     ).
 
 %% @doc sum
@@ -134,9 +114,15 @@ plus({A1, B1}, {A2, B2}) ->
     {A1 + A2, B1 + B2}.
 
 %% @doc
--spec two_plus(two_size_metric(), two_size_metric()) -> two_size_metric().
-two_plus({A1, B1}, {A2, B2}) ->
-    {plus(A1, A2), plus(B1, B2)}.
+-spec connection_name(ldb_node_id()) -> atom().
+connection_name(Id) ->
+    RandomIndex = rand:uniform(?CONNECTIONS),
+    connection_name(Id, RandomIndex).
+
+%% @doc
+-spec connection_name(ldb_node_id(), non_neg_integer()) -> atom().
+connection_name(Id, Index) ->
+    list_to_atom(atom_to_list(Id) ++ "_" ++ integer_to_list(Index)).
 
 %% @private
 extract_args({Type, Args}) ->
@@ -155,7 +141,6 @@ get_type(Type) ->
     list_to_atom("state_" ++ atom_to_list(Type)).
 
 %% @doc Log Process queue length.
-qs(_ID) ->
-    %{message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
-    %lager:info("MAILBOX - " ++ ID ++ " - REMAINING: ~p", [MessageQueueLen]).
-    ok.
+qs(ID) ->
+    {message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
+    lager:info("MAILBOX ~p REMAINING: ~p", [ID, MessageQueueLen]).

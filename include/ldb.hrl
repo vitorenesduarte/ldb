@@ -12,6 +12,9 @@
 -type backend_state() :: term().
 -type dbuffer() :: ldb_dbuffer:d().
 
+%% shard
+-type metrics() :: ldb_metrics:st().
+
 %% peer service
 -type ldb_node_id() :: node().
 -type node_ip() :: inet:ip_address().
@@ -23,7 +26,6 @@
 
 %% size metric: metadata size, payload size
 -type size_metric() :: {non_neg_integer(), non_neg_integer()}.
--type two_size_metric() :: {size_metric(), size_metric()}.
 
 %% clocks
 -type sequence() :: non_neg_integer().
@@ -31,14 +33,12 @@
 -type vclock() :: vclock:v().
 -type m_vclock() :: m_vclock:m().
 
-%% space server
--define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
-
 %% defaults
 -define(DEFAULT_STATE_SYNC_INTERVAL, 1000).
--define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
 -define(DEFAULT_MODE, state_based).
--define(DEFAULT_STORE, ldb_actor_store).
+
+%%
+-define(CONNECTIONS, 1).
 
 %% logging
 -ifdef(debug).

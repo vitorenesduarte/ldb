@@ -22,24 +22,18 @@
 
 -include("ldb.hrl").
 
--behaviour(gen_server).
-
 %% ldb_metrics callbacks
--export([start_link/0,
-         get_all/0,
-         record_transmission/1,
-         record_memory/1,
-         record_latency/2,
-         record_processing/1]).
+-export([new/0,
+         merge_all/1,
+         record_transmission/3,
+         record_memory/3,
+         record_latency/3,
+         record_processing/2]).
 
-%% gen_server callbacks
--export([init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2]).
+-type term_size() :: non_neg_integer().
 
--type transmission() :: maps:map(timestamp(), size_metric()).
--type memory() :: maps:map(timestamp(), two_size_metric()).
+-type transmission() :: maps:map(timestamp(), {size_metric(), term_size()}).
+-type memory() :: maps:map(timestamp(), {size_metric(), size_metric()}).
 -type latency() :: maps:map(atom(), list(non_neg_integer())).
 -type processing() :: non_neg_integer().
 
@@ -47,90 +41,97 @@
                 memory :: memory(),
                 latency :: latency(),
                 processing :: processing()}).
+-type st() :: #state{}.
 
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+-spec new() -> st().
+new() ->
+    #state{transmission=maps:new(),
+           memory=maps:new(),
+           latency=maps:new(),
+           processing=0}.
 
--spec get_all() -> {transmission(), memory(), latency(), processing()}.
-get_all() ->
-    gen_server:call(?MODULE, get_all, infinity).
+-spec merge_all(list(st())) -> {transmission(), memory(), latency(), processing()}.
+merge_all([A, B | T]) ->
+    #state{transmission=TransmissionA,
+           memory=MemoryA,
+           latency=LatencyA,
+           processing=ProcessingA} = A,
+    #state{transmission=TransmissionB,
+           memory=MemoryB,
+           latency=LatencyB,
+           processing=ProcessingB} = B,
+    Transmission = maps_ext:merge_all(
+        fun(_, {VA, TA}, {VB, TB}) -> {ldb_util:plus(VA, VB), TA + TB} end,
+        TransmissionA,
+        TransmissionB
+    ),
+    Memory = maps_ext:merge_all(
+        fun(_, {VA, TA}, {VB, TB}) -> {ldb_util:plus(VA, VB), TA + TB} end,
+        MemoryA,
+        MemoryB
+    ),
+    Latency = maps_ext:merge_all(
+        fun(_, VA, VB) -> VA ++ VB end,
+        LatencyA,
+        LatencyB
+    ),
+    Processing = ProcessingA + ProcessingB,
+    H = #state{transmission=Transmission,
+               memory=Memory,
+               latency=Latency,
+               processing=Processing},
+    merge_all([H | T]);
+merge_all([#state{transmission=Transmission,
+                  memory=Memory,
+                  latency=Latency,
+                  processing=Processing}]) ->
+    {Transmission, Memory, Latency, Processing}.
 
--spec record_transmission(size_metric()) -> ok.
-record_transmission({0, 0}) ->
-    ok;
-record_transmission(Size) ->
-    gen_server:cast(?MODULE, {transmission, ldb_util:unix_timestamp(), Size}).
+-spec record_transmission(size_metric(), term_size(), st()) -> st().
+record_transmission({0, 0}, _, State) ->
+    State;
+record_transmission(Size, TermSize, #state{transmission=Transmission0}=State) ->
+    Timestamp = ldb_util:unix_timestamp(),
+    Transmission = update_transmission(Timestamp, Size, TermSize, Transmission0),
+    State#state{transmission=Transmission}.
 
--spec record_memory(two_size_metric()) -> ok.
-record_memory({{0, 0}, {0, 0}}) ->
-    ok;
-record_memory(TwoSize) ->
-    gen_server:cast(?MODULE, {memory, ldb_util:unix_timestamp(), TwoSize}).
+-spec record_memory(size_metric(), term_size(), st()) -> st().
+record_memory({0, 0}, _, State) ->
+    State;
+record_memory(Size, TermSize, #state{memory=Memory0}=State) ->
+    Timestamp = ldb_util:unix_timestamp(),
+    Memory = update_memory(Timestamp, Size, TermSize, Memory0),
+    State#state{memory=Memory}.
 
--spec record_latency(atom(), non_neg_integer()) -> ok.
-record_latency(Type, MicroSeconds) ->
-    gen_server:cast(?MODULE, {latency, Type, MicroSeconds}).
+-spec record_latency(atom(), non_neg_integer(), st()) -> st().
+record_latency(Type, MicroSeconds, #state{latency=Latency0}=State) ->
+    Latency = update_latency(Type, MicroSeconds, Latency0),
+    State#state{latency=Latency}.
 
--spec record_processing(processing()) -> ok.
-record_processing(0) ->
-    ok;
-record_processing(MicroSeconds) ->
-    gen_server:cast(?MODULE, {processing, MicroSeconds}).
+-spec record_processing(processing(), st()) -> st().
+record_processing(MicroSeconds, #state{processing=Processing0}=State) ->
+    State#state{processing=Processing0 + MicroSeconds}.
 
-%% gen_server callbacks
-init([]) ->
-    lager:info("ldb_metrics initialized!"),
-    {ok, #state{transmission=maps:new(),
-                memory=maps:new(),
-                latency=maps:new(),
-                processing=0}}.
-
-handle_call(get_all, _From, #state{transmission=Transmission,
-                                   memory=Memory,
-                                   latency=Latency,
-                                   processing=Processing}=State) ->
-    All = {Transmission, Memory, Latency, Processing},
-    {reply, All, State};
-
-handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
-    {noreply, State}.
-
-handle_cast({transmission, Timestamp, Size}, #state{transmission=Transmission0}=State) ->
-    Transmission = maps:update_with(
+update_transmission(Timestamp, Size, TermSize, Transmission0) ->
+    maps:update_with(
         Timestamp,
-        fun(V) -> ldb_util:plus(V, Size) end,
-        Size,
+        fun({V, T}) -> {ldb_util:plus(V, Size), T + TermSize} end,
+        {Size, TermSize},
         Transmission0
-    ),
-    {noreply, State#state{transmission=Transmission}};
+    ).
 
-handle_cast({memory, Timestamp, TwoSize}, #state{memory=Memory0}=State) ->
-    Memory = maps:update_with(
+update_memory(Timestamp, Size, TermSize, Memory0) ->
+    maps:update_with(
         Timestamp,
-        fun(V) -> ldb_util:two_plus(V, TwoSize) end,
-        TwoSize,
+        fun({V, T}) -> {ldb_util:plus(V, Size), T + TermSize} end,
+        {Size, TermSize},
         Memory0
-    ),
-    {noreply, State#state{memory=Memory}};
+    ).
 
-handle_cast({latency, Type, MicroSeconds}, #state{latency=Latency0}=State) ->
-    Latency = maps:update_with(
+update_latency(Type, MicroSeconds, Latency0) ->
+    maps:update_with(
         Type,
         fun(V) -> [MicroSeconds | V] end,
         [MicroSeconds],
         Latency0
-    ),
-    {noreply, State#state{latency=Latency}};
-
-handle_cast({processing, MicroSeconds}, #state{processing=Processing}=State) ->
-    {noreply, State#state{processing=Processing + MicroSeconds}};
-
-handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
-    {noreply, State}.
-
-handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
-    {noreply, State}.
+    ).

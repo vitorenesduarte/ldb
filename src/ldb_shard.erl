@@ -40,11 +40,14 @@
                 backend_state :: backend_state(),
                 state_sync_interval :: non_neg_integer(),
                 members :: list(ldb_node_id()),
-                ignore_keys :: sets:set(string())}).
+                ignore_keys :: sets:set(string()),
+                metrics_st :: metrics()}).
 
 -define(STATE_SYNC, state_sync).
 -define(TIME_SERIES, time_series).
 -define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
+
+-define(WORD_SIZE, 8).
 
 
 -spec start_link(atom()) -> {ok, pid()} | ignore | {error, term()}.
@@ -60,6 +63,7 @@ init([ShardName]) ->
     Interval = ldb_config:get(ldb_state_sync_interval),
     Members = [],
     IgnoreKeys = sets:new(),
+    MetricsSt = ldb_metrics:new(),
 
     %% schedule periodic events
     schedule_state_sync(Interval),
@@ -73,7 +77,8 @@ init([ShardName]) ->
                 backend_state=BackendState,
                 state_sync_interval=Interval,
                 members=Members,
-                ignore_keys=IgnoreKeys}}.
+                ignore_keys=IgnoreKeys,
+                metrics_st=MetricsSt}}.
 
 handle_call({create, Key, LDBType}, _From, #state{kv=KV0,
                                                   backend=Backend,
@@ -95,16 +100,39 @@ handle_call({query, Key, Args}, _From, #state{kv=KV,
 
 handle_call({update, Key, Operation}, _From, #state{kv=KV0,
                                                     backend=Backend,
-                                                    backend_state=BackendState}=State) ->
-    KV = maps:update_with(
-        Key,
-        fun(Stored) -> Backend:update(Stored, Operation, BackendState) end,
-        KV0
+                                                    backend_state=BackendState,
+                                                    ignore_keys=IgnoreKeys,
+                                                    metrics_st=MetricsSt0}=State) ->
+    %% metrics
+    Metrics = should_save_key(Key, IgnoreKeys),
+
+    %% get current value
+    Stored0 = maps:get(Key, KV0),
+
+    %% update it and measure time
+    {MicroSeconds, Stored} = timer:tc(
+        Backend,
+        update,
+        [Stored0, Operation, BackendState]
     ),
-    {reply, ok, State#state{kv=KV}};
+
+    %% update with new value
+    KV = maps:put(Key, Stored, KV0),
+
+    %% maybe save metrics
+    MetricsSt = case Metrics of
+        true -> ldb_metrics:record_processing(MicroSeconds, MetricsSt0);
+        false -> MetricsSt0
+    end,
+
+    {reply, ok, State#state{kv=KV,
+                            metrics_st=MetricsSt}};
 
 handle_call({update_ignore_keys, IgnoreKeys}, _From, State) ->
     {reply, ok, State#state{ignore_keys=IgnoreKeys}};
+
+handle_call(get_metrics, _From, #state{metrics_st=MetricsSt}=State) ->
+    {reply, MetricsSt, State};
 
 handle_call(Msg, _From, State) ->
     lager:warning("Unhandled call message: ~p", [Msg]),
@@ -115,7 +143,8 @@ handle_cast({msg, From, Key, Message}, #state{shard_name=ShardName,
                                               kv=KV0,
                                               backend=Backend,
                                               backend_state=BackendState,
-                                              ignore_keys=IgnoreKeys}=State) ->
+                                              ignore_keys=IgnoreKeys,
+                                              metrics_st=MetricsSt0}=State) ->
     %% metrics
     Metrics = should_save_key(Key, IgnoreKeys),
 
@@ -129,21 +158,22 @@ handle_cast({msg, From, Key, Message}, #state{shard_name=ShardName,
         [Message, From, Stored0, BackendState]
     ),
 
-    %% send reply
-    case Reply of
-        nothing -> ok;
-        _ -> do_send(Backend, ShardName, Actor, From, Key, Reply, Metrics)
+    %% send reply, and measure its cost
+    MetricsSt1 = case Reply of
+        nothing -> MetricsSt0;
+        _ -> do_send(Backend, ShardName, Actor, From, Key, Reply, Metrics, MetricsSt0)
     end,
 
     %% update with new value
     KV = maps:put(Key, Stored, KV0),
 
     %% maybe save metrics
-    case Metrics of
-        true -> ldb_metrics:record_processing(MicroSeconds);
-        false -> ok
+    MetricsSt = case Metrics of
+        true -> ldb_metrics:record_processing(MicroSeconds, MetricsSt1);
+        false -> MetricsSt1
     end,
-    {noreply, State#state{kv=KV}};
+    {noreply, State#state{kv=KV,
+                          metrics_st=MetricsSt}};
 
 handle_cast({update_members, Members}, State) ->
     {noreply, State#state{members=Members}};
@@ -159,52 +189,63 @@ handle_info(?STATE_SYNC, #state{shard_name=ShardName,
                                 backend_state=BackendState,
                                 state_sync_interval=Interval,
                                 members=LDBIds,
-                                ignore_keys=IgnoreKeys}=State) ->
-    FoldFun = fun(Key, Stored, _) ->
+                                ignore_keys=IgnoreKeys,
+                                metrics_st=MetricsSt0}=State) ->
+
+    FoldFun = fun(Key, Stored, MetricsStAcc0) ->
         %% if shouldn't ignore the key
         Metrics = should_save_key(Key, IgnoreKeys),
-        lists:foreach(
-            fun(LDBId) ->
-                Message = do_make(Backend, BackendState, Stored, LDBId),
+        lists:foldl(
+            fun(LDBId, MetricsStAcc1) ->
+                {Message, MetricsStAcc2} = do_make(Backend, BackendState, Stored,
+                                                   LDBId, MetricsStAcc1),
 
                 %% send message if there's a message to send
                 case Message of
-                    nothing -> ok;
-                    _ -> do_send(Backend, ShardName, Actor, LDBId, Key, Message, Metrics)
+                    nothing -> MetricsStAcc2;
+                    _ -> do_send(Backend, ShardName, Actor, LDBId, Key, Message,
+                                 Metrics, MetricsStAcc2)
                 end
-
             end,
+            MetricsStAcc0,
             LDBIds
         )
     end,
+    MetricsSt = maps:fold(FoldFun, MetricsSt0, KV),
 
-    maps:fold(FoldFun, undefined, KV),
     schedule_state_sync(Interval),
-    {noreply, State};
+    {noreply, State#state{metrics_st=MetricsSt}};
 
 handle_info(?TIME_SERIES, #state{kv=KV,
                                  backend=Backend,
-                                 ignore_keys=IgnoreKeys}=State) ->
-    FoldFun = fun(Key, Stored, Acc) ->
+                                 ignore_keys=IgnoreKeys,
+                                 metrics_st=MetricsSt0}=State) ->
+
+    FoldFun = fun(Key, Stored, {Size0, TermSize0}=Acc) ->
         case should_save_key(Key, IgnoreKeys) of
-            true -> ldb_util:two_plus(Acc, Backend:memory(Stored));
-            false -> Acc
+            true ->
+                Size1 = ldb_util:plus(Size0, Backend:memory(Stored)),
+                TermSize1 = term_size(Stored) + TermSize0,
+                {Size1, TermSize1};
+            false ->
+                Acc
         end
     end,
-    Result = maps:fold(FoldFun, {{0, 0}, {0, 0}}, KV),
+    {Size, TermSize} = maps:fold(FoldFun, {{0, 0}, 0}, KV),
 
-    %% notify metrics, if there's something to notify
-    ldb_metrics:record_memory(Result),
+    %% notify metrics
+    MetricsSt = ldb_metrics:record_memory(Size, TermSize, MetricsSt0),
     schedule_time_series(),
-    {noreply, State};
+    {noreply, State#state{metrics_st=MetricsSt}};
 
 handle_info(Msg, State) ->
     lager:warning("Unhandled info message: ~p", [Msg]),
     {noreply, State}.
 
 %% @private
--spec do_make(atom(), backend_state(), backend_stored(), ldb_node_id()) -> term().
-do_make(Backend, BackendState, Stored, LDBId) ->
+-spec do_make(atom(), backend_state(), backend_stored(), ldb_node_id(), metrics()) ->
+    {term(), metrics()}.
+do_make(Backend, BackendState, Stored, LDBId, MetricsSt0) ->
     {MicroSeconds, Message} = timer:tc(
         Backend,
         message_maker,
@@ -212,36 +253,30 @@ do_make(Backend, BackendState, Stored, LDBId) ->
     ),
 
     %% record time creating this message
-    ldb_metrics:record_processing(MicroSeconds),
+    MetricsSt = ldb_metrics:record_processing(MicroSeconds, MetricsSt0),
 
-    Message.
+    {Message, MetricsSt}.
 
 %% @private
--spec do_send(atom(), atom(), ldb_node_id(), ldb_node_id(), key(), term(), boolean()) -> ok.
-do_send(Backend, ShardName, From, To, Key, Message, Metrics) ->
-    lager:info("sending from ~p to ~p about ~p", [From, To, Key]),
-    %% try to send the message
-    Result = ldb_peer_service:forward_message(
+-spec do_send(atom(), atom(), ldb_node_id(), ldb_node_id(), key(), term(),
+              boolean(), metrics()) -> metrics().
+do_send(Backend, ShardName, From, To, Key, Message, Metrics, MetricsSt0) ->
+    %% send the message
+    ok = ldb_hao:forward_message(
         To,
         ShardName,
         {msg, From, Key, Message}
     ),
 
-    %% if message was sent, collect metrics
-    case Result of
-        ok ->
-            case Metrics of
-                true ->
-                    Size = Backend:message_size(Message),
-                    ldb_metrics:record_transmission(Size);
-                false ->
-                    ok
-            end;
-        Error ->
-            lager:info("Error trying to send message ~p to node ~p. Reason ~p",
-                       [Message, To, Error])
-    end,
-    ok.
+    %% if should, collect metrics
+    case Metrics of
+        true ->
+            Size = Backend:message_size(Message),
+            TermSize = term_size(Message),
+            ldb_metrics:record_transmission(Size, TermSize, MetricsSt0);
+        false ->
+            MetricsSt0
+    end.
 
 %% @private
 -spec should_save_key(string(), sets:set(string())) -> boolean().
@@ -255,3 +290,8 @@ schedule_time_series() ->
 %% @private
 schedule_state_sync(Interval) ->
     timer:send_after(Interval, ?STATE_SYNC).
+
+%% @private
+term_size(Term) ->
+    % erlang_term:byte_size(Term, ?WORD_SIZE).
+    erlang:byte_size(erlang:term_to_binary(Term)).
