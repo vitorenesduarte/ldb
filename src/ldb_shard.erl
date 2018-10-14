@@ -293,4 +293,5 @@ schedule_state_sync(Interval) ->
 
 %% @private
 term_size(Term) ->
-    erlang_term:byte_size(Term, ?WORD_SIZE).
+    % erlang_term:byte_size(Term, ?WORD_SIZE).
+    erlang:byte_size(erlang:term_to_binary(Term)).
