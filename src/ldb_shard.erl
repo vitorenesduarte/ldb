@@ -47,6 +47,8 @@
 -define(TIME_SERIES, time_series).
 -define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
 
+-define(WORD_SIZE, 8).
+
 
 -spec start_link(atom()) -> {ok, pid()} | ignore | {error, term()}.
 start_link(ShardName) ->
@@ -219,16 +221,20 @@ handle_info(?TIME_SERIES, #state{kv=KV,
                                  ignore_keys=IgnoreKeys,
                                  metrics_st=MetricsSt0}=State) ->
 
-    FoldFun = fun(Key, Stored, Acc) ->
+    FoldFun = fun(Key, Stored, {Size0, TermSize0}=Acc) ->
         case should_save_key(Key, IgnoreKeys) of
-            true -> ldb_util:plus(Acc, Backend:memory(Stored));
-            false -> Acc
+            true ->
+                Size1 = ldb_util:plus(Size0, Backend:memory(Stored)),
+                TermSize1 = term_size(Stored) + TermSize0,
+                {Size1, TermSize1};
+            false ->
+                Acc
         end
     end,
-    Result = maps:fold(FoldFun, {0, 0}, KV),
+    {Size, TermSize} = maps:fold(FoldFun, {0, 0}, KV),
 
     %% notify metrics
-    MetricsSt = ldb_metrics:record_memory(Result, MetricsSt0),
+    MetricsSt = ldb_metrics:record_memory(Size, TermSize, MetricsSt0),
     schedule_time_series(),
     {noreply, State#state{metrics_st=MetricsSt}};
 
@@ -266,7 +272,8 @@ do_send(Backend, ShardName, From, To, Key, Message, Metrics, MetricsSt0) ->
     case Metrics of
         true ->
             Size = Backend:message_size(Message),
-            ldb_metrics:record_transmission(Size, MetricsSt0);
+            TermSize = term_size(Message),
+            ldb_metrics:record_transmission(Size, TermSize, MetricsSt0);
         false ->
             MetricsSt0
     end.
@@ -283,3 +290,7 @@ schedule_time_series() ->
 %% @private
 schedule_state_sync(Interval) ->
     timer:send_after(Interval, ?STATE_SYNC).
+
+%% @private
+term_size(Term) ->
+    erlang_term:byte_size(Term, ?WORD_SIZE).
