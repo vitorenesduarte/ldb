@@ -18,7 +18,7 @@
 %% -------------------------------------------------------------------
 
 -module(ldb_json).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 

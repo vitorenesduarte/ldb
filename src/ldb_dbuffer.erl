@@ -42,9 +42,8 @@
 -export_type([d/0]).
 
 -record(dbuffer, {avoid_bp :: boolean(),
-                  min_seq :: sequence(),
                   seq :: sequence(),
-                  buffer :: maps:map(sequence(), d_entry())}).
+                  buffer :: orddict:orddict(sequence(), d_entry())}).
 -type d() :: #dbuffer{}.
 
 -record(dbuffer_entry, {from :: ldb_node_id(),
@@ -55,24 +54,25 @@
 -spec new(boolean()) -> d().
 new(AvoidBP) ->
     #dbuffer{avoid_bp=AvoidBP,
-             min_seq=0,
              seq=0,
-             buffer=maps:new()}.
+             buffer=orddict:new()}.
 
 %% @doc Retrieve seq.
 -spec seq(d()) -> sequence().
 seq(#dbuffer{seq=Seq}) ->
     Seq.
 
-%% @doc Retrieve min_seq.
+%% @doc Compute min seq in the buffer.
 -spec min_seq(d()) -> sequence().
-min_seq(#dbuffer{min_seq=MinSeq}) ->
-    MinSeq.
+min_seq(#dbuffer{buffer=[{MinSeq, _}|_]}) ->
+    MinSeq;
+min_seq(#dbuffer{buffer=[]}) ->
+    0.
 
 %% @doc Check if buffer is empty.
 -spec is_empty(d()) -> boolean().
 is_empty(#dbuffer{buffer=Buffer}) ->
-    maps:size(Buffer) == 0.
+    orddict:size(Buffer) == 0.
 
 %% @doc Add to buffer.
 -spec add_inflation(term(), ldb_node_id(), d()) -> d().
@@ -84,7 +84,7 @@ add_inflation(CRDT, From, #dbuffer{seq=Seq0,
                            value=CRDT},
 
     %% add to buffer
-    Buffer = maps:put(Seq0, Entry, Buffer0),
+    Buffer = orddict:store(Seq0, Entry, Buffer0),
 
     %% update seq
     Seq = Seq0 + 1,
@@ -96,7 +96,7 @@ add_inflation(CRDT, From, #dbuffer{seq=Seq0,
 -spec select(ldb_node_id(), sequence(), d()) -> term() | undefined.
 select(To, LastAck, #dbuffer{avoid_bp=AvoidBP,
                              buffer=Buffer}) ->
-    maps:fold(
+    orddict:fold(
         fun(Seq, #dbuffer_entry{from=From,
                                 value={Type, _}=CRDT}, Acc) ->
 
@@ -117,32 +117,35 @@ select(To, LastAck, #dbuffer{avoid_bp=AvoidBP,
 %% @doc Prune from buffer.
 -spec prune(sequence(), d()) -> d().
 prune(AllAck, #dbuffer{buffer=Buffer0}=State) ->
-    Buffer = maps:filter(
-        fun(Seq, _) -> Seq >= AllAck end,
-        Buffer0
-    ),
-    State#dbuffer{min_seq=AllAck, buffer=Buffer}.
+    Buffer = prune_list(AllAck, Buffer0),
+    State#dbuffer{buffer=Buffer}.
+
+%% @doc Prune from the actual buffer.
+-spec prune_list(sequence(), orddict:orddict(sequence(), d_entry())) ->
+    orddict:orddict(sequence(), d_entry()).
+prune_list(AllAck, [{Seq, _}|Rest]) when Seq < AllAck ->
+    %% prune and keep pruning
+    prune_list(AllAck, Rest);
+prune_list(_, L) ->
+    %% done pruning
+    L.
 
 %% @doc
--spec size(d()) -> {non_neg_integer(), non_neg_integer()}.
+-spec size(d()) -> non_neg_integer().
 size(#dbuffer{buffer=Buffer}) ->
-    maps:fold(
+    orddict:fold(
         fun(_, #dbuffer_entry{value=CRDT}, Acc) ->
-            ldb_util:plus([
-                Acc,
-                ldb_util:size(crdt, CRDT),
-                %% +1 for the From and Sequence
-                {1, 0}
-            ])
+            %% +1 for the From and Sequence
+            Acc + 1 + ldb_util:size(crdt, CRDT)
         end,
-        {0, 0},
+        0,
         Buffer
     ).
 
 %% @doc Pretty-print buffer.
 -spec show(d()) -> term().
-show(#dbuffer{min_seq=MinSeq, seq=Seq, buffer=Buffer}) ->
-    {MinSeq, Seq, lists:sort(maps:fold(
+show(#dbuffer{seq=Seq, buffer=Buffer}) ->
+    {Seq, lists:sort(orddict:fold(
         fun(EntrySeq, #dbuffer_entry{from=From, value={Type, _}=CRDT}, Acc) ->
             [{EntrySeq, From, Type:query(CRDT)} | Acc]
         end,
@@ -166,12 +169,12 @@ dbuffer_test() ->
     AvoidBP = true,
     Buffer0 =  new(AvoidBP),
 
-    Buffer1 = add_inflation({state_gcounter, maps:from_list([{a, 1}])}, a, Buffer0),
+    Buffer1 = add_inflation({state_gcounter, orddict:from_list([{a, 1}])}, a, Buffer0),
     ToA0 = select(a, 0, Buffer1),
     ToA1 = select(a, 0, Buffer1#dbuffer{avoid_bp=false}),
     ToA2 = select(a, 1, Buffer1),
 
-    Buffer2 = add_inflation({state_gcounter, maps:from_list([{b, 1}])}, b, Buffer1),
+    Buffer2 = add_inflation({state_gcounter, orddict:from_list([{b, 1}])}, b, Buffer1),
     ToA3 = select(a, 1, Buffer2),
     ToB0 = select(b, 0, Buffer2),
 
@@ -183,22 +186,22 @@ dbuffer_test() ->
     %% given that we pruned 2, select 1 shouldn't occur, but:
     ToA6 = select(a, 1, Buffer4),
 
-    Buffer5 = add_inflation({state_gcounter, maps:from_list([{c, 1}])}, c, Buffer4),
+    Buffer5 = add_inflation({state_gcounter, orddict:from_list([{c, 1}])}, c, Buffer4),
     ToA7 = select(a, 2, Buffer5),
     ToB1 = select(b, 2, Buffer5),
     ToC0 = select(c, 2, Buffer5),
 
     ?assertEqual(undefined, ToA0),
-    ?assertEqual({state_gcounter, maps:from_list([{a, 1}])}, ToA1),
+    ?assertEqual({state_gcounter, orddict:from_list([{a, 1}])}, ToA1),
     ?assertEqual(undefined, ToA2),
-    ?assertEqual({state_gcounter, maps:from_list([{b, 1}])}, ToA3),
-    ?assertEqual({state_gcounter, maps:from_list([{a, 1}])}, ToB0),
-    ?assertEqual({state_gcounter, maps:from_list([{a, 1}])}, ToB0),
-    ?assertEqual({state_gcounter, maps:from_list([{b, 1}])}, ToA4),
+    ?assertEqual({state_gcounter, orddict:from_list([{b, 1}])}, ToA3),
+    ?assertEqual({state_gcounter, orddict:from_list([{a, 1}])}, ToB0),
+    ?assertEqual({state_gcounter, orddict:from_list([{a, 1}])}, ToB0),
+    ?assertEqual({state_gcounter, orddict:from_list([{b, 1}])}, ToA4),
     ?assertEqual(undefined, ToA5),
     ?assertEqual(undefined, ToA6),
-    ?assertEqual({state_gcounter, maps:from_list([{c, 1}])}, ToA7),
-    ?assertEqual({state_gcounter, maps:from_list([{c, 1}])}, ToB1),
+    ?assertEqual({state_gcounter, orddict:from_list([{c, 1}])}, ToA7),
+    ?assertEqual({state_gcounter, orddict:from_list([{c, 1}])}, ToB1),
     ?assertEqual(undefined, ToC0),
     ok.
 

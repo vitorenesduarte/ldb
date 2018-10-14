@@ -1,7 +1,5 @@
 -define(APP, ldb).
--type not_found() :: {error, not_found}.
--type error() :: {error, atom()}.
-
+-type error() :: {error, term()}.
 
 %% ldb
 -type key() :: string().
@@ -10,7 +8,12 @@
 -type operation() :: term().
 
 %% backend
+-type backend_stored() :: term().
 -type backend_state() :: term().
+-type dbuffer() :: ldb_dbuffer:d().
+
+%% shard
+-type metrics() :: ldb_metrics:st().
 
 %% peer service
 -type ldb_node_id() :: node().
@@ -30,14 +33,12 @@
 -type vclock() :: vclock:v().
 -type m_vclock() :: m_vclock:m().
 
-%% space server
--define(SPACE_TCP_OPTIONS, [list, {packet, line}]).
-
 %% defaults
 -define(DEFAULT_STATE_SYNC_INTERVAL, 1000).
--define(DEFAULT_EVICTION_ROUND_NUMBER, -1). %% don't perform peer eviction
 -define(DEFAULT_MODE, state_based).
--define(DEFAULT_STORE, ldb_actor_store).
+
+%%
+-define(CONNECTIONS, 1).
 
 %% logging
 -ifdef(debug).

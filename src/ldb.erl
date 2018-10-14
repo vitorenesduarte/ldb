@@ -18,26 +18,33 @@
 %% -------------------------------------------------------------------
 
 -module(ldb).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
 -export([create/2,
          query/1,
+         query/2,
          update/2]).
 
 %% @doc Create a `Key' in the store with a given `Type'.
 -spec create(key(), type()) -> ok.
 create(Key, Type) ->
-    ldb_backend:create(Key, Type).
+    ldb_forward:create(Key, Type).
 
 %% @doc Reads the value associated with a given `Key'.
--spec query(key()) -> {ok, value()} | not_found().
+-spec query(key()) -> {ok, value()}.
 query(Key) ->
-    ldb_backend:query(Key).
+    ldb_forward:query(Key, []).
+
+%% @doc Reads the value associated with a given `Key',
+%%      and some additional arguments.
+-spec query(key(), list(term())) -> {ok, value()}.
+query(Key, Args) ->
+    ldb_forward:query(Key, Args).
 
 %% @doc Update the value associated with a given `Key',
 %%      applying a given `Operation'.
--spec update(key(), operation()) -> ok | not_found() | error().
+-spec update(key(), operation()) -> ok.
 update(Key, Operation) ->
-    ldb_backend:update(Key, Operation).
+    ldb_forward:update(Key, Operation).

@@ -18,135 +18,120 @@
 %% -------------------------------------------------------------------
 
 -module(ldb_metrics).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
--behaviour(gen_server).
-
 %% ldb_metrics callbacks
--export([start_link/0,
-         get_time_series/0,
-         get_latency/0,
-         record_transmission/1,
-         record_latency/2,
-         update_ignore_keys/1]).
+-export([new/0,
+         merge_all/1,
+         record_transmission/3,
+         record_memory/3,
+         record_latency/3,
+         record_processing/2]).
 
-%% gen_server callbacks
--export([init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         terminate/2,
-         code_change/3]).
+-type term_size() :: non_neg_integer().
 
--type metric_type() :: transmission | memory.
--type metric() :: term().
--type time_series() :: list({timestamp(), metric_type(), metric()}).
+-type transmission() :: maps:map(timestamp(), {size_metric(), term_size()}).
+-type memory() :: maps:map(timestamp(), {size_metric(), size_metric()}).
+-type latency() :: maps:map(atom(), list(non_neg_integer())).
+-type processing() :: non_neg_integer().
 
--type latency_type() :: local | remote.
--type latency() :: list({latency_type(), list(integer())}).
+-record(state, {transmission :: transmission(),
+                memory :: memory(),
+                latency :: latency(),
+                processing :: processing()}).
+-type st() :: #state{}.
 
--record(state, {time_series :: time_series(),
-                latency_type_to_latency :: orddict:orddict(),
-                ignore_keys :: sets:set(string())}).
+-spec new() -> st().
+new() ->
+    #state{transmission=maps:new(),
+           memory=maps:new(),
+           latency=maps:new(),
+           processing=0}.
 
--define(TIME_SERIES_INTERVAL, 1000). %% 1 second.
+-spec merge_all(list(st())) -> {transmission(), memory(), latency(), processing()}.
+merge_all([A, B | T]) ->
+    #state{transmission=TransmissionA,
+           memory=MemoryA,
+           latency=LatencyA,
+           processing=ProcessingA} = A,
+    #state{transmission=TransmissionB,
+           memory=MemoryB,
+           latency=LatencyB,
+           processing=ProcessingB} = B,
+    Transmission = maps_ext:merge_all(
+        fun(_, {VA, TA}, {VB, TB}) -> {ldb_util:plus(VA, VB), TA + TB} end,
+        TransmissionA,
+        TransmissionB
+    ),
+    Memory = maps_ext:merge_all(
+        fun(_, {VA, TA}, {VB, TB}) -> {ldb_util:plus(VA, VB), TA + TB} end,
+        MemoryA,
+        MemoryB
+    ),
+    Latency = maps_ext:merge_all(
+        fun(_, VA, VB) -> VA ++ VB end,
+        LatencyA,
+        LatencyB
+    ),
+    Processing = ProcessingA + ProcessingB,
+    H = #state{transmission=Transmission,
+               memory=Memory,
+               latency=Latency,
+               processing=Processing},
+    merge_all([H | T]);
+merge_all([#state{transmission=Transmission,
+                  memory=Memory,
+                  latency=Latency,
+                  processing=Processing}]) ->
+    {Transmission, Memory, Latency, Processing}.
 
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
--spec get_time_series() -> time_series().
-get_time_series() ->
-    gen_server:call(?MODULE, get_time_series, infinity).
-
--spec get_latency() -> latency().
-get_latency() ->
-    gen_server:call(?MODULE, get_latency, infinity).
-
--spec record_transmission(size_metric()) -> ok.
-record_transmission(Size) ->
-    gen_server:cast(?MODULE, {transmission, Size}).
-
-%% @doc Record latency of:
-%%          - `local': creating a message locally
-%%          - `remote': applying a message remotely
--spec record_latency(latency_type(), integer()) -> ok.
-record_latency(Type, MicroSeconds) ->
-    gen_server:cast(?MODULE, {latency, Type, MicroSeconds}).
-
--spec update_ignore_keys(sets:set(string())) -> ok.
-update_ignore_keys(IgnoreKeys) ->
-    ldb_listener:update_ignore_keys(IgnoreKeys),
-    ldb_whisperer:update_ignore_keys(IgnoreKeys),
-    gen_server:call(?MODULE, {update_ignore_keys, IgnoreKeys}, infinity).
-
-%% gen_server callbacks
-init([]) ->
-    schedule_time_series(),
-    lager:info("ldb_metrics initialized!"),
-    {ok, #state{latency_type_to_latency=orddict:new(),
-                time_series=[],
-                ignore_keys=sets:new()}}.
-
-handle_call(get_time_series, _From,
-            #state{time_series=TimeSeries}=State) ->
-    {reply, TimeSeries, State};
-
-handle_call(get_latency, _From,
-            #state{latency_type_to_latency=Map}=State) ->
-    {reply, Map, State};
-
-handle_call({update_ignore_keys, IgnoreKeys}, _Fromm, State) ->
-    {reply, ok, State#state{ignore_keys=IgnoreKeys}};
-
-handle_call(Msg, _From, State) ->
-    lager:warning("Unhandled call message: ~p", [Msg]),
-    {noreply, State}.
-
-handle_cast({transmission, Size},
-            #state{time_series=TimeSeries0}=State) ->
-
+-spec record_transmission(size_metric(), term_size(), st()) -> st().
+record_transmission({0, 0}, _, State) ->
+    State;
+record_transmission(Size, TermSize, #state{transmission=Transmission0}=State) ->
     Timestamp = ldb_util:unix_timestamp(),
-    TMetric = {Timestamp, transmission, Size},
-    TimeSeries1 = lists:append(TimeSeries0, [TMetric]),
+    Transmission = update_transmission(Timestamp, Size, TermSize, Transmission0),
+    State#state{transmission=Transmission}.
 
-    {noreply, State#state{time_series=TimeSeries1}};
-
-handle_cast({latency, Type, MicroSeconds},
-            #state{latency_type_to_latency=Map0}=State) ->
-    Map1 = orddict:append(Type, MicroSeconds, Map0),
-    {noreply, State#state{latency_type_to_latency=Map1}};
-
-handle_cast(Msg, State) ->
-    lager:warning("Unhandled cast message: ~p", [Msg]),
-    {noreply, State}.
-
-handle_info(time_series, #state{time_series=TimeSeries0,
-                                ignore_keys=IgnoreKeys}=State) ->
+-spec record_memory(size_metric(), term_size(), st()) -> st().
+record_memory({0, 0}, _, State) ->
+    State;
+record_memory(Size, TermSize, #state{memory=Memory0}=State) ->
     Timestamp = ldb_util:unix_timestamp(),
+    Memory = update_memory(Timestamp, Size, TermSize, Memory0),
+    State#state{memory=Memory}.
 
-    % transmission metrics are already recorded in `time_series'
+-spec record_latency(atom(), non_neg_integer(), st()) -> st().
+record_latency(Type, MicroSeconds, #state{latency=Latency0}=State) ->
+    Latency = update_latency(Type, MicroSeconds, Latency0),
+    State#state{latency=Latency}.
 
-    % memory metrics
-    MMetric = {Timestamp, memory, ldb_backend:memory(IgnoreKeys)},
-    TimeSeries1 = lists:append(TimeSeries0, [MMetric]),
+-spec record_processing(processing(), st()) -> st().
+record_processing(MicroSeconds, #state{processing=Processing0}=State) ->
+    State#state{processing=Processing0 + MicroSeconds}.
 
-    schedule_time_series(),
+update_transmission(Timestamp, Size, TermSize, Transmission0) ->
+    maps:update_with(
+        Timestamp,
+        fun({V, T}) -> {ldb_util:plus(V, Size), T + TermSize} end,
+        {Size, TermSize},
+        Transmission0
+    ).
 
-    {noreply, State#state{time_series=TimeSeries1}};
+update_memory(Timestamp, Size, TermSize, Memory0) ->
+    maps:update_with(
+        Timestamp,
+        fun({V, T}) -> {ldb_util:plus(V, Size), T + TermSize} end,
+        {Size, TermSize},
+        Memory0
+    ).
 
-handle_info(Msg, State) ->
-    lager:warning("Unhandled info message: ~p", [Msg]),
-    {noreply, State}.
-
-terminate(_Reason, _State) ->
-    ok.
-
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
-
-%% @private
-schedule_time_series() ->
-    timer:send_after(?TIME_SERIES_INTERVAL, time_series).
+update_latency(Type, MicroSeconds, Latency0) ->
+    maps:update_with(
+        Type,
+        fun(V) -> [MicroSeconds | V] end,
+        [MicroSeconds],
+        Latency0
+    ).

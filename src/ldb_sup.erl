@@ -18,7 +18,7 @@
 %% -------------------------------------------------------------------
 
 -module(ldb_sup).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
 
@@ -28,31 +28,40 @@
 
 -export([init/1]).
 
+-define(CHILD(Name, Mod, Args),
+        {Name, {Mod, start_link, Args}, permanent, 5000, worker, [Mod]}).
+-define(CHILD(I),
+        ?CHILD(I, I, [])).
+
+-define(LISTENER_OPTIONS(Port),
+        [{port, Port},
+         %% we probably won't have more than 32 servers
+         {max_connections, 32},
+         %% one acceptor should be enough since the number
+         %% of servers is small
+         {num_acceptors, 1}]).
+
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    BaseSpecs = configure(),
+    Port = configure(),
 
-    Backend = {ldb_backend,
-               {ldb_backend, start_link, []},
-               permanent, 5000, worker, [ldb_backend]},
+    %% start server tcp acceptor
+    {ok, _} = ranch:start_listener(ldb_hao_server,
+                                   ranch_tcp,
+                                   ?LISTENER_OPTIONS(Port),
+                                   ldb_hao_client,
+                                   []),
 
-    Whisperer = {ldb_whisperer,
-                 {ldb_whisperer, start_link, []},
-                 permanent, 5000, worker, [ldb_whisperer]},
+    %% hao
+    BaseSpecs = [?CHILD(ldb_hao)],
 
-    Listener = {ldb_listener,
-                {ldb_listener, start_link, []},
-                permanent, 5000, worker, [ldb_listener]},
+    %% all the shards
+    ReplicationSpecs = [?CHILD(Shard, ldb_shard, [Shard])
+                        || Shard <- ldb_forward:all_shards()],
 
-    ReplicationSpecs = [Backend,
-                        Whisperer,
-                        Listener],
-
-    SpaceSpecs = space_specs(),
-
-    Children = BaseSpecs ++ ReplicationSpecs ++ SpaceSpecs,
+    Children = BaseSpecs ++ ReplicationSpecs,
 
     lager:info("ldb_sup initialized!"),
     RestartStrategy = {one_for_one, 5, 10},
@@ -85,34 +94,16 @@ configure() ->
                   ldb_dgroup_back_propagation,
                   false),
 
-    %% configure metrics
-    Metrics = configure_var("LDB_METRICS",
-                            ldb_metrics,
-                            true),
+    %% configure server ip
+    configure_ip("LDB_IP",
+                 ldb_ip,
+                 {127, 0, 0, 1}),
 
-    BaseSpecs = case Metrics of
-        true ->
-            [{ldb_metrics,
-              {ldb_metrics, start_link, []},
-              permanent, 5000, worker, [ldb_metrics]}];
-        false ->
-            []
-    end,
-
-    BaseSpecs.
-
-
-%% @private
-space_specs() ->
-    %% the space server is only started if LDB_SPACE_PORT is defined
-    case list_to_integer(os:getenv("LDB_SPACE_PORT", "-1")) of
-        -1 ->
-            [];
-        SpacePort ->
-            [{ldb_space_server,
-              {ldb_space_server, start_link, [SpacePort]},
-              permanent, 5000, worker, [ldb_space_server]}]
-    end.
+    %% configure server port
+    Port = configure_int("LDB_PORT",
+                         ldb_port,
+                         5000),
+    Port.
 
 %% @private
 configure_var(Env, Var, Default) ->
@@ -124,6 +115,12 @@ configure_var(Env, Var, Default) ->
 configure_int(Env, Var, Default) ->
     To = fun(V) -> integer_to_list(V) end,
     From = fun(V) -> list_to_integer(V) end,
+    configure(Env, Var, Default, To, From).
+
+%% @private
+configure_ip(Env, Var, Default) ->
+    To = fun(V) -> inet_parse:ntoa(V) end,
+    From = fun(V) -> {ok, IP} = inet_parse:address(V), IP end,
     configure(Env, Var, Default, To, From).
 
 %% @private

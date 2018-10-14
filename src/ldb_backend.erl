@@ -18,83 +18,33 @@
 %% -------------------------------------------------------------------
 
 -module(ldb_backend).
--author("Vitor Enes Duarte <vitorenesduarte@gmail.com").
+-author("Vitor Enes <vitorenesduarte@gmail.com").
 
 -include("ldb.hrl").
-
--export([start_link/0]).
-
--export([create/2,
-         query/1,
-         update/2,
-         message_maker/1,
-         message_handler/2,
-         memory/1,
-         backend_state/0]).
-
-%% @doc Create a `key()' in the store with a given `type()'.
--callback create(key(), type()) -> ok.
-
-%% @doc Reads the value associated with a given `key()'.
--callback query(key()) ->
-    {ok, value()} | not_found().
-
-%% @doc Update the value associated with a given `key()',
-%%      applying a given `operation()'.
--callback update(key(), operation()) ->
-    ok | not_found() | error().
-
-%% @doc Returns a function that will, given what's in the store,
-%%      decide what should be sent.
-%%      The function signature should be:
-%%         fun(key(), value(), node_name()) -> Message
-%%          - if `Message == nothing', no message is sent.
--callback message_maker(backend_state()) -> function().
-
-%% @doc Returns a function that handles the message received.
--callback message_handler(term(), backend_state()) -> function().
-
-%% @doc Returns memory consumption.
--callback memory(sets:set(string())) -> {size_metric(), size_metric()}.
 
 %% @doc Returns backend config.
 -callback backend_state() -> backend_state().
 
--spec start_link() -> {ok, pid()} | ignore | {error, term()}.
-start_link() ->
-    do(start_link, []).
+%% @doc Returns a backend entry given a bottom CRDT value.
+-callback bottom_entry(term(), backend_state()) -> backend_stored().
 
--spec create(key(), type()) -> ok.
-create(Key, Type) ->
-    do(create, [Key, Type]).
+%% @doc Return the CRDT value, to be used when reading.
+-callback crdt(backend_stored()) -> term().
 
--spec query(key()) ->
-    {ok, value()} | not_found().
-query(Key) ->
-    do(query, [Key]).
+%% @doc Update a stored value applying a given `operation()'.
+-callback update(backend_stored(), operation(), backend_state()) -> backend_stored().
 
--spec update(key(), operation()) ->
-    ok | not_found() | error().
-update(Key, Operation) ->
-    do(update, [Key, Operation]).
+%% @doc Returns memory consumption.
+-callback memory(backend_stored()) -> size_metric().
 
--spec message_maker(backend_state()) -> function().
-message_maker(BackendState) ->
-    do(message_maker, [BackendState]).
+%% @doc Returns message to be sent.
+%%      - if `Message == nothing', no message is sent.
+-callback message_maker(backend_stored(), ldb_node_id(), backend_state()) ->
+    message() | nothing.
 
--spec message_handler(term(), backend_state()) -> function().
-message_handler(Message, BackendState) ->
-    do(message_handler, [Message, BackendState]).
+%% @doc Returns a function that handles the message received.
+-callback message_handler(message(), ldb_node_id(), backend_stored(), backend_state()) ->
+    {backend_stored(), message() | nothing}.
 
--spec memory(sets:set(string())) -> {non_neg_integer(), non_neg_integer()}.
-memory(IgnoreKeys) ->
-    do(memory, [IgnoreKeys]).
-
--spec backend_state() -> backend_state().
-backend_state() ->
-    do(backend_state, []).
-
-%% @private Execute call to the proper backend.
-do(Function, Args) ->
-    Backend = ldb_util:get_backend(),
-    erlang:apply(Backend, Function, Args).
+%% @doc Return the size of a given message.
+-callback message_size(message()) -> size_metric().
