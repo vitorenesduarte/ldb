@@ -73,16 +73,10 @@ update({{Type, _}=CRDT0, DeltaBuffer0, AckMap}, Operation, #state{actor=Actor}) 
     DeltaBuffer = ldb_dbuffer:add_inflation(Delta, Actor, DeltaBuffer0),
     {CRDT, DeltaBuffer, AckMap}.
 
--spec memory(stored()) -> two_size_metric().
+-spec memory(stored()) -> size_metric().
 memory({CRDT, DeltaBuffer, AckMap}) ->
-    %% crdt
-    C = ldb_util:size(crdt, CRDT),
-    %% rest = delta buffer + ack map
-    R = ldb_util:plus(
-        ldb_dbuffer:size(DeltaBuffer),
-        ldb_util:size(ack_map, AckMap)
-    ),
-    {C, R}.
+    Alg = ldb_dbuffer:size(DeltaBuffer) + ldb_util:size(ack_map, AckMap),
+    {Alg, ldb_util:size(crdt, CRDT)}.
 
 -spec message_maker(stored(), ldb_node_id(), st()) -> message().
 message_maker({CRDT, DeltaBuffer, AckMap}, NodeName, _) ->
@@ -172,11 +166,9 @@ message_handler({delta_ack, N}, From,
 
 -spec message_size(message()) -> size_metric().
 message_size({delta, _N, Delta}) ->
-    %% ignore sequence N
-    ldb_util:size(crdt, Delta);
+    {1, ldb_util:size(crdt, Delta)};
 message_size({delta_ack, _N}) ->
-    %% ignore sequence N
-    {0, 0}.
+    {1, 0}.
 
 %% @private
 min_seq_ack_map(AckMap) ->

@@ -1,14 +1,16 @@
 {"1.1.0",
-[{<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
+[{<<"erlang_term">>,{pkg,<<"erlang_term">>,<<"1.7.3">>},0},
+ {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.4">>},0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.5.0">>},0},
  {<<"types">>,
   {git,"https://github.com/vitorenesduarte/types",
-       {ref,"b53fdd3236e614bf0a410d4553de50219912133f"}},
+       {ref,"bc2327a0c2b6f43ca092440a54c2c2dc21fb71a1"}},
   0}]}.
 [
 {pkg_hash,[
+ {<<"erlang_term">>, <<"9A77FAFE03DA5726A2013F12246CE2D2068B5DEE6C03752EC80A6575AFD3AC4B">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
  {<<"jsx">>, <<"749BEC6D205C694AE1786D62CEA6CC45A390437E24835FD16D12D74F07097727">>},
  {<<"lager">>, <<"A6DEB74DAE7927F46BD13255268308EF03EB206EC784A94EAF7C1C0F3B811615">>},

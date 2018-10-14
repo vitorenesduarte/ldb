@@ -26,7 +26,6 @@
 
 %% size metric: metadata size, payload size
 -type size_metric() :: {non_neg_integer(), non_neg_integer()}.
--type two_size_metric() :: {size_metric(), size_metric()}.
 
 %% clocks
 -type sequence() :: non_neg_integer().
@@ -39,7 +38,7 @@
 -define(DEFAULT_MODE, state_based).
 
 %%
--define(CONNECTIONS, 32).
+-define(CONNECTIONS, 1).
 
 %% logging
 -ifdef(debug).

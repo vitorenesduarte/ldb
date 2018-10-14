@@ -25,13 +25,15 @@
 %% ldb_metrics callbacks
 -export([new/0,
          merge_all/1,
-         record_transmission/2,
-         record_memory/2,
+         record_transmission/3,
+         record_memory/3,
          record_latency/3,
          record_processing/2]).
 
--type transmission() :: maps:map(timestamp(), size_metric()).
--type memory() :: maps:map(timestamp(), two_size_metric()).
+-type term_size() :: non_neg_integer().
+
+-type transmission() :: maps:map(timestamp(), {size_metric(), term_size()}).
+-type memory() :: maps:map(timestamp(), {size_metric(), size_metric()}).
 -type latency() :: maps:map(atom(), list(non_neg_integer())).
 -type processing() :: non_neg_integer().
 
@@ -59,12 +61,12 @@ merge_all([A, B | T]) ->
            latency=LatencyB,
            processing=ProcessingB} = B,
     Transmission = maps_ext:merge_all(
-        fun(_, VA, VB) -> ldb_util:plus(VA, VB) end,
+        fun(_, {VA, TA}, {VB, TB}) -> {ldb_util:plus(VA, VB), TA + TB} end,
         TransmissionA,
         TransmissionB
     ),
     Memory = maps_ext:merge_all(
-        fun(_, VA, VB) -> ldb_util:two_plus(VA, VB) end,
+        fun(_, {VA, TA}, {VB, TB}) -> {ldb_util:plus(VA, VB), TA + TB} end,
         MemoryA,
         MemoryB
     ),
@@ -85,18 +87,20 @@ merge_all([#state{transmission=Transmission,
                   processing=Processing}]) ->
     {Transmission, Memory, Latency, Processing}.
 
--spec record_transmission(size_metric(), st()) -> st().
-record_transmission({0, 0}, State) ->
+-spec record_transmission(size_metric(), term_size(), st()) -> st().
+record_transmission({0, 0}, _, State) ->
     State;
-record_transmission(Size, #state{transmission=Transmission0}=State) ->
-    Transmission = update_transmission(ldb_util:unix_timestamp(), Size, Transmission0),
+record_transmission(Size, TermSize, #state{transmission=Transmission0}=State) ->
+    Timestamp = ldb_util:unix_timestamp(),
+    Transmission = update_transmission(Timestamp, Size, TermSize, Transmission0),
     State#state{transmission=Transmission}.
 
--spec record_memory(two_size_metric(), st()) -> st().
-record_memory({{0, 0}, {0, 0}}, State) ->
+-spec record_memory(size_metric(), term_size(), st()) -> st().
+record_memory({0, 0}, _, State) ->
     State;
-record_memory(TwoSize, #state{memory=Memory0}=State) ->
-    Memory = update_memory(ldb_util:unix_timestamp(), TwoSize, Memory0),
+record_memory(Size, TermSize, #state{memory=Memory0}=State) ->
+    Timestamp = ldb_util:unix_timestamp(),
+    Memory = update_memory(Timestamp, Size, TermSize, Memory0),
     State#state{memory=Memory}.
 
 -spec record_latency(atom(), non_neg_integer(), st()) -> st().
@@ -108,19 +112,19 @@ record_latency(Type, MicroSeconds, #state{latency=Latency0}=State) ->
 record_processing(MicroSeconds, #state{processing=Processing0}=State) ->
     State#state{processing=Processing0 + MicroSeconds}.
 
-update_transmission(Timestamp, Size, Transmission0) ->
+update_transmission(Timestamp, Size, TermSize, Transmission0) ->
     maps:update_with(
         Timestamp,
-        fun(V) -> ldb_util:plus(V, Size) end,
-        Size,
+        fun({V, T}) -> {ldb_util:plus(V, Size), T + TermSize} end,
+        {Size, TermSize},
         Transmission0
     ).
 
-update_memory(Timestamp, TwoSize, Memory0) ->
+update_memory(Timestamp, Size, TermSize, Memory0) ->
     maps:update_with(
         Timestamp,
-        fun(V) -> ldb_util:two_plus(V, TwoSize) end,
-        TwoSize,
+        fun({V, T}) -> {ldb_util:plus(V, Size), T + TermSize} end,
+        {Size, TermSize},
         Memory0
     ).
 

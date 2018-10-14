@@ -35,7 +35,7 @@
 -callback update(backend_stored(), operation(), backend_state()) -> backend_stored().
 
 %% @doc Returns memory consumption.
--callback memory(backend_stored()) -> two_size_metric().
+-callback memory(backend_stored()) -> size_metric().
 
 %% @doc Returns message to be sent.
 %%      - if `Message == nothing', no message is sent.
