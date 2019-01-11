@@ -33,6 +33,8 @@
          next_dot/2,
          add_dot/2,
          is_element/2,
+         is_inflation/2,
+         can_deliver/3,
          union/2,
          intersection/2,
          subtract/2,
@@ -66,6 +68,30 @@ add_dot({Id, Seq}, Clock) ->
 is_element({Id, Seq}, Clock) ->
     CurrentSeq = maps:get(Id, Clock, 0),
     Seq =< CurrentSeq.
+
+%% @doc Check is a `ClockB' dominates `ClockA'.
+-spec is_inflation(v(), v()) -> boolean().
+is_inflation(ClockA, ClockB) ->
+    is_inflation_loop(maps:to_list(ClockA), ClockB).
+
+%% @private
+-spec is_inflation_loop([{ldb_node_id(), non_neg_integer()}], v()) -> boolean().
+is_inflation_loop([], _) ->
+    true;
+is_inflation_loop([Dot|Rest], ClockB) ->
+    case is_element(Dot, ClockB) of
+        true -> is_inflation_loop(Rest, ClockB);
+        false -> false
+    end.
+
+%% @doc Check is a clock dominates another with the exception of the origin dot.
+-spec can_deliver(dot(), v(), v()) -> boolean().
+can_deliver({Id, Seq}=_RemoteDot, RemoteClock, LocalClock) ->
+    case is_element({Id, Seq - 1}, LocalClock) of
+        true -> is_inflation(RemoteClock, LocalClock);
+        false -> false
+    end.
+
 
 %% @doc Union clocks.
 -spec union(v(), v()) ->v().
@@ -118,6 +144,33 @@ size(Clock) ->
     maps:size(Clock).
 
 -ifdef(TEST).
+
+is_inflation_test() ->
+    Bottom = #{},
+    VClockA = #{a => 4, b => 1},
+    VClockB = #{a => 6, c => 3},
+    VClockC = #{a => 6, b => 1, c => 3},
+    ?assert(is_inflation(Bottom, VClockA)),
+    ?assert(is_inflation(Bottom, VClockB)),
+    ?assert(is_inflation(Bottom, VClockC)),
+    ?assert(is_inflation(VClockA, VClockA)),
+    ?assertNot(is_inflation(VClockA, VClockB)),
+    ?assertNot(is_inflation(VClockB, VClockA)),
+    ?assert(is_inflation(VClockA, VClockC)),
+    ?assert(is_inflation(VClockB, VClockC)),
+    ?assertNot(is_inflation(VClockC, VClockA)),
+    ?assertNot(is_inflation(VClockC, VClockB)).
+
+can_deliver_test() ->
+    Bottom = #{},
+    VClockA = #{a => 5},
+    VClockB = #{a => 4, c => 3},
+    Local = #{a => 5, c => 3},
+    ?assert(can_deliver({b, 1}, Bottom, Local)),
+    ?assert(can_deliver({a, 6}, VClockA, Local)),
+    ?assertNot(can_deliver({c, 5}, VClockA, Local)),
+    ?assert(can_deliver({b, 1}, VClockA, Local)),
+    ?assert(can_deliver({c, 4}, VClockB, Local)).
 
 union_test() ->
     Bottom = #{},
