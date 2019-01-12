@@ -4,8 +4,9 @@
 
 LDB supports different CRDT replication models:
 - state-based
-- delta-state-based
-- dotted-based (scuttebutt)
+- delta-based
+- scuttebutt-based
+- op-based
 
 ### Configuration
 - __LDB_MODE__:
@@ -13,6 +14,7 @@ LDB supports different CRDT replication models:
   - `delta_based`
   - `scuttlebutt`
   - `vanilla_scuttlebutt`
+  - `op_based`
 - __LDB_STATE_SYNC_INTERVAL__: state is propagated every `X` milliseconds
 - __LDB_REDUNDANT_DGROUPS__: when set to `true`,
 removes redundant state that may be present in the received
