@@ -34,6 +34,8 @@
          get_next_dot/2,
          add_dot/2,
          is_element/2,
+         is_inflation/2,
+         can_deliver/3,
          union/2,
          intersection/2,
          subtract/2,
@@ -75,6 +77,29 @@ add_dot({Id, Seq}, Clock) ->
 is_element({Id, Seq}, Clock) ->
     CurrentSeq = maps:get(Id, Clock, 0),
     Seq =< CurrentSeq.
+
+%% @doc Check is a `ClockB' dominates `ClockA'.
+-spec is_inflation(v(), v()) -> boolean().
+is_inflation(ClockA, ClockB) ->
+    is_inflation_loop(maps:to_list(ClockA), ClockB).
+
+%% @private
+-spec is_inflation_loop([{ldb_node_id(), non_neg_integer()}], v()) -> boolean().
+is_inflation_loop([], _) ->
+    true;
+is_inflation_loop([Dot|Rest], ClockB) ->
+    case is_element(Dot, ClockB) of
+        true -> is_inflation_loop(Rest, ClockB);
+        false -> false
+    end.
+
+%% @doc Check is a clock dominates another with the exception of the origin dot.
+-spec can_deliver(dot(), v(), v()) -> boolean().
+can_deliver({Id, Seq}=_RemoteDot, RemoteClock, LocalClock) ->
+    case is_element({Id, Seq - 1}, LocalClock) of
+        true -> is_inflation(maps:remove(Id, RemoteClock), LocalClock);
+        false -> false
+    end.
 
 %% @doc Union clocks.
 -spec union(v(), v()) ->v().
@@ -125,3 +150,68 @@ subtract(ClockA, ClockB) ->
 -spec size(v()) -> non_neg_integer().
 size(Clock) ->
     maps:size(Clock).
+
+-ifdef(TEST).
+
+is_inflation_test() ->
+    Bottom = #{},
+    VClockA = #{a => 4, b => 1},
+    VClockB = #{a => 6, c => 3},
+    VClockC = #{a => 6, b => 1, c => 3},
+    ?assert(is_inflation(Bottom, VClockA)),
+    ?assert(is_inflation(Bottom, VClockB)),
+    ?assert(is_inflation(Bottom, VClockC)),
+    ?assert(is_inflation(VClockA, VClockA)),
+    ?assertNot(is_inflation(VClockA, VClockB)),
+    ?assertNot(is_inflation(VClockB, VClockA)),
+    ?assert(is_inflation(VClockA, VClockC)),
+    ?assert(is_inflation(VClockB, VClockC)),
+    ?assertNot(is_inflation(VClockC, VClockA)),
+    ?assertNot(is_inflation(VClockC, VClockB)).
+
+can_deliver_test() ->
+    VClockA = #{b => 1},
+    VClockB = #{a => 6},
+    VClockC = #{a => 4, c => 4},
+    Local = #{a => 5, c => 3},
+    ?assert(can_deliver({b, 1}, VClockA, Local)),
+    ?assert(can_deliver({a, 6}, VClockB, Local)),
+    ?assertNot(can_deliver({c, 5}, VClockB, Local)),
+    ?assert(can_deliver({c, 4}, VClockC, Local)).
+
+union_test() ->
+    Bottom = #{},
+    VClockA = #{a => 4, b => 1},
+    VClockB = #{a => 6, c => 3},
+    Expected = #{a => 6, b => 1, c => 3},
+
+    ?assertEqual(VClockA, union(Bottom, VClockA)),
+    ?assertEqual(VClockA, union(VClockA, Bottom)),
+    ?assertEqual(Expected, union(VClockA, VClockB)),
+    ?assertEqual(Expected, union(VClockB, VClockA)),
+    ok.
+
+intersection_test() ->
+    Bottom = #{},
+    VClockA = #{a => 4, b => 1},
+    VClockB = #{a => 6, c => 3},
+    Expected = #{a => 4},
+
+    ?assertEqual(Bottom, intersection(Bottom, VClockA)),
+    ?assertEqual(Bottom, intersection(VClockA, Bottom)),
+    ?assertEqual(Expected, intersection(VClockA, VClockB)),
+    ?assertEqual(Expected, intersection(VClockB, VClockA)),
+    ok.
+
+subtract_test() ->
+    Bottom = #{},
+    VClockA = #{a => 4, b => 1},
+    VClockB = #{a => 6, c => 3},
+
+    ?assertEqual([], subtract(Bottom, VClockA)),
+    ?assertEqual([{a, 1}, {a, 2}, {a, 3}, {a, 4}, {b, 1}], lists:sort(subtract(VClockA, Bottom))),
+    ?assertEqual([{b, 1}], subtract(VClockA, VClockB)),
+    ?assertEqual([{a, 5}, {a, 6}, {c, 1}, {c, 2}, {c, 3}], lists:sort(subtract(VClockB, VClockA))),
+    ok.
+
+-endif.
