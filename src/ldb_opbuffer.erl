@@ -31,7 +31,8 @@
 
 -export([new/2,
          add_op/2,
-         select/2]).
+         select/2,
+         ack/3]).
 
 -export_type([buffer/0]).
 
@@ -51,8 +52,8 @@
 -type buffer() :: #buffer{}.
 
 %% aditional types
--type add_op_args() :: {local, op()} |
-                       {remote, op(), dot(), vclock(), seen_by()}.
+-type remote() :: {remote, op(), dot(), vclock(), seen_by()}.
+-type add_op_args() :: remote() | {local, op()}.
 -type to_deliver() :: [{op(), vclock()}].
 
 
@@ -66,32 +67,6 @@ new(Id, NodeNumber) ->
 
 %% @doc Add a new operation to the buffer.
 -spec add_op(add_op_args(), buffer()) -> {to_deliver(), buffer()}.
-add_op({local, Op}, #buffer{id=Id,
-                            matrix=Matrix0,
-                            buffer=Buffer0,
-                            seen_by_map=SeenByMap0}=State0) ->
-    %% create identifier for this op
-    {Dot, VV, Matrix} = m_vclock:next_dot(Matrix0),
-
-    %% create op entry
-    Entry = #entry{op=Op,
-                   dot=Dot,
-                   vv=VV,
-                   is_delivered=true},
-
-    %% update buffer and seen by map
-    Buffer = [Entry | Buffer0],
-    SeenBy = sets:from_list([Id]),
-    SeenByMap = maps:put(Dot, SeenBy, SeenByMap0),
-
-    %% update state
-    State = State0#buffer{matrix=Matrix,
-                          buffer=Buffer,
-                          seen_by_map=SeenByMap},
-
-    %% return to deliver, and updated state
-    {[{Op, VV}], State};
-
 add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
                                                                      matrix=Matrix0,
                                                                      buffer=Buffer0,
@@ -137,7 +112,7 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
             {StableDots, Matrix} = m_vclock:stable(Matrix3),
 
             %% update buffer and seen by map
-            Buffer = prune(sets:from_list(StableDots), Buffer3, []),
+            Buffer = prune(Buffer3, sets:from_list(StableDots), []),
             SeenByMap = maps:without(StableDots, SeenByMap1),
 
             %% update state
@@ -152,38 +127,77 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
                                   matrix=Matrix2,
                                   seen_by_map=SeenByMap1},
             {[], State}
-    end.
+    end;
+
+add_op({local, Op}, #buffer{id=Id,
+                            matrix=Matrix0,
+                            buffer=Buffer0,
+                            seen_by_map=SeenByMap0}=State0) ->
+    %% create identifier for this op
+    {Dot, VV, Matrix} = m_vclock:next_dot(Matrix0),
+
+    %% create op entry
+    Entry = #entry{op=Op,
+                   dot=Dot,
+                   vv=VV,
+                   is_delivered=true},
+
+    %% update buffer and seen by map
+    Buffer = [Entry | Buffer0],
+    SeenBy = sets:from_list([Id]),
+    SeenByMap = maps:put(Dot, SeenBy, SeenByMap0),
+
+    %% update state
+    State = State0#buffer{matrix=Matrix,
+                          buffer=Buffer,
+                          seen_by_map=SeenByMap},
+
+    %% return to deliver, and updated state
+    {[{Op, VV}], State}.
 
 %% @doc Select which operations in the buffer should be sent to this neighbor.
--spec select(ldb_node_id(), buffer()) -> [{op(), dot(), vclock(), seen_by()}].
+-spec select(ldb_node_id(), buffer()) -> [{remote, op(), dot(), vclock(), seen_by()}].
 select(To, #buffer{buffer=Buffer,
                    seen_by_map=SeenByMap}) ->
     lists:filtermap(
         fun(#entry{op=Op, dot=Dot, vv=VV}) ->
             SeenBy = maps:get(Dot, SeenByMap),
             Include = not sets:is_element(To, SeenBy),
-            {Include, {Op, Dot, VV, SeenBy}}
+            case Include of
+                true -> {true, {remote, Op, Dot, VV, SeenBy}};
+                false -> false
+            end
         end,
         Buffer
     ).
 
 %% @doc Process list of acks.
-%%      - if all neighbors have seen it, drop it from the buffer
-%%      TODO here we're assuming static (partial) memberships.
-%%           in general we should only prune when an op. is stable
-%% -spec ack([dot()], buffer()) -> buffer().
-%% ack(Dot,
+-spec ack(ldb_node_id(), [dot()], buffer()) -> buffer().
+ack(From, Dots, #buffer{seen_by_map=SeenByMap0}=State) ->
+    SeenByMap = lists:foldl(
+        fun(Dot, Acc) ->
+            %% it's possible to receive an ack of a stable dot
+            %% so this function is a bit more complex than desirable
+            case maps:find(Dot, Acc) of
+                {ok, SeenBy} ->
+                    maps:put(Dot, sets:add_element(From, SeenBy), Acc);
+                error ->
+                    %% here we avoid creating an entry that would live forever
+                    Acc
+            end
+        end,
+        SeenByMap0,
+        Dots
+    ),
+    State#buffer{seen_by_map=SeenByMap}.
 
 %% @private Try deliver operations.
--spec try_deliver([entry()], to_deliver(), vclock(), [entry()]) -> {to_deliver(), vclock(), [entry()]}.
-try_deliver([#entry{is_delivered=true}=Entry|Rest],
-            ToDeliver, LocalVV, Buffer) ->
-    %% if already delivered, just skip it
-    %% and move entry to bufffer
-    try_deliver(Rest, ToDeliver, LocalVV, [Entry|Buffer]);
+-spec try_deliver([entry()], to_deliver(), vclock(), [entry()]) ->
+    {to_deliver(), vclock(), [entry()]}.
 
-try_deliver([#entry{op=Op, dot=RemoteDot, vv=RemoteVV}=Entry0|Rest],
+try_deliver([#entry{is_delivered=false, op=Op, dot=RemoteDot, vv=RemoteVV}=Entry0|Rest],
             ToDeliver0, LocalVV0, Buffer0) ->
+    %% if not delivered
     case vclock:can_deliver(RemoteDot, RemoteVV, LocalVV0) of
         true ->
             %% if we can deliver
@@ -204,6 +218,11 @@ try_deliver([#entry{op=Op, dot=RemoteDot, vv=RemoteVV}=Entry0|Rest],
             try_deliver(Rest, ToDeliver0, LocalVV0, [Entry0|Buffer0])
     end;
 
+try_deliver([Entry|Rest], ToDeliver, LocalVV, Buffer) ->
+    %% if already delivered, just skip it
+    %% and move entry to bufffer
+    try_deliver(Rest, ToDeliver, LocalVV, [Entry|Buffer]);
+
 try_deliver([], ToDeliver, LocalVV, Buffer) ->
     %% we're done: there's nothing else that can be delivered
     {ToDeliver, LocalVV, Buffer}.
@@ -212,18 +231,18 @@ try_deliver([], ToDeliver, LocalVV, Buffer) ->
 %% @private Append to the right list the reverse of the left list.
 %%          This is nice if we don't care about order since it avoids the use of ++.
 -spec append_reverse(list(), list()) -> list().
-append_reverse([], L) -> L;
-append_reverse([H|T], L) -> append_reverse(T, [H|L]).
+append_reverse([H|T], L) -> append_reverse(T, [H|L]);
+append_reverse([], L) -> L.
 
 %% @private Prune dots from buffer.
--spec prune(sets:set(dot()), [entry()], [entry()]) -> [entry()].
-prune(Dots, [#entry{dot=Dot}=Entry|Rest], Buffer0) ->
+-spec prune([entry()], sets:set(dot()), [entry()]) -> [entry()].
+prune([#entry{dot=Dot}=Entry|Rest], Dots, Buffer0) ->
     Buffer = case sets:is_element(Dot, Dots) of
         true -> Buffer0;
         false -> [Entry|Buffer0]
     end,
-    prune(Dots, Rest, Buffer);
-prune(_, [], Buffer) ->
+    prune(Rest, Dots, Buffer);
+prune([], _, Buffer) ->
     Buffer.
 
 -ifdef(TEST).
@@ -294,6 +313,60 @@ add_remote_op_test() ->
     {ToDeliver6, _} = add_op(RemoteE, Buffer5),
     ?assertEqual([], ToDeliver6).
 
+select_ack_test() ->
+    BufferA0 = new(a, 3),
+    BufferB0 = new(b, 3),
+    BufferC0 = new(c, 3),
+
+    %% A does local op
+    {_, BufferA1} = add_op({local, opa}, BufferA0),
+    %% A sends to B
+    [RemoteAB1] = select(b, BufferA1),
+    [] = select(a, BufferB0),
+    [] = select(c, BufferB0),
+    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), sets:from_list([a])}, RemoteAB1),
+
+    %% B receives
+    {_, BufferB1} = add_op(RemoteAB1, BufferB0),
+    %% B sends to C
+    [] = select(a, BufferB1),
+    [RemoteBC1]= select(c, BufferB1),
+    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), sets:from_list([a, b])}, RemoteBC1),
+
+    %% C has nothing to A and B
+    {_, BufferC1} = add_op(RemoteBC1, BufferC0),
+    [] = select(a, BufferC1),
+    [] = select(b, BufferC1),
+
+    %% B acks A
+    BufferA2 = ack(b, [{a, 1}], BufferA1),
+    %% A has nothing to B
+    [] = select(b, BufferA2),
+    %% A sends to C
+    [RemoteAC1] = select(c, BufferA2),
+    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), sets:from_list([a, b])}, RemoteAC1),
+
+    %% A does local op
+    {_, BufferA3} = add_op({local, opb}, BufferA2),
+    %% C acks A
+    BufferA4 = ack(c, [{a, 1}], BufferA3),
+    %% A sends to C
+    [RemoteAC2] = select(c, BufferA4),
+    ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), sets:from_list([a])}, RemoteAC2),
+
+    %% C receives both
+    {_, BufferC2} = add_op(RemoteAC1, BufferC1),
+    {_, BufferC3} = add_op(RemoteAC2, BufferC2),
+    %% C has nothing to A
+    [] = select(a, BufferC3),
+    %% C does local op
+    {_, BufferC4} = add_op({local, opc}, BufferC3),
+    %% C sends to A
+    [RemoteC] = select(a, BufferC4),
+    ?assertEqual({remote, opc, {c, 1}, vclock:from_list([{a, 2}, {c, 1}]), sets:from_list([c])}, RemoteC),
+    %% C sends to B
+    [RemoteC, RemoteBC2] = select(b, BufferC4),
+    ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), sets:from_list([a, c])}, RemoteBC2).
 
 %% @private
 all_delivered(Buffer) ->
