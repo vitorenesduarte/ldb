@@ -34,7 +34,7 @@
          message_handler/4,
          message_size/1]).
 
--record(state, {actor :: ldb_node_id()}).
+-record(state, {id :: ldb_node_id()}).
 -type st() :: #state{}.
 
 %% crdt
@@ -42,8 +42,8 @@
 
 -spec backend_state() -> st().
 backend_state() ->
-    Actor = ldb_config:id(),
-    #state{actor=Actor}.
+    Id = ldb_config:id(),
+    #state{id=Id}.
 
 -spec bottom_entry(term(), st()) -> stored().
 bottom_entry(Bottom, _) ->
@@ -54,8 +54,8 @@ crdt(CRDT) ->
     CRDT.
 
 -spec update(stored(), operation(), st()) -> stored().
-update({Type, _}=CRDT, Operation, #state{actor=Actor}) ->
-    {ok, Result} = Type:mutate(Operation, Actor, CRDT),
+update({Type, _}=CRDT, Operation, #state{id=Id}) ->
+    {ok, Result} = Type:mutate(Operation, Id, CRDT),
     Result.
 
 -spec memory(stored()) -> size_metric().

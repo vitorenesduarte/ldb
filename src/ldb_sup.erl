@@ -94,6 +94,11 @@ configure() ->
                   ldb_dgroup_back_propagation,
                   false),
 
+    %% configure scuttlebutt gc
+    configure_var("LDB_SCUTTLEBUTT_GC",
+                  ldb_scuttlebutt_gc,
+                  false),
+
     %% configure server ip
     configure_ip("LDB_IP",
                  ldb_ip,

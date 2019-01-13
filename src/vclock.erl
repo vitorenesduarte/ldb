@@ -30,7 +30,8 @@
 -endif.
 
 -export([new/0,
-         next_dot/2,
+         from_list/1,
+         get_next_dot/2,
          add_dot/2,
          is_element/2,
          union/2,
@@ -40,16 +41,21 @@
 
 -export_type([v/0]).
 
--type v() :: maps:map(ldb_node_id(), non_neg_integer()).
+-type v() :: maps:map(ldb_node_id(), sequence()).
 
 %% @doc Create an vclock.
 -spec new() -> v().
 new() ->
     maps:new().
 
+%% @doc Create a vclock from a list of sequences.
+-spec from_list([{ldb_node_id(), sequence()}]) -> v().
+from_list(L) ->
+    maps:from_list(L).
+
 %% @doc Return the next dot for a given id.
--spec next_dot(ldb_node_id(), v()) -> dot().
-next_dot(Id, Clock) ->
+-spec get_next_dot(ldb_node_id(), v()) -> dot().
+get_next_dot(Id, Clock) ->
     Seq = maps:get(Id, Clock, 0),
     NewSeq = Seq + 1,
     {Id, NewSeq}.
@@ -57,9 +63,12 @@ next_dot(Id, Clock) ->
 %% @doc Add a dot to the vv.
 -spec add_dot(dot(), v()) -> v().
 add_dot({Id, Seq}, Clock) ->
-    CurrentSeq = maps:get(Id, Clock, 0),
-    NewSeq = max(Seq, CurrentSeq),
-    maps:put(Id, NewSeq, Clock).
+    maps:update_with(
+        Id,
+        fun(CurrentSeq) -> max(Seq, CurrentSeq) end,
+        Seq,
+        Clock
+    ).
 
 %% @doc Check if a dot is in the clock.
 -spec is_element(dot(), v()) -> boolean().
@@ -116,42 +125,3 @@ subtract(ClockA, ClockB) ->
 -spec size(v()) -> non_neg_integer().
 size(Clock) ->
     maps:size(Clock).
-
--ifdef(TEST).
-
-union_test() ->
-    Bottom = #{},
-    VClockA = #{a => 4, b => 1},
-    VClockB = #{a => 6, c => 3},
-    Expected = #{a => 6, b => 1, c => 3},
-
-    ?assertEqual(VClockA, union(Bottom, VClockA)),
-    ?assertEqual(VClockA, union(VClockA, Bottom)),
-    ?assertEqual(Expected, union(VClockA, VClockB)),
-    ?assertEqual(Expected, union(VClockB, VClockA)),
-    ok.
-
-intersection_test() ->
-    Bottom = #{},
-    VClockA = #{a => 4, b => 1},
-    VClockB = #{a => 6, c => 3},
-    Expected = #{a => 4},
-
-    ?assertEqual(Bottom, intersection(Bottom, VClockA)),
-    ?assertEqual(Bottom, intersection(VClockA, Bottom)),
-    ?assertEqual(Expected, intersection(VClockA, VClockB)),
-    ?assertEqual(Expected, intersection(VClockB, VClockA)),
-    ok.
-
-subtract_test() ->
-    Bottom = #{},
-    VClockA = #{a => 4, b => 1},
-    VClockB = #{a => 6, c => 3},
-
-    ?assertEqual([], subtract(Bottom, VClockA)),
-    ?assertEqual([{a, 1}, {a, 2}, {a, 3}, {a, 4}, {b, 1}], lists:sort(subtract(VClockA, Bottom))),
-    ?assertEqual([{b, 1}], subtract(VClockA, VClockB)),
-    ?assertEqual([{a, 5}, {a, 6}, {c, 1}, {c, 2}, {c, 3}], lists:sort(subtract(VClockB, VClockA))),
-    ok.
-
--endif.
