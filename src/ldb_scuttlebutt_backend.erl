@@ -148,6 +148,10 @@ find_dots(RemoteVV, DeltaBuffer) ->
     ).
 
 -spec message_size(message()) -> size_metric().
+message_size({matrix, Matrix}) ->
+    {ldb_util:size(matrix, Matrix), 0};
+message_size({vector, Vector}) ->
+    {ldb_util:size(vector, Vector), 0};
 message_size({dotted_buffer, Buffer}) ->
     maps:fold(
         fun(_Dot, Delta, {M, C}) ->
@@ -155,9 +159,7 @@ message_size({dotted_buffer, Buffer}) ->
         end,
         {0, 0},
         Buffer
-    );
-message_size({matrix, Matrix}) ->
-    {ldb_util:size(matrix, Matrix), 0}.
+    ).
 
 %% @private
 -spec store_delta(dot(), term(), stored(), boolean()) -> stored().
