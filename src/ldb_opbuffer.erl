@@ -368,6 +368,32 @@ select_ack_test() ->
     [RemoteC, RemoteBC2] = select(b, BufferC4),
     ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), sets:from_list([a, c])}, RemoteBC2).
 
+prune_test() ->
+    BufferA0 = new(a, 2),
+    BufferB0 = new(b, 2),
+
+    %% A does local op
+    {_, BufferA1} = add_op({local, opa}, BufferA0),
+    %% A sends to B
+    [RemoteAB1] = select(b, BufferA1),
+    %% B receives
+    {_, BufferB1} = add_op(RemoteAB1, BufferB0),
+
+    %% this op is stable on B, but not on A
+    ?assertEqual(1, length(BufferA1#buffer.buffer)),
+    ?assertEqual(0, length(BufferB1#buffer.buffer)),
+
+    %% B does local op
+    {_, BufferB2} = add_op({local, opb}, BufferB1),
+    %% B sends to A
+    [RemoteBA1] = select(a, BufferB2),
+    %% A receives
+    {_, BufferA2} = add_op(RemoteBA1, BufferA1),
+
+    %% this op is stable on A, but not on B
+    ?assertEqual(0, length(BufferA2#buffer.buffer)),
+    ?assertEqual(1, length(BufferB2#buffer.buffer)).
+
 %% @private
 all_delivered(Buffer) ->
     lists:all(
