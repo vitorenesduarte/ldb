@@ -215,17 +215,36 @@ add_remote_op_test() ->
     VVE = vclock:from_list([{c, 1}]),
 
     {ToDeliver1, Buffer1} = add_op({remote, OpA, DotA, VVA, SeenBy}, Buffer0),
-    {ToDeliver2, Buffer2} = add_op({remote, OpB, DotB, VVB, SeenBy}, Buffer1),
-    {ToDeliver3, Buffer3} = add_op({remote, OpC, DotC, VVC, SeenBy}, Buffer2),
-    {ToDeliver4, Buffer4} = add_op({remote, OpD, DotD, VVD, SeenBy}, Buffer3),
-    {ToDeliver5, _Buffer5} = add_op({remote, OpE, DotE, VVE, SeenBy}, Buffer4),
-
     ?assertEqual([], ToDeliver1),
+
+    {ToDeliver2, Buffer2} = add_op({remote, OpB, DotB, VVB, SeenBy}, Buffer1),
     ?assertEqual([], ToDeliver2),
+
+    {ToDeliver3, Buffer3} = add_op({remote, OpC, DotC, VVC, SeenBy}, Buffer2),
     ?assertEqual([{OpC, vclock:from_list([{c, 1}])},
                   {OpB, vclock:from_list([{b, 1}, {c, 1}])}], ToDeliver3),
+
+    {ToDeliver4, Buffer4} = add_op({remote, OpD, DotD, VVD, SeenBy}, Buffer3),
     ?assertEqual([], ToDeliver4),
+
+    {ToDeliver5, Buffer5} = add_op({remote, OpE, DotE, VVE, SeenBy}, Buffer4),
     ?assertEqual([{OpE, vclock:from_list([{c, 2}])},
                   {OpD, vclock:from_list([{b, 2}, {c, 2}])},
-                  {OpA, vclock:from_list([{a, 1}, {b, 2}])}], ToDeliver5).
+                  {OpA, vclock:from_list([{a, 1}, {b, 2}])}], ToDeliver5),
+
+    %% check wether all ops are marked as delivered
+    ?assertNot(all_delivered(Buffer4)),
+    ?assert(all_delivered(Buffer5)),
+
+    %% check we don't deliver twice
+    {ToDeliver6, _} = add_op({remote, OpE, DotE, VVE, SeenBy}, Buffer5),
+    ?assertEqual([], ToDeliver6).
+
+
+%% @private
+all_delivered(Buffer) ->
+    lists:all(
+        fun(#entry{is_delivered=IsDelivered}) -> IsDelivered end,
+        Buffer#buffer.buffer
+    ).
 -endif.
