@@ -106,12 +106,14 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
             %% if exists, just update seen by map
             SeenBy2 = sets:union(CurrentSeenBy, SeenBy1),
             {false, SeenBy2, Matrix0, Buffer0};
+
         error ->
             %% otherwise, create op
             Entry = #entry{op=Op,
                            dot=RemoteDot,
                            vv=RemoteVV,
                            is_delivered=false},
+
             %% update matrix and buffer
             Matrix1 = m_vclock:update(From, RemoteVV, Matrix0),
             Buffer1 = [Entry|Buffer0],
@@ -119,11 +121,8 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
     end,
     
     %% update seen by map
-    SeenByMap = maps:put(RemoteDot, SeenBy, SeenByMap0),
+    SeenByMap1 = maps:put(RemoteDot, SeenBy, SeenByMap0),
 
-    %% update state
-    State1 = State0#buffer{seen_by_map=SeenByMap},
-    
     %% try to deliver, if it was a new op
     case ShouldTry of
         true ->
@@ -131,20 +130,27 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
             VV0 = m_vclock:get(Matrix2),
 
             %% try deliver
-            {ToDeliver, VV, Buffer} = try_deliver(Buffer2, [], VV0, []),
+            {ToDeliver, VV, Buffer3} = try_deliver(Buffer2, [], VV0, []),
 
-            %% update matrix
-            Matrix = m_vclock:put(VV, Matrix2),
+            %% update matrix and get stable dots
+            Matrix3 = m_vclock:put(VV, Matrix2),
+            {StableDots, Matrix} = m_vclock:stable(Matrix3),
+
+            %% update buffer and seen by map
+            Buffer = prune(sets:from_list(StableDots), Buffer3, []),
+            SeenByMap = maps:without(StableDots, SeenByMap1),
 
             %% update state
-            State = State1#buffer{buffer=Buffer,
-                                  matrix=Matrix},
+            State = State0#buffer{buffer=Buffer,
+                                  matrix=Matrix,
+                                  seen_by_map=SeenByMap},
             {lists:reverse(ToDeliver), State};
 
         false ->
             %% just update state
-            State = State1#buffer{buffer=Buffer2,
-                                  matrix=Matrix2},
+            State = State0#buffer{buffer=Buffer2,
+                                  matrix=Matrix2,
+                                  seen_by_map=SeenByMap1},
             {[], State}
     end.
 
@@ -208,6 +214,17 @@ try_deliver([], ToDeliver, LocalVV, Buffer) ->
 -spec append_reverse(list(), list()) -> list().
 append_reverse([], L) -> L;
 append_reverse([H|T], L) -> append_reverse(T, [H|L]).
+
+%% @private Prune dots from buffer.
+-spec prune(sets:set(dot()), [entry()], [entry()]) -> [entry()].
+prune(Dots, [#entry{dot=Dot}=Entry|Rest], Buffer0) ->
+    Buffer = case sets:is_element(Dot, Dots) of
+        true -> Buffer0;
+        false -> [Entry|Buffer0]
+    end,
+    prune(Dots, Rest, Buffer);
+prune(_, [], Buffer) ->
+    Buffer.
 
 -ifdef(TEST).
 
