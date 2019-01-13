@@ -119,7 +119,7 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
             Buffer1 = [Entry|Buffer0],
             {true, SeenBy1, Matrix1, Buffer1}
     end,
-    
+
     %% update seen by map
     SeenByMap1 = maps:put(RemoteDot, SeenBy, SeenByMap0),
 
@@ -252,7 +252,7 @@ add_remote_op_test() ->
     DotB = {b, 1},
     VVB = vclock:from_list([{b, 1}, {c, 1}]),
     RemoteB = {remote, OpB, DotB, VVB, SeenBy},
-    
+
     OpC = op_c,
     DotC = {c, 1},
     VVC = vclock:from_list([{c, 1}]),
