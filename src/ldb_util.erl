@@ -37,6 +37,9 @@
 
 -export([qs/1]).
 
+-define(STATE_PREFIX, "state_").
+-define(OP_PREFIX, "op_").
+
 %% @doc Creates a bottom CRDT from a type
 %%      or from an existing state-based CRDT.
 new_crdt(type, CType) ->
@@ -60,7 +63,11 @@ get_backend() ->
         delta_based ->
             ldb_delta_based_backend;
         scuttlebutt ->
-            ldb_scuttlebutt_backend
+            ldb_scuttlebutt_backend;
+        vanilla_scuttlebutt ->
+            ldb_vanilla_scuttlebutt_backend;
+        op_based ->
+            ldb_op_based_backend
     end.
 
 %% @doc
@@ -136,9 +143,17 @@ get_type([]) ->
 get_type([H|T]) ->
     [get_type(H) | get_type(T)];
 get_type(Type) ->
-    list_to_atom("state_" ++ atom_to_list(Type)).
+    list_to_atom(prefix() ++ atom_to_list(Type)).
 
 %% @doc Log Process queue length.
 qs(ID) ->
     {message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
     lager:info("MAILBOX ~p REMAINING: ~p", [ID, MessageQueueLen]).
+
+%% @private Compute CRDT type prefix.
+-spec prefix() -> string().
+prefix() ->
+    case get_backend() of
+        ldb_op_based_backend -> ?OP_PREFIX;
+        _ -> ?STATE_PREFIX
+    end.
