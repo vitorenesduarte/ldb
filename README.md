@@ -31,7 +31,7 @@ delta-groups, using join-decompositions
 avoids back-propagation of delta-groups
 - __LDB_SCUTTLEBUTT_GC__: when set to `true`, performs garbage collection of buffer entries in Scuttlebutt.
 
-|||||
+||||||
 |---------------------------------|---------------|------------------|------------------|------------|
 | __NODE_NUMBER__                 | `0..`         | `0..`            | `0..`            | `0..`      |
 | __LDB_MODE__                    | `state_based` | `delta_based`    | `scuttlebutt`    | `op_based` |
