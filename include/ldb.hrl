@@ -10,7 +10,7 @@
 %% backend
 -type backend_stored() :: term().
 -type backend_state() :: term().
--type dbuffer() :: ldb_dbuffer:d().
+-type dbuffer() :: ldb_dbuffer:buffer().
 
 %% shard
 -type metrics() :: ldb_metrics:st().

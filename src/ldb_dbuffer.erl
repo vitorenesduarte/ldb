@@ -39,49 +39,49 @@
          size/1,
          show/1]).
 
--export_type([d/0]).
+-export_type([buffer/0]).
 
--record(dbuffer, {avoid_bp :: boolean(),
-                  seq :: sequence(),
-                  buffer :: orddict:orddict(sequence(), d_entry())}).
--type d() :: #dbuffer{}.
+-record(buffer, {avoid_bp :: boolean(),
+                 seq :: sequence(),
+                 buffer :: orddict:orddict(sequence(), entry())}).
+-type buffer() :: #buffer{}.
 
--record(dbuffer_entry, {from :: ldb_node_id(),
-                        value :: term()}).
--type d_entry() :: #dbuffer_entry{}.
+-record(entry, {from :: ldb_node_id(),
+                value :: term()}).
+-type entry() :: #entry{}.
 
 %% @doc Create new buffer.
--spec new(boolean()) -> d().
+-spec new(boolean()) -> buffer().
 new(AvoidBP) ->
-    #dbuffer{avoid_bp=AvoidBP,
-             seq=0,
-             buffer=orddict:new()}.
+    #buffer{avoid_bp=AvoidBP,
+            seq=0,
+            buffer=orddict:new()}.
 
 %% @doc Retrieve seq.
--spec seq(d()) -> sequence().
-seq(#dbuffer{seq=Seq}) ->
+-spec seq(buffer()) -> sequence().
+seq(#buffer{seq=Seq}) ->
     Seq.
 
 %% @doc Compute min seq in the buffer.
--spec min_seq(d()) -> sequence().
-min_seq(#dbuffer{buffer=[{MinSeq, _}|_]}) ->
+-spec min_seq(buffer()) -> sequence().
+min_seq(#buffer{buffer=[{MinSeq, _}|_]}) ->
     MinSeq;
-min_seq(#dbuffer{buffer=[]}) ->
+min_seq(#buffer{buffer=[]}) ->
     0.
 
 %% @doc Check if buffer is empty.
--spec is_empty(d()) -> boolean().
-is_empty(#dbuffer{buffer=Buffer}) ->
+-spec is_empty(buffer()) -> boolean().
+is_empty(#buffer{buffer=Buffer}) ->
     orddict:size(Buffer) == 0.
 
 %% @doc Add to buffer.
--spec add_inflation(term(), ldb_node_id(), d()) -> d().
-add_inflation(CRDT, From, #dbuffer{seq=Seq0,
-                                   buffer=Buffer0}=State) ->
+-spec add_inflation(term(), ldb_node_id(), buffer()) -> buffer().
+add_inflation(CRDT, From, #buffer{seq=Seq0,
+                                  buffer=Buffer0}=State) ->
 
     %% create entry
-    Entry = #dbuffer_entry{from=From,
-                           value=CRDT},
+    Entry = #entry{from=From,
+                   value=CRDT},
 
     %% add to buffer
     Buffer = orddict:store(Seq0, Entry, Buffer0),
@@ -90,15 +90,15 @@ add_inflation(CRDT, From, #dbuffer{seq=Seq0,
     Seq = Seq0 + 1,
 
     %% update state
-    State#dbuffer{seq=Seq, buffer=Buffer}.
+    State#buffer{seq=Seq, buffer=Buffer}.
 
 %% @doc Select inflations from buffer.
--spec select(ldb_node_id(), sequence(), d()) -> term() | undefined.
-select(To, LastAck, #dbuffer{avoid_bp=AvoidBP,
-                             buffer=Buffer}) ->
+-spec select(ldb_node_id(), sequence(), buffer()) -> term() | undefined.
+select(To, LastAck, #buffer{avoid_bp=AvoidBP,
+                            buffer=Buffer}) ->
     orddict:fold(
-        fun(Seq, #dbuffer_entry{from=From,
-                                value={Type, _}=CRDT}, Acc) ->
+        fun(Seq, #entry{from=From,
+                        value={Type, _}=CRDT}, Acc) ->
 
             case should_send(From, Seq, To, LastAck, AvoidBP) of
                 true ->
@@ -115,14 +115,14 @@ select(To, LastAck, #dbuffer{avoid_bp=AvoidBP,
     ).
 
 %% @doc Prune from buffer.
--spec prune(sequence(), d()) -> d().
-prune(AllAck, #dbuffer{buffer=Buffer0}=State) ->
+-spec prune(sequence(), buffer()) -> buffer().
+prune(AllAck, #buffer{buffer=Buffer0}=State) ->
     Buffer = prune_list(AllAck, Buffer0),
-    State#dbuffer{buffer=Buffer}.
+    State#buffer{buffer=Buffer}.
 
 %% @doc Prune from the actual buffer.
--spec prune_list(sequence(), orddict:orddict(sequence(), d_entry())) ->
-    orddict:orddict(sequence(), d_entry()).
+-spec prune_list(sequence(), orddict:orddict(sequence(), entry())) ->
+    orddict:orddict(sequence(), entry()).
 prune_list(AllAck, [{Seq, _}|Rest]) when Seq < AllAck ->
     %% prune and keep pruning
     prune_list(AllAck, Rest);
@@ -131,10 +131,10 @@ prune_list(_, L) ->
     L.
 
 %% @doc
--spec size(d()) -> non_neg_integer().
-size(#dbuffer{buffer=Buffer}) ->
+-spec size(buffer()) -> non_neg_integer().
+size(#buffer{buffer=Buffer}) ->
     orddict:fold(
-        fun(_, #dbuffer_entry{value=CRDT}, Acc) ->
+        fun(_, #entry{value=CRDT}, Acc) ->
             %% +1 for the From and Sequence
             Acc + 1 + ldb_util:size(crdt, CRDT)
         end,
@@ -143,10 +143,10 @@ size(#dbuffer{buffer=Buffer}) ->
     ).
 
 %% @doc Pretty-print buffer.
--spec show(d()) -> term().
-show(#dbuffer{seq=Seq, buffer=Buffer}) ->
+-spec show(buffer()) -> term().
+show(#buffer{seq=Seq, buffer=Buffer}) ->
     {Seq, lists:sort(orddict:fold(
-        fun(EntrySeq, #dbuffer_entry{from=From, value={Type, _}=CRDT}, Acc) ->
+        fun(EntrySeq, #entry{from=From, value={Type, _}=CRDT}, Acc) ->
             [{EntrySeq, From, Type:query(CRDT)} | Acc]
         end,
         [],
@@ -171,7 +171,7 @@ dbuffer_test() ->
 
     Buffer1 = add_inflation({state_gcounter, orddict:from_list([{a, 1}])}, a, Buffer0),
     ToA0 = select(a, 0, Buffer1),
-    ToA1 = select(a, 0, Buffer1#dbuffer{avoid_bp=false}),
+    ToA1 = select(a, 0, Buffer1#buffer{avoid_bp=false}),
     ToA2 = select(a, 1, Buffer1),
 
     Buffer2 = add_inflation({state_gcounter, orddict:from_list([{b, 1}])}, b, Buffer1),
