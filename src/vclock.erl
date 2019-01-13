@@ -30,6 +30,7 @@
 -endif.
 
 -export([new/0,
+         from_list/1,
          next_dot/2,
          add_dot/2,
          is_element/2,
@@ -42,12 +43,17 @@
 
 -export_type([v/0]).
 
--type v() :: maps:map(ldb_node_id(), non_neg_integer()).
+-type v() :: maps:map(ldb_node_id(), sequence()).
 
 %% @doc Create an vclock.
 -spec new() -> v().
 new() ->
     maps:new().
+
+%% @doc Create a vclock from a list of sequences.
+-spec from_list([{ldb_node_id(), sequence()}]) -> v().
+from_list(L) ->
+    maps:from_list(L).
 
 %% @doc Return the next dot for a given id.
 -spec next_dot(ldb_node_id(), v()) -> dot().
@@ -91,7 +97,6 @@ can_deliver({Id, Seq}=_RemoteDot, RemoteClock, LocalClock) ->
         true -> is_inflation(RemoteClock, LocalClock);
         false -> false
     end.
-
 
 %% @doc Union clocks.
 -spec union(v(), v()) ->v().
