@@ -60,9 +60,7 @@ get_backend() ->
         delta_based ->
             ldb_delta_based_backend;
         scuttlebutt ->
-            ldb_scuttlebutt_backend;
-        vanilla_scuttlebutt ->
-            ldb_vanilla_scuttlebutt_backend
+            ldb_scuttlebutt_backend
     end.
 
 %% @doc

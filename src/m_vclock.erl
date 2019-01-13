@@ -29,8 +29,12 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1,
+-export([new/2,
          matrix/1,
+         get/1,
+         put/2,
+         next_dot/1,
+         add_dot/2,
          update/3,
          union_matrix/2,
          stable/1,
@@ -40,33 +44,70 @@
 
 -type matrix_st() :: maps:map(ldb_node_id(), vclock()).
 
--record(state, {node_number :: non_neg_integer(),
+-record(state, {id :: ldb_node_id(),
+                node_number :: non_neg_integer(),
                 stable :: vclock(),
                 matrix :: matrix_st()}).
 -type m() :: #state{}.
 
 
 %% @doc Create an empty matrix.
--spec new(non_neg_integer()) -> m().
-new(NodeNumber) ->
-    #state{node_number=NodeNumber,
-           stable=vclock:new(),
-           matrix=maps:new()}.
+-spec new(ldb_node_id(), non_neg_integer()) -> m().
+new(Id, NodeNumber) ->
+    BottomVV = vclock:new(),
+    Matrix = maps:from_list([{Id, BottomVV}]),
+    #state{id=Id,
+           node_number=NodeNumber,
+           stable=BottomVV,
+           matrix=Matrix}.
 
 %% @doc Extract matrix.
 -spec matrix(m()) -> matrix_st().
 matrix(#state{matrix=Matrix}) ->
     Matrix.
 
+%% @doc Get vector from matrix.
+-spec get(m()) -> vclock().
+get(#state{id=Id, matrix=Matrix}) ->
+    maps:get(Id, Matrix).
+
+%% @doc Put vector in matrix.
+-spec put(vclock(), m()) -> m().
+put(VV, #state{id=Id, matrix=Matrix0}=State) ->
+    Matrix = maps:put(Id, VV, Matrix0),
+    State#state{matrix=Matrix}.
+
+%% @doc Generate next dot, VV, and update matrix with new VV.
+-spec next_dot(m()) -> {dot(), vclock(), m()}.
+next_dot(#state{id=Id, matrix=Matrix0}=State) ->
+    %% find past, generate new dot and vv
+    Past = maps:get(Id, Matrix0),
+    Dot = vclock:get_next_dot(Id, Past),
+    VV = vclock:add_dot(Dot, Past),
+
+    %% update matrix
+    Matrix = maps:put(Id, VV, Matrix0),
+
+    %% return dot, vv and update state
+    {Dot, VV, State#state{matrix=Matrix}}.
+
+%% @doc Add dot.
+-spec add_dot(dot(), m()) -> m().
+add_dot(Dot, #state{id=Id, matrix=Matrix0}=State) ->
+    Matrix = maps:update_with(
+        Id,
+        fun(VV) -> vclock:add_dot(Dot, VV) end,
+        Matrix0
+    ),
+    State#state{matrix=Matrix}.
+
 %% @doc Update clock for a given sender.
 -spec update(ldb_node_id(), vclock(), m()) -> m().
 update(Id, Clock, #state{matrix=Matrix0}=State) ->
     Matrix = maps:update_with(
         Id,
-        fun(Current) ->
-            %% take the highest clock
-            vclock:union(Clock, Current)
-        end,
+        %% take the highest clock
+        fun(Current) -> vclock:union(Clock, Current) end,
         Clock,
         Matrix0
     ),
@@ -118,12 +159,12 @@ intersect_all(Min0, []) ->
 -ifdef(TEST).
 
 stable_test() ->
-    NodeNumber = 2,
-    M0 = new(NodeNumber),
-
     %% nodes
     A = 0,
     B = 1,
+
+    NodeNumber = 2,
+    M0 = new(A, NodeNumber),
 
     %% dots
     A1 = {A, 1},

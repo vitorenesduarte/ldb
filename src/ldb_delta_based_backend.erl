@@ -34,7 +34,7 @@
          message_handler/4,
          message_size/1]).
 
--record(state, {actor :: ldb_node_id(),
+-record(state, {id :: ldb_node_id(),
                 bp :: boolean(),
                 rr :: boolean()}).
 -type st() :: #state{}.
@@ -44,10 +44,10 @@
 
 -spec backend_state() -> st().
 backend_state() ->
-    Actor = ldb_config:id(),
+    Id = ldb_config:id(),
     BP = ldb_config:get(ldb_dgroup_back_propagation, false),
     RR = ldb_config:get(ldb_redundant_dgroups, false),
-    #state{actor=Actor,
+    #state{id=Id,
            bp=BP,
            rr=RR}.
 
@@ -64,13 +64,13 @@ crdt({CRDT, _, _}) ->
     CRDT.
 
 -spec update(stored(), operation(), st()) -> stored().
-update({{Type, _}=CRDT0, DeltaBuffer0, AckMap}, Operation, #state{actor=Actor}) ->
+update({{Type, _}=CRDT0, DeltaBuffer0, AckMap}, Operation, #state{id=Id}) ->
     %% create delta
-    {ok, Delta} = Type:delta_mutate(Operation, Actor, CRDT0),
+    {ok, Delta} = Type:delta_mutate(Operation, Id, CRDT0),
     %% merge it
     CRDT = Type:merge(Delta, CRDT0),
     %% and add it to the buffer
-    DeltaBuffer = ldb_dbuffer:add_inflation(Delta, Actor, DeltaBuffer0),
+    DeltaBuffer = ldb_dbuffer:add_inflation(Delta, Id, DeltaBuffer0),
     {CRDT, DeltaBuffer, AckMap}.
 
 -spec memory(stored()) -> size_metric().

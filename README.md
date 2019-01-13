@@ -5,34 +5,41 @@
 LDB supports different CRDT replication models:
 - state-based
 - delta-state-based
-- dotted-based (scuttebutt)
+- scuttebutt-based
+
+
+### More info
+- [Efficient Synchronization of State-based CRDTs](https://arxiv.org/pdf/1803.02750.pdf)
+- [Delta State Replicated Data Types](https://arxiv.org/pdf/1603.01529.pdf)
+- [Efficient Reconciliation and Flow Control for Anti-Entropy Protocols](https://www.cs.cornell.edu/home/rvr/papers/flowgossip.pdf))
+- [Join Decompositions for Efficient Synchronization of CRDTs after a Network Partition](https://vitorenes.org/publication/enes-join-decompositions/enes-join-decompositions.pdf)
+- [Efficient Synchronization of State-based CRDTs (MSc Thesis)](https://vitorenes.org/page/other/msc-thesis.pdf)
 
 ### Configuration
 - __LDB_MODE__:
   - `state_based`
   - `delta_based`
   - `scuttlebutt`
-  - `vanilla_scuttlebutt`
 - __LDB_STATE_SYNC_INTERVAL__: state is propagated every `X` milliseconds
 - __LDB_REDUNDANT_DGROUPS__: when set to `true`,
 removes redundant state that may be present in the received
-delta-groups, using [join-decompositions](http://haslab.uminho.pt/cbm/files/pmldc-2016-join-decomposition.pdf)
+delta-groups, using join-decompositions
 - __LDB_DGROUP_BACK_PROPAGATION__: when set to `true`,
 avoids back-propagation of delta-groups
-
-State-based and delta-based modes are described [here](http://vitorenesduarte.github.io/page/other/msc-thesis.pdf),
-as well as the optimizations removal of redundant delta-groups and avoiding back-propagation of delta-groups.
+- __LDB_SCUTTLEBUTT_GC__: when set to `true`, performs garbage collection of buffer entries in Scuttlebutt.
 
 |||||
-|---------------------------------|-------------------------------------------|-------------------------------------------|---------------|
-| __NODE_NUMBER__                 | `0..`                                     | `0..`                                     | `0..`
-| __LDB_MODE__                    | `state_based`                             | `delta_based`                             | `scuttlebutt` |
-| __LDB_STATE_SYNC_INTERVAL__     | `0..`                                     | `0..`                                     | `0..`
-| __LDB_REDUNDANT_DGROUPS__       | __NA__                                    | `true` / `false`                          | __NA__        |
-| __LDB_DGROUP_BACK_PROPAGATION__ | __NA__                                    | `true` / `false`                          | __NA__        |
+|---------------------------------|---------------|------------------|------------------|
+| __NODE_NUMBER__                 | `0..`         | `0..`            | `0..`            |
+| __LDB_MODE__                    | `state_based` | `delta_based`    | `scuttlebutt`    |
+| __LDB_STATE_SYNC_INTERVAL__     | `0..`         | `0..`            | `0..`            |
+| __LDB_REDUNDANT_DGROUPS__       | __NA__        | `true` / `false` | __NA__           |
+| __LDB_DGROUP_BACK_PROPAGATION__ | __NA__        | `true` / `false` | __NA__           |
+| __LDB_SCUTTLEBUTT_GC__          | __NA__        | __NA__           | `true` / `false` |
 
 #### Defaults
 - __LDB_MODE__: `state_based`
 - __LDB_STATE_SYNC_INTERVAL__: 1000
 - __LDB_REDUNDANT_DGROUPS__: `false`
 - __LDB_DGROUP_BACK_PROPAGATION__: `false`
+- __LDB_SCUTTLEBUTT_GC__: `false`
