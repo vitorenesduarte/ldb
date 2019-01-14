@@ -64,8 +64,6 @@ get_backend() ->
             ldb_delta_based_backend;
         scuttlebutt ->
             ldb_scuttlebutt_backend;
-        vanilla_scuttlebutt ->
-            ldb_vanilla_scuttlebutt_backend;
         op_based ->
             ldb_op_based_backend
     end.
@@ -91,12 +89,12 @@ unix_timestamp() ->
     erlang:system_time(second).
 
 %% @doc
--spec size(crdt | ack_map | vector | matrix, term()) -> non_neg_integer().
+-spec size(crdt | ack_map | vector | matrix | op, term()) -> non_neg_integer().
 size(crdt, CRDT) ->
     state_type:crdt_size(CRDT);
 size(ack_map, AckMap) ->
     maps:size(AckMap);
-%% scuttlebutt
+%% scuttlebutt + op based
 size(vector, VV) ->
     vclock:size(VV);
 size(matrix, Matrix) ->
@@ -106,7 +104,9 @@ size(matrix, Matrix) ->
         fun(_, VV, Acc) -> Acc + 1 + vclock:size(VV) end,
         0,
         Matrix
-    ).
+    );
+size(op, Op) ->
+    state_type:op_size(Op).
 
 %% @doc sum
 -spec plus([size_metric()]) -> size_metric().

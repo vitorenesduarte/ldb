@@ -32,7 +32,8 @@
 -export([new/2,
          add_op/2,
          select/2,
-         ack/3]).
+         ack/3,
+         size/1]).
 
 -export_type([buffer/0]).
 
@@ -189,6 +190,36 @@ ack(From, Dots, #buffer{seen_by_map=SeenByMap0}=State) ->
         Dots
     ),
     State#buffer{seen_by_map=SeenByMap}.
+
+%% @doc Compute size of the op-buffer.
+-spec size(buffer()) -> non_neg_integer().
+size(#buffer{matrix=Matrix,
+             buffer=Buffer,
+             seen_by_map=SeenByMap}) ->
+
+    %% compute matrix size
+    MatrixSize = ldb_util:size(matrix, Matrix),
+
+    %% compute buffer size
+    BufferSize = lists:foldl(
+        fun(#entry{op=Op, vv=VV}, Acc) ->
+            %% +1 for the dot
+            Acc + 1 + ldb_util:size(op, Op) + ldb_util:size(vector, VV)
+        end,
+        0,
+        Buffer
+    ),
+
+    %% compute seen by map size
+    SeenByMapSize = maps:fold(
+        fun(_, SeenBy, Acc) ->
+            Acc + sets:size(SeenBy) + 1
+        end,
+        0,
+        SeenByMap
+    ),
+
+    MatrixSize + BufferSize + SeenByMapSize.
 
 %% @private Try deliver operations.
 -spec try_deliver([entry()], to_deliver(), vclock(), [entry()]) ->
