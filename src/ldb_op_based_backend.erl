@@ -89,7 +89,7 @@ message_maker({_CRDT, Buffer}, To, _) ->
 message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, _) ->
     lager:info("Received ~p from ~p", [Ops, From]),
     {CRDT, Buffer, Dots} = lists:foldl(
-        fun({_, Dot, _, _, _}=Remote, {CRDTAcc0, BufferAcc0, DotsAcc0}) ->
+        fun({_, _, Dot, _, _}=Remote, {CRDTAcc0, BufferAcc0, DotsAcc0}) ->
             %% add dot to list of dots to ack
             DotsAcc = [Dot | DotsAcc0],
 
