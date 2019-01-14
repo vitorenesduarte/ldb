@@ -176,7 +176,7 @@ handle_cast({msg, From, Key, Message}, #state{shard_name=ShardName,
                                   metrics_st=MetricsSt}};
 
         error ->
-            lager:info("Non-existing key ~p", Key),
+            lager:info("Non-existing key ~p", [Key]),
             {noreply, State}
     end;
 
