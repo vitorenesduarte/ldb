@@ -46,13 +46,12 @@
                 vv :: vclock(),
                 is_delivered :: boolean()}).
 -type op() :: term().
--type seen_by() :: sets:set(ldb_node_id()).
--type seen_by_map() :: map:map(dot(), seen_by()).
+-type seen_by_map() :: map:map(dot(), sets:set(ldb_node_id())).
 -type entry() :: #entry{}.
 -type buffer() :: #buffer{}.
 
 %% aditional types
--type remote() :: {remote, op(), dot(), vclock(), seen_by()}.
+-type remote() :: {remote, op(), dot(), vclock(), ldb_node_id()}.
 -type add_op_args() :: remote() | {local, op()}.
 -type to_deliver() :: [{op(), vclock()}].
 
@@ -67,20 +66,19 @@ new(Id, NodeNumber) ->
 
 %% @doc Add a new operation to the buffer.
 -spec add_op(add_op_args(), buffer()) -> {to_deliver(), buffer()}.
-add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
-                                                                     matrix=Matrix0,
-                                                                     buffer=Buffer0,
-                                                                     seen_by_map=SeenByMap0}=State0) ->
+add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matrix0,
+                                                                    buffer=Buffer0,
+                                                                    seen_by_map=SeenByMap0}=State0) ->
 
-    %% update seen by
-    SeenBy1 = sets:add_element(Id, SeenBy0),
+    %% create seen by
+    SeenBy0 = sets:from_list([Origin, From]),
 
     %% create/update entry in the buffer
     {ShouldTry, SeenBy, Matrix2, Buffer2} = case maps:find(RemoteDot, SeenByMap0) of
         {ok, CurrentSeenBy} ->
             %% if exists, just update seen by map
-            SeenBy2 = sets:union(CurrentSeenBy, SeenBy1),
-            {false, SeenBy2, Matrix0, Buffer0};
+            SeenBy1 = sets:union(CurrentSeenBy, SeenBy0),
+            {false, SeenBy1, Matrix0, Buffer0};
 
         error ->
             %% otherwise, create op
@@ -90,9 +88,9 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
                            is_delivered=false},
 
             %% update matrix and buffer
-            Matrix1 = m_vclock:update(From, RemoteVV, Matrix0),
+            Matrix1 = m_vclock:update(Origin, RemoteVV, Matrix0),
             Buffer1 = [Entry|Buffer0],
-            {true, SeenBy1, Matrix1, Buffer1}
+            {true, SeenBy0, Matrix1, Buffer1}
     end,
 
     %% update seen by map
@@ -129,8 +127,7 @@ add_op({remote, Op, {From, _}=RemoteDot, RemoteVV, SeenBy0}, #buffer{id=Id,
             {[], State}
     end;
 
-add_op({local, Op}, #buffer{id=Id,
-                            matrix=Matrix0,
+add_op({local, Op}, #buffer{matrix=Matrix0,
                             buffer=Buffer0,
                             seen_by_map=SeenByMap0}=State0) ->
     %% create identifier for this op
@@ -144,8 +141,7 @@ add_op({local, Op}, #buffer{id=Id,
 
     %% update buffer and seen by map
     Buffer = [Entry | Buffer0],
-    SeenBy = sets:from_list([Id]),
-    SeenByMap = maps:put(Dot, SeenBy, SeenByMap0),
+    SeenByMap = maps:put(Dot, sets:new(), SeenByMap0),
 
     %% update state
     State = State0#buffer{matrix=Matrix,
@@ -156,15 +152,18 @@ add_op({local, Op}, #buffer{id=Id,
     {[{Op, VV}], State}.
 
 %% @doc Select which operations in the buffer should be sent to this neighbor.
--spec select(ldb_node_id(), buffer()) -> [{remote, op(), dot(), vclock(), seen_by()}].
-select(To, #buffer{buffer=Buffer,
+-spec select(ldb_node_id(), buffer()) -> [{remote, op(), dot(), vclock(), ldb_node_id()}].
+select(To, #buffer{id=Id,
+                   buffer=Buffer,
                    seen_by_map=SeenByMap}) ->
     lists:filtermap(
         fun(#entry{op=Op, dot=Dot, vv=VV}) ->
+            %% get nodes that saw this op (that we know of)
             SeenBy = maps:get(Dot, SeenByMap),
-            Include = not sets:is_element(To, SeenBy),
-            case Include of
-                true -> {true, {remote, Op, Dot, VV, SeenBy}};
+
+            %% if this neighbor didn't, send
+            case not sets:is_element(To, SeenBy) of
+                true -> {true, {remote, Op, Dot, VV, Id}};
                 false -> false
             end
         end,
@@ -260,32 +259,31 @@ add_local_op_test() ->
 
 add_remote_op_test() ->
     Buffer0 =  new(z, 3),
-    SeenBy = sets:new(),
 
     OpA = op_a,
     DotA = {a, 1},
     VVA = vclock:from_list([{a, 1}, {b, 2}]),
-    RemoteA = {remote, OpA, DotA, VVA, SeenBy},
+    RemoteA = {remote, OpA, DotA, VVA, a},
 
     OpB = op_b,
     DotB = {b, 1},
     VVB = vclock:from_list([{b, 1}, {c, 1}]),
-    RemoteB = {remote, OpB, DotB, VVB, SeenBy},
+    RemoteB = {remote, OpB, DotB, VVB, b},
 
     OpC = op_c,
     DotC = {c, 1},
     VVC = vclock:from_list([{c, 1}]),
-    RemoteC = {remote, OpC, DotC, VVC, SeenBy},
+    RemoteC = {remote, OpC, DotC, VVC, c},
 
     OpD = op_d,
     DotD = {b, 2},
     VVD = vclock:from_list([{b, 2}, {c, 2}]),
-    RemoteD = {remote, OpD, DotD, VVD, SeenBy},
+    RemoteD = {remote, OpD, DotD, VVD, b},
 
     OpE = op_e,
     DotE = {c, 2},
     VVE = vclock:from_list([{c, 2}]),
-    RemoteE = {remote, OpE, DotE, VVE, SeenBy},
+    RemoteE = {remote, OpE, DotE, VVE, c},
 
     {ToDeliver1, Buffer1} = add_op(RemoteA, Buffer0),
     ?assertEqual([], ToDeliver1),
@@ -320,18 +318,19 @@ select_ack_test() ->
 
     %% A does local op
     {_, BufferA1} = add_op({local, opa}, BufferA0),
-    %% A sends to B
-    [RemoteAB1] = select(b, BufferA1),
+    %% B has nothing to A and C
     [] = select(a, BufferB0),
     [] = select(c, BufferB0),
-    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), sets:from_list([a])}, RemoteAB1),
+    %% A sends to B
+    [RemoteAB1] = select(b, BufferA1),
+    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), a}, RemoteAB1),
 
     %% B receives
     {_, BufferB1} = add_op(RemoteAB1, BufferB0),
     %% B sends to C
     [] = select(a, BufferB1),
     [RemoteBC1]= select(c, BufferB1),
-    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), sets:from_list([a, b])}, RemoteBC1),
+    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), b}, RemoteBC1),
 
     %% C has nothing to A and B
     {_, BufferC1} = add_op(RemoteBC1, BufferC0),
@@ -344,7 +343,7 @@ select_ack_test() ->
     [] = select(b, BufferA2),
     %% A sends to C
     [RemoteAC1] = select(c, BufferA2),
-    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), sets:from_list([a, b])}, RemoteAC1),
+    ?assertEqual({remote, opa, {a, 1}, vclock:from_list([{a, 1}]), a}, RemoteAC1),
 
     %% A does local op
     {_, BufferA3} = add_op({local, opb}, BufferA2),
@@ -352,7 +351,7 @@ select_ack_test() ->
     BufferA4 = ack(c, [{a, 1}], BufferA3),
     %% A sends to C
     [RemoteAC2] = select(c, BufferA4),
-    ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), sets:from_list([a])}, RemoteAC2),
+    ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), a}, RemoteAC2),
 
     %% C receives both
     {_, BufferC2} = add_op(RemoteAC1, BufferC1),
@@ -362,11 +361,12 @@ select_ack_test() ->
     %% C does local op
     {_, BufferC4} = add_op({local, opc}, BufferC3),
     %% C sends to A
-    [RemoteC] = select(a, BufferC4),
-    ?assertEqual({remote, opc, {c, 1}, vclock:from_list([{a, 2}, {c, 1}]), sets:from_list([c])}, RemoteC),
+    [RemoteCA1] = select(a, BufferC4),
+    ?assertEqual({remote, opc, {c, 1}, vclock:from_list([{a, 2}, {c, 1}]), c}, RemoteCA1),
     %% C sends to B
-    [RemoteC, RemoteBC2] = select(b, BufferC4),
-    ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), sets:from_list([a, c])}, RemoteBC2).
+    [RemoteCB1, RemoteBC2] = select(b, BufferC4),
+    ?assertEqual({remote, opc, {c, 1}, vclock:from_list([{a, 2}, {c, 1}]), c}, RemoteCB1),
+    ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), c}, RemoteBC2).
 
 prune_test() ->
     BufferA0 = new(a, 2),
