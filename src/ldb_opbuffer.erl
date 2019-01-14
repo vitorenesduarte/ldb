@@ -198,7 +198,7 @@ size(#buffer{matrix=Matrix,
              seen_by_map=SeenByMap}) ->
 
     %% compute matrix size
-    MatrixSize = ldb_util:size(matrix, Matrix),
+    MatrixSize = ldb_util:size(matrix, m_vclock:matrix(Matrix)),
 
     %% compute buffer size
     BufferSize = lists:foldl(
