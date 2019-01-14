@@ -76,13 +76,18 @@ memory({CRDT, Buffer}) ->
 -spec message_maker(stored(), ldb_node_id(), st()) -> message().
 message_maker({_CRDT, Buffer}, To, _) ->
     case ldb_opbuffer:select(To, Buffer) of
-        [] -> nothing;
-        Ops -> {ops, Ops}
+        [] ->
+            lager:info("Nothing to send to ~p", [To]),
+            nothing;
+        Ops ->
+            lager:info("Sending ~p to ~p", [Ops, To]),
+            {ops, Ops}
     end.
 
 -spec message_handler(message(), ldb_node_id(), stored(), st()) ->
     {stored(), nothing | message()}.
-message_handler({ops, Ops}, _, {{Type, _}=CRDT0, Buffer0}, _) ->
+message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, _) ->
+    lager:info("Received ~p from ~p", [Ops, From]),
     {CRDT, Buffer, Dots} = lists:foldl(
         fun({_, Dot, _, _, _}=Remote, {CRDTAcc0, BufferAcc0, DotsAcc0}) ->
             %% add dot to list of dots to ack
@@ -114,6 +119,7 @@ message_handler({ops, Ops}, _, {{Type, _}=CRDT0, Buffer0}, _) ->
     {Stored, Reply};
 
 message_handler({ops_ack, Dots}, From, {CRDT, Buffer0}, _) ->
+    lager:info("Received ack ~p from ~p", [Dots, From]),
     %% process ack
     Buffer = ldb_opbuffer:ack(From, Dots, Buffer0),
     Stored = {CRDT, Buffer},
