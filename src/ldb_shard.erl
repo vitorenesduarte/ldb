@@ -145,35 +145,40 @@ handle_cast({msg, From, Key, Message}, #state{shard_name=ShardName,
                                               backend_state=BackendState,
                                               ignore_keys=IgnoreKeys,
                                               metrics_st=MetricsSt0}=State) ->
-    %% metrics
-    Metrics = should_save_key(Key, IgnoreKeys),
+    %% find if key exists
+    case maps:find(Key, KV0) of
+        {ok, Stored0} ->
+            %% metrics
+            Metrics = should_save_key(Key, IgnoreKeys),
 
-    %% get current value
-    Stored0 = maps:get(Key, KV0),
+            %% update it with remote message and measure the time
+            {MicroSeconds, {Stored, Reply}} = timer:tc(
+                Backend,
+                message_handler,
+                [Message, From, Stored0, BackendState]
+            ),
 
-    %% update it with remote message and measure the time
-    {MicroSeconds, {Stored, Reply}} = timer:tc(
-        Backend,
-        message_handler,
-        [Message, From, Stored0, BackendState]
-    ),
+            %% send reply, and measure its cost
+            MetricsSt1 = case Reply of
+                nothing -> MetricsSt0;
+                _ -> do_send(Backend, ShardName, Actor, From, Key, Reply, Metrics, MetricsSt0)
+            end,
 
-    %% send reply, and measure its cost
-    MetricsSt1 = case Reply of
-        nothing -> MetricsSt0;
-        _ -> do_send(Backend, ShardName, Actor, From, Key, Reply, Metrics, MetricsSt0)
-    end,
+            %% update with new value
+            KV = maps:put(Key, Stored, KV0),
 
-    %% update with new value
-    KV = maps:put(Key, Stored, KV0),
+            %% maybe save metrics
+            MetricsSt = case Metrics of
+                true -> ldb_metrics:record_processing(MicroSeconds, MetricsSt1);
+                false -> MetricsSt1
+            end,
+            {noreply, State#state{kv=KV,
+                                  metrics_st=MetricsSt}};
 
-    %% maybe save metrics
-    MetricsSt = case Metrics of
-        true -> ldb_metrics:record_processing(MicroSeconds, MetricsSt1);
-        false -> MetricsSt1
-    end,
-    {noreply, State#state{kv=KV,
-                          metrics_st=MetricsSt}};
+        error ->
+            lager:info("Non-existing key ~p", Key),
+            {noreply, State}
+    end;
 
 handle_cast({update_members, Members}, State) ->
     {noreply, State#state{members=Members}};
