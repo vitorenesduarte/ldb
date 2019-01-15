@@ -155,7 +155,7 @@ qs(ID) ->
 %% @doc Pretty-print.
 -spec show(id | dot | dots | vector | ops, term()) -> term().
 show(id, Id) ->
-    erlang:phash2(Id) rem ldb_config:get(node_number);
+    lists:nth(1, string:split(atom_to_list(Id), "@"));
 show(dot, {Id, Seq}) ->
     {show(id, Id), Seq};
 show(dots, Dots) ->
