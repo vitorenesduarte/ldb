@@ -71,38 +71,41 @@ add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matri
                                                                     buffer=Buffer0,
                                                                     seen_by_map=SeenByMap0}=State0) ->
 
-    %% create seen by
-    SeenBy0 = sets:from_list([Origin, From]),
+    %% get current vv
+    VV0 = m_vclock:get(Matrix0),
 
     %% create/update entry in the buffer
-    {ShouldTry, SeenBy, Matrix2, Buffer2} = case maps:find(RemoteDot, SeenByMap0) of
+    {ShouldTry, SeenByMap2, Matrix2, Buffer2} = case maps:find(RemoteDot, SeenByMap0) of
         {ok, CurrentSeenBy} ->
             %% if exists, just update seen by map
-            SeenBy1 = sets:union(CurrentSeenBy, SeenBy0),
-            {false, SeenBy1, Matrix0, Buffer0};
+            SeenByMap1 = maps:put(RemoteDot, sets:add_element(From, CurrentSeenBy), SeenByMap0),
+            {false, SeenByMap1, Matrix0, Buffer0};
 
         error ->
-            %% otherwise, create op
-            Entry = #entry{op=Op,
-                           dot=RemoteDot,
-                           vv=RemoteVV,
-                           is_delivered=false},
+            case vclock:is_element(RemoteDot, VV0) of
+                true ->
+                    %% not in map, and already delivered: do nothing
+                    {false, SeenByMap0, Matrix0, Buffer0};
+                false ->
+                    %% otherwise, create op
+                    Entry = #entry{op=Op,
+                                   dot=RemoteDot,
+                                   vv=RemoteVV,
+                                   is_delivered=false},
 
-            %% update matrix and buffer
-            Matrix1 = m_vclock:update(Origin, RemoteVV, Matrix0),
-            Buffer1 = [Entry|Buffer0],
-            {true, SeenBy0, Matrix1, Buffer1}
+                    %% update seen by map
+                    SeenByMap1 = maps:put(RemoteDot, sets:from_list([Origin, From]), SeenByMap0),
+
+                    %% update matrix and buffer
+                    Matrix1 = m_vclock:update(Origin, RemoteVV, Matrix0),
+                    Buffer1 = [Entry|Buffer0],
+                    {true, SeenByMap1, Matrix1, Buffer1}
+            end
     end,
-
-    %% update seen by map
-    SeenByMap1 = maps:put(RemoteDot, SeenBy, SeenByMap0),
 
     %% try to deliver, if it was a new op
     case ShouldTry of
         true ->
-            %% get current vv
-            VV0 = m_vclock:get(Matrix2),
-
             %% try deliver
             {ToDeliver, VV, Buffer3} = try_deliver(Buffer2, [], VV0, []),
 
@@ -112,7 +115,7 @@ add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matri
 
             %% update buffer and seen by map
             Buffer = prune(Buffer3, sets:from_list(StableDots), []),
-            SeenByMap = maps:without(StableDots, SeenByMap1),
+            SeenByMap = maps:without(StableDots, SeenByMap2),
 
             %% update state
             State = State0#buffer{buffer=Buffer,
@@ -124,7 +127,7 @@ add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matri
             %% just update state
             State = State0#buffer{buffer=Buffer2,
                                   matrix=Matrix2,
-                                  seen_by_map=SeenByMap1},
+                                  seen_by_map=SeenByMap2},
             {[], State}
     end;
 
