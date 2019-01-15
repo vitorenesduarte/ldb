@@ -149,7 +149,7 @@ show(vector, VV, NodeNumber) ->
     %% only show seqs for VVs
     Dots = show(dots, maps:to_list(VV), NodeNumber),
     {_, Seqs} = lists:unzip(lists:sort(Dots)),
-    erlang:list_to_bitstring(Seqs);
+    erlang:list_to_tuple(Seqs);
 show(ops, Ops, NodeNumber) ->
     lists:map(
         fun({_, _, Dot, VV, From}) ->
