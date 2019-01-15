@@ -131,7 +131,8 @@ message_handler({ops_ack, Dots}, From, {CRDT, Buffer0}, _) ->
 message_size({ops, Ops}) ->
     lists:foldl(
         fun({_, Op, _Dot, VV, _}, {M, C}) ->
-            {M + 1 + ldb_util:size(vector, VV), C + ldb_util:size(op, Op)}
+            {M + 1 + ldb_util:size(vector, VV), %% + 1 (Dot)
+             C + ldb_util:size(op, Op)}
         end,
         {0, 0},
         Ops

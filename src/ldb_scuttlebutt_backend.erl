@@ -155,7 +155,8 @@ message_size({vector, Vector}) ->
 message_size({dotted_buffer, Buffer}) ->
     maps:fold(
         fun(_Dot, Delta, {M, C}) ->
-            {M + 1, C + ldb_util:size(crdt, Delta)}
+            {M + 1, %% + 1 (Dot)
+             C + ldb_util:size(crdt, Delta)}
         end,
         {0, 0},
         Buffer
