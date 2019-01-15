@@ -35,7 +35,9 @@
          connection_name/1,
          connection_name/2]).
 
--export([qs/1]).
+%% debug
+-export([qs/1,
+         show/2]).
 
 -define(STATE_PREFIX, "state_").
 -define(OP_PREFIX, "op_").
@@ -149,6 +151,27 @@ get_type(Type) ->
 qs(ID) ->
     {message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
     lager:info("MAILBOX ~p REMAINING: ~p", [ID, MessageQueueLen]).
+
+%% @doc Pretty-print.
+-spec show(id | dot | dots | vector | ops, term()) -> term().
+show(id, Id) ->
+    erlang:phash2(Id) rem ldb_config:get(node_number);
+show(dot, {Id, Seq}) ->
+    {show(id, Id), Seq};
+show(dots, Dots) ->
+    lists:map(fun(Dot) -> show(dot, Dot) end, Dots);
+show(vector, VV) ->
+    %% only show seqs for VVs
+    Dots = show(dots, maps:to_list(VV)),
+    {_, Seqs} = lists:unzip(lists:sort(Dots)),
+    erlang:list_to_tuple(Seqs);
+show(ops, Ops) ->
+    lists:map(
+        fun({_, _, Dot, VV, From}) ->
+            {show(dot, Dot), show(vector, VV), show(id, From)}
+        end,
+        Ops
+    ).
 
 %% @private Compute CRDT type prefix.
 -spec prefix() -> string().
