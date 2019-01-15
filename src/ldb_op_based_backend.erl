@@ -77,17 +77,17 @@ memory({CRDT, Buffer}) ->
 message_maker({_CRDT, Buffer}, To, _) ->
     case ldb_opbuffer:select(To, Buffer) of
         [] ->
-            lager:info("Nothing to send to ~p", [To]),
+            %% lager:info("Nothing to send to ~p", [To]),
             nothing;
         Ops ->
-            lager:info("Sending ~p to ~p", [Ops, To]),
+            %% lager:info("Sending ~p to ~p", [Ops, To]),
             {ops, Ops}
     end.
 
 -spec message_handler(message(), ldb_node_id(), stored(), st()) ->
     {stored(), nothing | message()}.
-message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, _) ->
-    lager:info("Received ~p from ~p", [Ops, From]),
+message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, #state{node_number=NodeNumber}) ->
+    lager:info("OPS BY ~p: ~p", [show(id, From, NodeNumber), show(ops, Ops, NodeNumber)]),
     {CRDT, Buffer, Dots} = lists:foldl(
         fun({_, _, Dot, _, _}=Remote, {CRDTAcc0, BufferAcc0, DotsAcc0}) ->
             %% add dot to list of dots to ack
@@ -118,8 +118,8 @@ message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, _) ->
 
     {Stored, Reply};
 
-message_handler({ops_ack, Dots}, From, {CRDT, Buffer0}, _) ->
-    lager:info("Received ack ~p from ~p", [Dots, From]),
+message_handler({ops_ack, Dots}, From, {CRDT, Buffer0}, #state{node_number=NodeNumber}) ->
+    lager:info("ACK BY ~p: ~p", [show(id, From, NodeNumber), show(dots, Dots, NodeNumber)]),
     %% process ack
     Buffer = ldb_opbuffer:ack(From, Dots, Buffer0),
     Stored = {CRDT, Buffer},
@@ -136,3 +136,26 @@ message_size({ops, Ops}) ->
     );
 message_size({ops_ack, Dots}) ->
     {length(Dots), 0}.
+
+
+-spec show(id | dot | dots | vector | ops, term(), non_neg_integer()) -> term().
+show(id, Id, NodeNumber) ->
+    erlang:phash2(Id) rem NodeNumber;
+show(dot, {Id, Seq}, NodeNumber) ->
+    {show(id, Id, NodeNumber), Seq};
+show(dots, Dots, NodeNumber) ->
+    lists:map(fun(Dot) -> show(dot, Dot, NodeNumber) end, Dots);
+show(vector, VV, NodeNumber) ->
+    %% only show seqs for VVs
+    Dots = show(dots, maps:to_list(VV), NodeNumber),
+    {_, Seqs} = lists:unzip(lists:sort(Dots)),
+    Seqs;
+show(ops, Ops, NodeNumber) ->
+    lists:map(
+        fun({_, _, Dot, VV, From}) ->
+            {show(dot, Dot, NodeNumber),
+             show(vector, VV, NodeNumber),
+             show(id, From, NodeNumber)}
+        end,
+        Ops
+    ).
