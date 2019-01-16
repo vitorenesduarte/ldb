@@ -30,15 +30,17 @@ delta-groups, using join-decompositions
 - __LDB_DGROUP_BACK_PROPAGATION__: when set to `true`,
 avoids back-propagation of delta-groups
 - __LDB_SCUTTLEBUTT_GC__: when set to `true`, performs garbage collection of buffer entries in Scuttlebutt.
+- __LDB_OP_II__: when set to `true`, the backend leverages implicit info in protocol messages
 
 ||||||
-|---------------------------------|---------------|------------------|------------------|------------|
-| __NODE_NUMBER__                 | `0..`         | `0..`            | `0..`            | `0..`      |
-| __LDB_MODE__                    | `state_based` | `delta_based`    | `scuttlebutt`    | `op_based` |
-| __LDB_STATE_SYNC_INTERVAL__     | `0..`         | `0..`            | `0..`            | `0..`      |
-| __LDB_REDUNDANT_DGROUPS__       | __NA__        | `true` / `false` | __NA__           | __NA__     |
-| __LDB_DGROUP_BACK_PROPAGATION__ | __NA__        | `true` / `false` | __NA__           | __NA__     |
-| __LDB_SCUTTLEBUTT_GC__          | __NA__        | __NA__           | `true` / `false` | __NA__     |
+|---------------------------------|---------------|------------------|------------------|------------------|
+| __NODE_NUMBER__                 | `0..`         | `0..`            | `0..`            | `0..`            |
+| __LDB_MODE__                    | `state_based` | `delta_based`    | `scuttlebutt`    | `op_based`       |
+| __LDB_STATE_SYNC_INTERVAL__     | `0..`         | `0..`            | `0..`            | `0..`            |
+| __LDB_REDUNDANT_DGROUPS__       | __NA__        | `true` / `false` | __NA__           | __NA__           |
+| __LDB_DGROUP_BACK_PROPAGATION__ | __NA__        | `true` / `false` | __NA__           | __NA__           |
+| __LDB_SCUTTLEBUTT_GC__          | __NA__        | __NA__           | `true` / `false` | __NA__           |
+| __LDB_OP_II__                   | __NA__        | __NA__           | __NA__           | `true` / `false` |
 
 #### Defaults
 - __LDB_MODE__: `state_based`

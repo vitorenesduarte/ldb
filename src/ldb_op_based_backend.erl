@@ -34,7 +34,8 @@
          message_handler/4,
          message_size/1]).
 
--record(state, {id :: ldb_node_id(),
+-record(state, {ii :: boolean(),
+                id :: ldb_node_id(),
                 node_number :: non_neg_integer()}).
 -type st() :: #state{}.
 
@@ -43,14 +44,16 @@
 
 -spec backend_state() -> st().
 backend_state() ->
+    II = ldb_config:get(ldb_op_ii),
     Id = ldb_config:id(),
     NodeNumber = ldb_config:get(node_number),
-    #state{id=Id,
+    #state{ii=II,
+           id=Id,
            node_number=NodeNumber}.
 
 -spec bottom_entry(term(), st()) -> stored().
-bottom_entry(Bottom, #state{id=Id, node_number=NodeNumber}) ->
-    Buffer = ldb_opbuffer:new(Id, NodeNumber),
+bottom_entry(Bottom, #state{ii=II, id=Id, node_number=NodeNumber}) ->
+    Buffer = ldb_opbuffer:new(II, Id, NodeNumber),
     {Bottom, Buffer}.
 
 -spec crdt(stored()) -> term().
