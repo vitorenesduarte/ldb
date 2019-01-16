@@ -76,7 +76,7 @@ add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matri
 
     %% create/update entry in the buffer
     {ShouldTry, SeenByMap2, Matrix2, Buffer2} = case maps:find(RemoteDot, SeenByMap0) of
-        {ok, CurrentSeenBy} ->
+        {ok, _CurrentSeenBy} ->
             %% if exists, just update seen by map
             SeenByMap1 = SeenByMap0,
             %% SeenByMap1 = maps:put(RemoteDot, sets:add_element(From, CurrentSeenBy), SeenByMap0),
