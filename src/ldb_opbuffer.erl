@@ -94,7 +94,8 @@ add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matri
                                    is_delivered=false},
 
                     %% update seen by map
-                    SeenByMap1 = maps:put(RemoteDot, sets:from_list([Origin, From]), SeenByMap0),
+                    SeenByMap1 = maps:put(RemoteDot, sets:from_list([From]), SeenByMap0),
+                    %% SeenByMap1 = maps:put(RemoteDot, sets:from_list([Origin, From]), SeenByMap0),
 
                     %% update matrix and buffer
                     Matrix1 = m_vclock:update(Origin, RemoteVV, Matrix0),
