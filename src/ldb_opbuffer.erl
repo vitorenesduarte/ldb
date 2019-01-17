@@ -29,7 +29,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/2,
+-export([new/3,
          add_op/2,
          select/2,
          ack/3,
@@ -38,7 +38,8 @@
 -export_type([buffer/0]).
 
 
--record(buffer, {id :: ldb_node_id(),
+-record(buffer, {ii :: boolean(), %% use implicit info or not
+                 id :: ldb_node_id(),
                  matrix :: m_vclock(),
                  buffer :: [entry()],
                  seen_by_map :: seen_by_map()}).
@@ -58,16 +59,18 @@
 
 
 %% @doc Create new buffer.
--spec new(ldb_node_id(), non_neg_integer()) -> buffer().
-new(Id, NodeNumber) ->
-    #buffer{id=Id,
+-spec new(boolean(), ldb_node_id(), non_neg_integer()) -> buffer().
+new(II, Id, NodeNumber) ->
+    #buffer{ii=II,
+            id=Id,
             matrix=m_vclock:new(Id, NodeNumber),
             buffer=[],
             seen_by_map=maps:new()}.
 
 %% @doc Add a new operation to the buffer.
 -spec add_op(add_op_args(), buffer()) -> {to_deliver(), buffer()}.
-add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matrix0,
+add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{ii=II,
+                                                                    matrix=Matrix0,
                                                                     buffer=Buffer0,
                                                                     seen_by_map=SeenByMap0}=State0) ->
 
@@ -78,7 +81,10 @@ add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matri
     {ShouldTry, SeenByMap2, Matrix2, Buffer2} = case maps:find(RemoteDot, SeenByMap0) of
         {ok, CurrentSeenBy} ->
             %% if exists, just update seen by map
-            SeenByMap1 = maps:put(RemoteDot, sets:add_element(From, CurrentSeenBy), SeenByMap0),
+            SeenByMap1 = case II of
+                true -> maps:put(RemoteDot, sets:add_element(From, CurrentSeenBy), SeenByMap0);
+                false -> SeenByMap0
+            end,
             {false, SeenByMap1, Matrix0, Buffer0};
 
         error ->
@@ -93,8 +99,14 @@ add_op({remote, Op, {Origin, _}=RemoteDot, RemoteVV, From}, #buffer{matrix=Matri
                                    vv=RemoteVV,
                                    is_delivered=false},
 
+                    %% compute seen by
+                    SeenBy = case II of
+                        true -> sets:from_list([Origin, From]);
+                        false -> sets:from_list([From])
+                    end,
+
                     %% update seen by map
-                    SeenByMap1 = maps:put(RemoteDot, sets:from_list([Origin, From]), SeenByMap0),
+                    SeenByMap1 = maps:put(RemoteDot, SeenBy, SeenByMap0),
 
                     %% update matrix and buffer
                     Matrix1 = m_vclock:update(Origin, RemoteVV, Matrix0),
@@ -281,7 +293,7 @@ prune([], _, Buffer) ->
 -ifdef(TEST).
 
 add_local_op_test() ->
-    Buffer0 =  new(a, 1),
+    Buffer0 =  new(true, a, 1),
     OpA = op_a,
     OpB = op_b,
 
@@ -292,7 +304,7 @@ add_local_op_test() ->
     ?assertEqual(vclock:from_list([{a, 2}]), VVB).
 
 add_remote_op_test() ->
-    Buffer0 =  new(z, 3),
+    Buffer0 =  new(true, z, 3),
 
     OpA = op_a,
     DotA = {a, 1},
@@ -346,9 +358,9 @@ add_remote_op_test() ->
     ?assertEqual([], ToDeliver6).
 
 select_ack_test() ->
-    BufferA0 = new(a, 3),
-    BufferB0 = new(b, 3),
-    BufferC0 = new(c, 3),
+    BufferA0 = new(true, a, 3),
+    BufferB0 = new(true, b, 3),
+    BufferC0 = new(true, c, 3),
 
     %% A does local op
     {_, BufferA1} = add_op({local, opa}, BufferA0),
@@ -403,8 +415,8 @@ select_ack_test() ->
     ?assertEqual({remote, opb, {a, 2}, vclock:from_list([{a, 2}]), c}, RemoteBC2).
 
 prune_test() ->
-    BufferA0 = new(a, 2),
-    BufferB0 = new(b, 2),
+    BufferA0 = new(true, a, 2),
+    BufferB0 = new(true, b, 2),
 
     %% A does local op
     {_, BufferA1} = add_op({local, opa}, BufferA0),

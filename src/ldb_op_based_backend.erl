@@ -34,7 +34,8 @@
          message_handler/4,
          message_size/1]).
 
--record(state, {id :: ldb_node_id(),
+-record(state, {ii :: boolean(),
+                id :: ldb_node_id(),
                 node_number :: non_neg_integer()}).
 -type st() :: #state{}.
 
@@ -43,14 +44,16 @@
 
 -spec backend_state() -> st().
 backend_state() ->
+    II = ldb_config:get(ldb_op_ii),
     Id = ldb_config:id(),
     NodeNumber = ldb_config:get(node_number),
-    #state{id=Id,
+    #state{ii=II,
+           id=Id,
            node_number=NodeNumber}.
 
 -spec bottom_entry(term(), st()) -> stored().
-bottom_entry(Bottom, #state{id=Id, node_number=NodeNumber}) ->
-    Buffer = ldb_opbuffer:new(Id, NodeNumber),
+bottom_entry(Bottom, #state{ii=II, id=Id, node_number=NodeNumber}) ->
+    Buffer = ldb_opbuffer:new(II, Id, NodeNumber),
     {Bottom, Buffer}.
 
 -spec crdt(stored()) -> term().
@@ -82,9 +85,9 @@ message_maker({_CRDT, Buffer}, To, _) ->
 
 -spec message_handler(message(), ldb_node_id(), stored(), st()) ->
     {stored(), nothing | message()}.
-message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, _) ->
-    lager:info("OPS BY ~p: ~p", [ldb_util:show(id, From),
-                                 ldb_util:show(ops, Ops)]),
+message_handler({ops, Ops}, _From, {{Type, _}=CRDT0, Buffer0}, _) ->
+    %% lager:info("OPS BY ~p: ~p", [ldb_util:show(id, From),
+    %%                              ldb_util:show(ops, Ops)]),
 
     {CRDT, Buffer, Dots} = lists:foldl(
         fun({_, _, Dot, _, _}=Remote, {CRDTAcc0, BufferAcc0, DotsAcc0}) ->
@@ -94,7 +97,7 @@ message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, _) ->
             %% add to buffer
             {ToDeliver, BufferAcc} = ldb_opbuffer:add_op(Remote, BufferAcc0),
 
-            lager:info("DELIVER: ~p", [[ldb_util:show(vector, VV) || {_, VV} <- ToDeliver]]),
+            %% lager:info("DELIVER: ~p", [[ldb_util:show(vector, VV) || {_, VV} <- ToDeliver]]),
 
             %% apply all delivered ops to CRDT
             CRDTAcc = lists:foldl(
@@ -119,8 +122,8 @@ message_handler({ops, Ops}, From, {{Type, _}=CRDT0, Buffer0}, _) ->
     {Stored, Reply};
 
 message_handler({ops_ack, Dots}, From, {CRDT, Buffer0}, _) ->
-    lager:info("ACK BY ~p: ~p", [ldb_util:show(id, From),
-                                 ldb_util:show(dots, Dots)]),
+    %% lager:info("ACK BY ~p: ~p", [ldb_util:show(id, From),
+    %%                              ldb_util:show(dots, Dots)]),
 
     %% process ack
     Buffer = ldb_opbuffer:ack(From, Dots, Buffer0),
