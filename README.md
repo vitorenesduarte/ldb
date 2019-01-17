@@ -48,3 +48,4 @@ avoids back-propagation of delta-groups
 - __LDB_REDUNDANT_DGROUPS__: `false`
 - __LDB_DGROUP_BACK_PROPAGATION__: `false`
 - __LDB_SCUTTLEBUTT_GC__: `false`
+- __LDB_OP_II__: `false`
