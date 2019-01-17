@@ -35,7 +35,12 @@
          connection_name/1,
          connection_name/2]).
 
--export([qs/1]).
+%% debug
+-export([qs/1,
+         show/2]).
+
+-define(STATE_PREFIX, "state_").
+-define(OP_PREFIX, "op_").
 
 %% @doc Creates a bottom CRDT from a type
 %%      or from an existing state-based CRDT.
@@ -60,7 +65,9 @@ get_backend() ->
         delta_based ->
             ldb_delta_based_backend;
         scuttlebutt ->
-            ldb_scuttlebutt_backend
+            ldb_scuttlebutt_backend;
+        op_based ->
+            ldb_op_based_backend
     end.
 
 %% @doc
@@ -84,12 +91,12 @@ unix_timestamp() ->
     erlang:system_time(second).
 
 %% @doc
--spec size(crdt | ack_map | vector | matrix, term()) -> non_neg_integer().
+-spec size(crdt | ack_map | vector | matrix | op, term()) -> non_neg_integer().
 size(crdt, CRDT) ->
     state_type:crdt_size(CRDT);
 size(ack_map, AckMap) ->
     maps:size(AckMap);
-%% scuttlebutt
+%% scuttlebutt + op based
 size(vector, VV) ->
     vclock:size(VV);
 size(matrix, Matrix) ->
@@ -99,7 +106,9 @@ size(matrix, Matrix) ->
         fun(_, VV, Acc) -> Acc + 1 + vclock:size(VV) end,
         0,
         Matrix
-    ).
+    );
+size(op, Op) ->
+    state_type:op_size(Op).
 
 %% @doc sum
 -spec plus([size_metric()]) -> size_metric().
@@ -136,9 +145,38 @@ get_type([]) ->
 get_type([H|T]) ->
     [get_type(H) | get_type(T)];
 get_type(Type) ->
-    list_to_atom("state_" ++ atom_to_list(Type)).
+    list_to_atom(prefix() ++ atom_to_list(Type)).
 
 %% @doc Log Process queue length.
 qs(ID) ->
     {message_queue_len, MessageQueueLen} = process_info(self(), message_queue_len),
     lager:info("MAILBOX ~p REMAINING: ~p", [ID, MessageQueueLen]).
+
+%% @doc Pretty-print.
+-spec show(id | dot | dots | vector | ops, term()) -> term().
+show(id, Id) ->
+    lists:nth(1, string:split(atom_to_list(Id), "@"));
+show(dot, {Id, Seq}) ->
+    {show(id, Id), Seq};
+show(dots, Dots) ->
+    lists:map(fun(Dot) -> show(dot, Dot) end, Dots);
+show(vector, VV) ->
+    %% only show seqs for VVs
+    Dots = show(dots, maps:to_list(VV)),
+    {_, Seqs} = lists:unzip(lists:sort(Dots)),
+    erlang:list_to_tuple(Seqs);
+show(ops, Ops) ->
+    lists:map(
+        fun({_, _, Dot, VV, From}) ->
+            {show(dot, Dot), show(vector, VV), show(id, From)}
+        end,
+        Ops
+    ).
+
+%% @private Compute CRDT type prefix.
+-spec prefix() -> string().
+prefix() ->
+    case get_backend() of
+        ldb_op_based_backend -> ?OP_PREFIX;
+        _ -> ?STATE_PREFIX
+    end.

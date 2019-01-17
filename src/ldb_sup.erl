@@ -99,6 +99,11 @@ configure() ->
                   ldb_scuttlebutt_gc,
                   false),
 
+    %% configure op based implicit info
+    configure_var("LDB_OP_II",
+                  ldb_op_ii,
+                  false),
+
     %% configure server ip
     configure_ip("LDB_IP",
                  ldb_ip,

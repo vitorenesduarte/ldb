@@ -6,7 +6,7 @@
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.5.0">>},0},
  {<<"types">>,
   {git,"https://github.com/vitorenesduarte/types",
-       {ref,"bc2327a0c2b6f43ca092440a54c2c2dc21fb71a1"}},
+       {ref,"60359c30e0c0acd833c5c3cfe724f988dae099e7"}},
   0}]}.
 [
 {pkg_hash,[

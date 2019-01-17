@@ -135,7 +135,7 @@ prune_list(_, L) ->
 size(#buffer{buffer=Buffer}) ->
     orddict:fold(
         fun(_, #entry{value=CRDT}, Acc) ->
-            %% +1 for the From and Sequence
+            %% +1 for the From
             Acc + 1 + ldb_util:size(crdt, CRDT)
         end,
         0,
