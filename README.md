@@ -10,12 +10,12 @@ LDB supports different CRDT replication models:
 
 
 ### More info
-- [Efficient Synchronization of State-based CRDTs](https://arxiv.org/pdf/1803.02750.pdf)
-- [Delta State Replicated Data Types](https://arxiv.org/pdf/1603.01529.pdf)
-- [Efficient Reconciliation and Flow Control for Anti-Entropy Protocols](https://www.cs.cornell.edu/home/rvr/papers/flowgossip.pdf))
-- [Conflict-free Replicated Data Types](https://pages.lip6.fr/Marc.Shapiro/papers/RR-7687.pdf)
-- [Join Decompositions for Efficient Synchronization of CRDTs after a Network Partition](https://vitorenes.org/publication/enes-join-decompositions/enes-join-decompositions.pdf)
-- [Efficient Synchronization of State-based CRDTs (MSc Thesis)](https://vitorenes.org/page/other/msc-thesis.pdf)
+- [Efficient Synchronization of State-based CRDTs](https://arxiv.org/pdf/1803.02750.pdf), Vitor Enes, Paulo Sérgio Almeida, Carlos Baquero, João Leitão (2018)
+- [Delta State Replicated Data Types](https://arxiv.org/pdf/1603.01529.pdf), Paulo Sérgio Almeida, Ali Shoker, Carlos Baquero (2016)
+- [Efficient Reconciliation and Flow Control for Anti-Entropy Protocols](https://www.cs.cornell.edu/home/rvr/papers/flowgossip.pdf), Robbert van Renesse, Dan Dumitriu, Valient Gough, Chris Thomas (2008)
+- [Conflict-free Replicated Data Types](https://hal.inria.fr/inria-00609399v1/document), Marc Shapiro, Nuno Preguiça, Carlos Baquero, Marek Zawirski (2011)
+- [Join Decompositions for Efficient Synchronization of CRDTs after a Network Partition](https://vitorenes.org/publication/enes-join-decompositions/enes-join-decompositions.pdf), Vitor Enes, Carlos Baquero, Paulo Sérgio Almeida, Ali Shoker (2016)
+- [Efficient Synchronization of State-based CRDTs](https://vitorenes.org/page/other/msc-thesis.pdf), Vitor Enes (2017) MSc Thesis
 
 ### Configuration
 - __LDB_MODE__:
