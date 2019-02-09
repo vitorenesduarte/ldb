@@ -9,7 +9,7 @@ LDB supports different CRDT replication models:
 - op-based
 
 ### More info
-- [Efficient Synchronization of State-based CRDTs](https://vitorenes.org/publication/enes-efficient-synchronization/) Vitor Enes, Paulo Sérgio Almeida, Carlos Baquero, João Leitão. In _ICDE_, 2019
+- [Efficient Synchronization of State-based CRDTs](https://vitorenes.org/publication/enes-efficient-synchronization/enes-efficient-synchronization.pdf) Vitor Enes, Paulo Sérgio Almeida, Carlos Baquero, João Leitão. In _ICDE_, 2019
 - [Delta State Replicated Data Types](https://arxiv.org/pdf/1603.01529.pdf), Paulo Sérgio Almeida, Ali Shoker, Carlos Baquero. In _J. Parallel Distrib. Comput._, 2018
 - [Efficient Reconciliation and Flow Control for Anti-Entropy Protocols](https://www.cs.cornell.edu/home/rvr/papers/flowgossip.pdf), Robbert van Renesse, Dan Dumitriu, Valient Gough, Chris Thomas. In _LADIS_, 2008.
 - [Conflict-free Replicated Data Types](https://hal.inria.fr/inria-00609399v1/document), Marc Shapiro, Nuno Preguiça, Carlos Baquero, Marek Zawirski. In _SSS_, 2011.
