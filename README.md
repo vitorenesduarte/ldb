@@ -8,7 +8,6 @@ LDB supports different CRDT replication models:
 - scuttebutt-based
 - op-based
 
-
 ### More info
 - [Efficient Synchronization of State-based CRDTs](https://vitorenes.org/publication/enes-efficient-synchronization/) Vitor Enes, Paulo Sérgio Almeida, Carlos Baquero, João Leitão. In _ICDE_, 2019
 - [Delta State Replicated Data Types](https://arxiv.org/pdf/1603.01529.pdf), Paulo Sérgio Almeida, Ali Shoker, Carlos Baquero. In _J. Parallel Distrib. Comput._, 2018
@@ -49,3 +48,6 @@ avoids back-propagation of delta-groups
 - __LDB_DGROUP_BACK_PROPAGATION__: `false`
 - __LDB_SCUTTLEBUTT_GC__: `false`
 - __LDB_OP_II__: `false`
+
+#### Experiments
+Please check [https://github.com/vitorenesduarte/exp](https://github.com/vitorenesduarte/exp).
