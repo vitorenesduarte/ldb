@@ -10,12 +10,12 @@ LDB supports different CRDT replication models:
 
 
 ### More info
-- [Efficient Synchronization of State-based CRDTs](https://arxiv.org/pdf/1803.02750.pdf), Vitor Enes, Paulo Sérgio Almeida, Carlos Baquero, João Leitão (2018)
-- [Delta State Replicated Data Types](https://arxiv.org/pdf/1603.01529.pdf), Paulo Sérgio Almeida, Ali Shoker, Carlos Baquero (2016)
-- [Efficient Reconciliation and Flow Control for Anti-Entropy Protocols](https://www.cs.cornell.edu/home/rvr/papers/flowgossip.pdf), Robbert van Renesse, Dan Dumitriu, Valient Gough, Chris Thomas (2008)
-- [Conflict-free Replicated Data Types](https://hal.inria.fr/inria-00609399v1/document), Marc Shapiro, Nuno Preguiça, Carlos Baquero, Marek Zawirski (2011)
-- [Join Decompositions for Efficient Synchronization of CRDTs after a Network Partition](https://vitorenes.org/publication/enes-join-decompositions/enes-join-decompositions.pdf), Vitor Enes, Carlos Baquero, Paulo Sérgio Almeida, Ali Shoker (2016)
-- [Efficient Synchronization of State-based CRDTs](https://vitorenes.org/page/other/msc-thesis.pdf), Vitor Enes (2017) MSc Thesis
+- [Efficient Synchronization of State-based CRDTs](https://vitorenes.org/publication/enes-efficient-synchronization/) Vitor Enes, Paulo Sérgio Almeida, Carlos Baquero, João Leitão. In _ICDE_, 2019
+- [Delta State Replicated Data Types](https://arxiv.org/pdf/1603.01529.pdf), Paulo Sérgio Almeida, Ali Shoker, Carlos Baquero. In _J. Parallel Distrib. Comput._, 2018
+- [Efficient Reconciliation and Flow Control for Anti-Entropy Protocols](https://www.cs.cornell.edu/home/rvr/papers/flowgossip.pdf), Robbert van Renesse, Dan Dumitriu, Valient Gough, Chris Thomas. In _LADIS_, 2008.
+- [Conflict-free Replicated Data Types](https://hal.inria.fr/inria-00609399v1/document), Marc Shapiro, Nuno Preguiça, Carlos Baquero, Marek Zawirski. In _SSS_, 2011.
+- [Join Decompositions for Efficient Synchronization of CRDTs after a Network Partition](https://vitorenes.org/publication/enes-join-decompositions/enes-join-decompositions.pdf), Vitor Enes, Carlos Baquero, Paulo Sérgio Almeida, Ali Shoker. In _PMLDC@ECOOP_, 2016.
+- [Efficient Synchronization of State-based CRDTs](https://vitorenes.org/page/other/msc-thesis.pdf), Vitor Enes. Msc Thesis, 2017.
 
 ### Configuration
 - __LDB_MODE__:
